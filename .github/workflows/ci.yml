@@ -34,7 +34,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Run EVE against the mock app
-        run: node bin/eve.js run mock: --persona curious-explorer --steps 20 --quiet
+        # Quoted: the bare "mock:" token would otherwise be parsed as a YAML mapping.
+        run: "node bin/eve.js run mock: --persona curious-explorer --steps 20 --quiet"
       - uses: actions/upload-artifact@v4
         with:
           name: eve-demo-report
