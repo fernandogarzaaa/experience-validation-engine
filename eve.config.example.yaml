@@ -1,0 +1,67 @@
+# Experience Validation Engine — configuration reference
+# Run with: eve run --config eve.config.example.yaml
+# Every key except `url` is optional; defaults shown in comments.
+
+# The application under evaluation. Use "mock:" for the built-in offline demo app.
+url: https://staging.your-app.example.com
+
+# Who is using it. Built-in personas: eve personas
+persona: first-time-user                # default: first-time-user
+
+# Convenience override of the persona's patience trait (0..1).
+# patience: 0.3
+
+# What they are trying to do. Omit for open-ended exploration.
+goal: "sign up and create my first project"
+goalSuccessSignals:                     # text whose appearance = success
+  - "project created"
+
+# Browser layer: playwright | puppeteer | selenium | mock
+browser: playwright                      # default: playwright
+headless: true                           # default: true
+viewport:
+  width: 1280                            # default: 1280
+  height: 800                            # default: 800
+
+# Simulated network/latency tolerance is a persona trait; pacing of the real
+# browser is controlled here. 1 = real human speed, 0 = as fast as possible.
+paceScale: 0.15                          # default: 0.15
+
+# Budgets.
+maxSteps: 60                             # default: 60
+maxDurationMinutes: 10                   # default: 10
+
+# How the operator explores when the goal is open-ended:
+# curious | systematic | goal-directed
+explorationStrategy: curious             # default: curious
+
+# Reproducibility: same seed + same app state = same session.
+seed: 42
+
+screenshots: true                        # default: true
+outputDir: .eve-output                   # default: .eve-output
+verbosity: normal                        # quiet | normal | verbose
+
+# Language hint for reports (informational).
+language: en
+
+plugins:
+  accessibility: true                    # default: true
+  performance: true                      # default: true
+  llmCritic: false                       # or: { model: claude-opus-4-8, maxScreens: 5 }
+
+# LLM-backed cognition (requires @anthropic-ai/sdk + ANTHROPIC_API_KEY).
+# The default heuristic cognition is fully offline.
+llmCognition: false                      # or: { model: claude-opus-4-8 }
+
+# Inline custom personas (same schema as definePersona()).
+customPersonas:
+  - name: night-shift-nurse
+    description: Time-pressed, careful, tired.
+    traits:
+      patience: 0.25
+      riskTolerance: 0.15
+      readingSpeedWpm: 260
+    disposition:
+      fatigue: 0.5
+      stress: 0.45

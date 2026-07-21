@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+*.log
+.eve-output/
+.DS_Store
+*.tsbuildinfo
