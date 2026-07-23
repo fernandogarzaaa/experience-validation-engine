@@ -10,10 +10,15 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js"
     }
   },
   "bin": {
-    "eve": "./bin/eve.js"
+    "eve": "./bin/eve.js",
+    "eve-mcp": "./bin/eve-mcp.js"
   },
   "files": [
     "dist",
@@ -26,6 +31,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "mcp": "node bin/eve-mcp.js",
+    "mcp:smoke": "node scripts/mcp-smoke.mjs",
     "lint": "tsc --noEmit"
   },
   "engines": {
@@ -40,15 +47,21 @@
     "browser-automation",
     "experience-validation",
     "accessibility",
-    "ai-agent"
+    "ai-agent",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "plugin"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fernandogarzaaa/experience-validation-engine.git"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "pngjs": "^7.0.0",
-    "yaml": "^2.4.0"
+    "yaml": "^2.4.0",
+    "zod": "^3.25.76"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.30.0",

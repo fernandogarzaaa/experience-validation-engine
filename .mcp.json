@@ -1,0 +1,9 @@
+{
+  "$comment": "Drop-in MCP server config. Works in Claude Code and any client that reads .mcp.json. From THIS repo: run `npm install && npm run build` once, then the paths below resolve. For an external project, replace command/args with: \"command\": \"npx\", \"args\": [\"-y\", \"experience-validation-engine\", \"eve-mcp\"].",
+  "mcpServers": {
+    "eve": {
+      "command": "node",
+      "args": ["bin/eve-mcp.js"]
+    }
+  }
+}

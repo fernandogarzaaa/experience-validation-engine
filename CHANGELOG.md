@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### MCP server & AI-platform plugin
+
+EVE is now usable **inside any AI assistant** that speaks the Model Context
+Protocol (Claude Desktop, Claude Code, OpenAI Codex, Cursor, Windsurf, VS Code
+Copilot, …), with no change to the existing library or CLI.
+
+- **`eve-mcp` server** (`src/mcp/`, new `eve-mcp` bin) — a stdio MCP server
+  exposing six tools: `eve_run_session`, `eve_list_personas`,
+  `eve_list_professions`, `eve_list_cultures`, `eve_benchmark`, and
+  `eve_get_report`. It calls the engine in-process (no stdout pollution) and
+  returns markdown or JSON. Importable via `experience-validation-engine/mcp`.
+- **Claude Code plugin** — `.claude-plugin/plugin.json` +
+  `marketplace.json` (install via `/plugin marketplace add` + `/plugin
+  install eve`), bundling the MCP server and an MCP-oriented `eve` skill.
+- **Drop-in configs** — a committed `.mcp.json` plus
+  [docs/integrations.md](docs/integrations.md) with copy-paste setup for every
+  major client.
+- 10 new offline tests (`tests/mcp.test.ts`); dependencies
+  `@modelcontextprotocol/sdk` and `zod` added.
+
 ## 0.2.0 — The cognitive model
 
 Evolves EVE from a persona-driven heuristic agent into a research platform for
