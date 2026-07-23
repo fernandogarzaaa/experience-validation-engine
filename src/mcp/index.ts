@@ -10,6 +10,7 @@
 export { createServer, main } from "./server.js";
 export {
   runSession,
+  runUsabilityStudy,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -21,12 +22,14 @@ export {
 } from "./tools.js";
 export {
   RunSessionSchema,
+  RunUsabilityStudySchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
   ResponseFormat,
   BrowserBackend,
   type RunSessionInput,
+  type RunUsabilityStudyInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,

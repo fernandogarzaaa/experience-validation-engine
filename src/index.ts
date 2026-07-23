@@ -90,3 +90,9 @@ export * from "./benchmarks/index.js";
 
 // Phase-2: collaborative multi-operator sessions
 export * from "./collaborative/index.js";
+
+// Phase-3: population simulation (many operators → statistical usability study)
+export * from "./population/index.js";
+
+// Phase-3: research-mode dataset export (JSON / CSV / Markdown)
+export * from "./research/index.js";

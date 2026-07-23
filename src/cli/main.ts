@@ -28,6 +28,8 @@ import { writeReports } from "../reporting/index.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { validateBenchmarks } from "../benchmarks/index.js";
 import { runPanel } from "../panel/index.js";
+import { simulatePopulation } from "../population/index.js";
+import { writeStudyDataset, renderStudyJson, renderStudyMarkdown } from "../research/index.js";
 
 /**
  * The `eve` CLI.
@@ -41,6 +43,7 @@ const HELP = `eve — Experience Validation Engine ("AI that experiences softwar
 
 Usage:
   eve run <url> [options]     Run a simulated-human session against a URL
+  eve study <url> [options]   Run a population usability study (many operators)
   eve personas                List built-in personas
   eve professions             List professional overlays
   eve cultures                List cultural profiles
@@ -72,11 +75,28 @@ Options for "run":
   --out <dir>           Output directory (default .eve-output)
   --quiet               Only print the final summary
 
+Options for "study" (population usability study):
+  --size <n>            Number of simulated operators (default 25)
+  --personas <a,b,c>    Persona pool to sample (default: whole library)
+  --professions <a,b>   Professional overlays to mix (comma-separated)
+  --cultures <a,b>      Cultural profiles to mix (comma-separated)
+  --goal <text>         Task every operator attempts
+  --seed <value>        Base reproducibility seed
+  --steps <n>           Max steps per operator (default 60)
+  --cognitive           Enable the enhanced cognitive suite
+  --utility             Use utility-based decision-making
+  --concurrency <n>     Operators to run in parallel (default 4)
+  --out <dir>           Write the research dataset here (study.json/csv/md)
+  --format <fmt>        Console output: markdown | json (default markdown)
+  --quiet               Suppress per-operator progress
+
 Examples:
   eve run https://myapp.example.com --persona impatient-user --goal "sign up for an account"
   eve run mock: --persona curious-explorer --cognitive --utility
   eve run mock: --persona office-worker --profession accountant --culture de-DE
   eve run mock: --remember .eve-memory.json --seed 1   # run repeatedly to see learning
+  eve study mock: --size 50 --seed 7 --out .eve-output/study
+  eve study https://myapp.example.com --goal "sign up" --professions accountant,designer
 `;
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
@@ -117,6 +137,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     }
     process.stdout.write(`\n${validation.summary}\n`);
     return validation.ordered ? 0 : 1;
+  }
+
+  if (command === "study") {
+    return runStudyCommand(rest);
   }
 
   if (command !== "run") {
@@ -281,6 +305,81 @@ function parsePositiveInt(value: string, flag: string): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) throw new Error(`${flag} must be a positive number`);
   return n;
+}
+
+function splitList(value: string | undefined): string[] | undefined {
+  if (!value) return undefined;
+  const items = value.split(",").map((s) => s.trim()).filter(Boolean);
+  return items.length ? items : undefined;
+}
+
+/** `eve study` — run a population usability study and report the aggregate. */
+async function runStudyCommand(rest: readonly string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: [...rest],
+    allowPositionals: true,
+    options: {
+      size: { type: "string" },
+      personas: { type: "string" },
+      professions: { type: "string" },
+      cultures: { type: "string" },
+      goal: { type: "string" },
+      seed: { type: "string" },
+      steps: { type: "string" },
+      cognitive: { type: "boolean" },
+      utility: { type: "boolean" },
+      concurrency: { type: "string" },
+      out: { type: "string" },
+      format: { type: "string" },
+      quiet: { type: "boolean" },
+    },
+  });
+
+  const url = positionals[0];
+  if (!url) {
+    process.stderr.write(`"eve study" needs a URL (or mock:).\n`);
+    return 2;
+  }
+  const format = values.format ?? "markdown";
+  if (format !== "markdown" && format !== "json") {
+    process.stderr.write(`--format must be "markdown" or "json".\n`);
+    return 2;
+  }
+
+  try {
+    const study = await simulatePopulation({
+      url,
+      size: values.size ? parsePositiveInt(values.size, "--size") : undefined,
+      personas: splitList(values.personas),
+      professions: splitList(values.professions),
+      cultures: splitList(values.cultures),
+      goal: values.goal,
+      seed: values.seed ? (/^\d+$/.test(values.seed) ? Number(values.seed) : values.seed) : undefined,
+      maxSteps: values.steps ? parsePositiveInt(values.steps, "--steps") : undefined,
+      cognitive: Boolean(values.cognitive),
+      utility: Boolean(values.utility),
+      concurrency: values.concurrency ? parsePositiveInt(values.concurrency, "--concurrency") : undefined,
+      onProgress: values.quiet
+        ? undefined
+        : (done, total) => {
+            if (done === total || done % 10 === 0) process.stderr.write(`  ${done}/${total} operators\n`);
+          },
+    });
+
+    if (values.out) {
+      const written = await writeStudyDataset(study, values.out);
+      process.stderr.write(`\nDataset written: ${written.markdown} · ${written.csv} · ${written.json}\n`);
+    }
+
+    process.stdout.write(
+      (format === "json" ? renderStudyJson(study) : renderStudyMarkdown(study)) + "\n",
+    );
+    // Non-zero exit if most of the population fails — CI-gate friendly.
+    return study.successRate < 0.5 ? 1 : 0;
+  } catch (err) {
+    process.stderr.write(`\nEVE study failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    return 1;
+  }
 }
 
 /** Serialize the parts of a config that resolveConfig re-validates. */

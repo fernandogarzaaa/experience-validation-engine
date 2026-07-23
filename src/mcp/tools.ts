@@ -21,6 +21,9 @@ import { EveSession, type SessionResult } from "../engine/session.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { validateBenchmarks } from "../benchmarks/index.js";
 import { writeReports } from "../reporting/index.js";
+import { simulatePopulation } from "../population/index.js";
+import type { AdapterName } from "../browser/index.js";
+import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import {
   getPersona,
   listPersonas,
@@ -33,6 +36,7 @@ import {
 } from "../personas/index.js";
 import type {
   RunSessionInput,
+  RunUsabilityStudyInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -297,6 +301,50 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
   );
 
   return { markdown: truncate(lines.join("\n")), structured };
+}
+
+/**
+ * Run a population usability study: simulate many varied operators against the
+ * same app and aggregate the results statistically. Optionally writes the full
+ * research dataset (JSON/CSV/Markdown) to disk.
+ */
+export async function runUsabilityStudy(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation({
+    url: input.url,
+    size: input.size,
+    personas: input.personas.length ? input.personas : undefined,
+    professions: input.professions.length ? input.professions : undefined,
+    cultures: input.cultures.length ? input.cultures : undefined,
+    goal: input.goal,
+    goalSuccessSignals: input.goal_success_signals,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    cognitive: input.cognitive,
+    utility: input.utility,
+    browser: input.browser as AdapterName | undefined,
+    concurrency: input.concurrency,
+  });
+
+  let dataset: { json: string; csv: string; markdown: string } | null = null;
+  if (input.output_dir) dataset = await writeStudyDataset(study, input.output_dir);
+
+  // Keep the inline structured payload bounded: summary + a sample of
+  // operators, with the full per-operator table available in the CSV/JSON.
+  const { operators, ...summary } = study;
+  const structured: Record<string, unknown> = {
+    ...summary,
+    operatorSample: operators.slice(0, 10),
+    operatorCount: operators.length,
+    dataset,
+  };
+
+  const markdown = truncate(
+    renderStudyMarkdown(study) +
+      (dataset
+        ? `\n\nResearch dataset written to: ${dataset.markdown} · ${dataset.csv} · ${dataset.json}`
+        : ""),
+  );
+  return { markdown, structured };
 }
 
 /** List the built-in personas. */

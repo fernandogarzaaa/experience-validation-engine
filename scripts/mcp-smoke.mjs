@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const EXPECTED = [
   "eve_run_session",
+  "eve_run_usability_study",
   "eve_list_personas",
   "eve_list_professions",
   "eve_list_cultures",

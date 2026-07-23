@@ -117,9 +117,9 @@ describe("mcp eve_benchmark", () => {
 });
 
 describe("mcp server registration", () => {
-  it("registers exactly the six EVE tools", () => {
-    // createServer wires all tools without throwing; the smoke path exercises
-    // the SDK registration surface.
+  it("registers the EVE tools without throwing", () => {
+    // createServer wires all tools without throwing; the protocol-level smoke
+    // test (scripts/mcp-smoke.mjs) asserts the exact advertised tool set.
     expect(() => createServer()).not.toThrow();
   });
 });

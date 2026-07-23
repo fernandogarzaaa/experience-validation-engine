@@ -17,17 +17,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import {
   RunSessionSchema,
+  RunUsabilityStudySchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
   ResponseFormat,
   type RunSessionInput,
+  type RunUsabilityStudyInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
 } from "./schemas.js";
 import {
   runSession,
+  runUsabilityStudy,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -96,6 +99,37 @@ export function createServer(): McpServer {
     async (input: RunSessionInput) => {
       try {
         return respond(await runSession(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_run_usability_study",
+    {
+      title: "Run a population usability study",
+      description:
+        "Simulate a whole population of varied operators (different personas, " +
+        "confidence, patience, professions, cultures) against the same app and " +
+        "aggregate the results into a statistical usability study: success and " +
+        "drop-off rates, confidence/frustration/trust distributions, a " +
+        "task-completion histogram, a navigation heatmap, the expected user " +
+        "segments, and the findings most humans hit. This is what you run before " +
+        "shipping to answer 'how will the distribution of real users fare?' — " +
+        "the population analogue of eve_run_session. Offline with `mock:`. Set " +
+        "output_dir to also write the full research dataset (JSON/CSV/Markdown).",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runUsabilityStudy(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

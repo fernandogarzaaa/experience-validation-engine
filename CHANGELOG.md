@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Phase 3 — Population simulation & Research Mode
+
+The first Phase 3 system: EVE now runs **populations**, not just individuals —
+the "usability study" primitive of an autonomous UX research platform.
+
+- **`simulatePopulation(options)`** (`src/population/`) — runs many varied
+  operators (sampled across the persona library, optionally mixed with
+  professions and cultures) against one app and aggregates them into a
+  `PopulationStudy`: success/drop-off rates, overall-score and
+  confidence/frustration/trust **distributions**, a task-completion
+  **histogram**, a navigation **heatmap** (visits, reach, drop-off screens),
+  the expected **user segments**, and findings ranked by population
+  **prevalence**. Bounded-concurrency, and as reproducible as its seed.
+- **Research Mode** (`src/research/`) — export any study to reproducible
+  artifacts: `renderStudy`/`writeStudyDataset` produce a JSON snapshot, an
+  operator-level **CSV** (pandas/R-ready), and a Markdown report.
+- **MCP tool `eve_run_usability_study`** — the population study exposed to any
+  MCP client (7 tools total now).
+- **CLI `eve study`** — `eve study <url> --size 50 --seed 7 --out dir`, with a
+  CI-friendly exit code (non-zero if <50% of the population succeeds).
+- **Construct validity** — a population out-scores a bad app vs. an excellent
+  one, the standing validity check (EVE Bench). 14 new tests
+  (`tests/population.test.ts`), plus `examples/population-study.ts` and
+  `docs/population.md`.
+
 ### MCP server & AI-platform plugin
 
 EVE is now usable **inside any AI assistant** that speaks the Model Context

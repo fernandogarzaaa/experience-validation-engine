@@ -137,6 +137,78 @@ export const RunSessionSchema = z
   })
   .strict();
 
+/** `eve_run_usability_study` — simulate a population and aggregate it. */
+export const RunUsabilityStudySchema = z
+  .object({
+    url: z
+      .string()
+      .min(1)
+      .describe(
+        "Target to study. A real URL drives real browsers (one per operator), " +
+          "or `mock:` runs EVE's offline demo app.",
+      ),
+    size: z
+      .number()
+      .int()
+      .min(2)
+      .max(200)
+      .default(25)
+      .describe("Number of simulated operators in the population (2–200)."),
+    personas: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "Persona names to sample from (round-robin). Empty = the whole " +
+          "built-in library, giving a diverse population.",
+      ),
+    professions: z
+      .array(z.string())
+      .default([])
+      .describe("Professional overlays to mix across the population (optional)."),
+    cultures: z
+      .array(z.string())
+      .default([])
+      .describe("Cultural profiles / locales to mix across the population (optional)."),
+    goal: z
+      .string()
+      .optional()
+      .describe("The task every operator attempts. Omit for open-ended exploration."),
+    goal_success_signals: z
+      .array(z.string())
+      .default([])
+      .describe("Visible text that all must appear for the goal to count as achieved."),
+    seed: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe("Base seed; each operator derives a distinct seed. Set for reproducibility."),
+    max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps per operator."),
+    cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
+    utility: z.boolean().default(false).describe("Use utility-based decisions."),
+    browser: z
+      .nativeEnum(BrowserBackend)
+      .optional()
+      .describe("Browser backend (defaults to mock for `mock:` URLs, else playwright)."),
+    concurrency: z
+      .number()
+      .int()
+      .min(1)
+      .max(16)
+      .default(4)
+      .describe("How many operators to run concurrently."),
+    output_dir: z
+      .string()
+      .optional()
+      .describe(
+        "If set, write the full research dataset (study.json, operators.csv, " +
+          "study.md) here.",
+      ),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' report or 'json' aggregate."),
+  })
+  .strict();
+
 /** Shared shape for the catalog-listing tools. */
 export const ListSchema = z
   .object({
@@ -182,6 +254,7 @@ export const GetReportSchema = z
   .strict();
 
 export type RunSessionInput = z.infer<typeof RunSessionSchema>;
+export type RunUsabilityStudyInput = z.infer<typeof RunUsabilityStudySchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;

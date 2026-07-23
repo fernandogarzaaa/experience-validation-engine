@@ -32,6 +32,13 @@ prefer them over shelling out.
   - `remember_file`: persist memory across runs — call repeatedly against the
     same app to watch the operator learn (get faster).
   - Writes the full report to `output_dir` (default `.eve-output`).
+- **`eve_run_usability_study`** — simulate a whole **population** of varied
+  operators against the app and get aggregate stats (success/drop-off rates,
+  distributions, a task-completion histogram, a navigation heatmap, expected
+  user segments, and the findings most people hit). Use this instead of a
+  single session when the user wants "how will *users* fare?" rather than "how
+  did this one persona do?". Set `output_dir` to also write a research dataset
+  (JSON/CSV/Markdown).
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps
