@@ -21,6 +21,21 @@ export interface CognitiveContext {
   readonly step: number;
   /** Ms elapsed since session start. */
   readonly elapsedMs: number;
+
+  /* --- Optional phase-2 enrichments (populated when the enhanced cognitive
+     suite is enabled; phase-1 policies ignore them). --- */
+
+  /** Current overall trust in the application, 0..1. */
+  readonly trust?: number;
+  /** Extraneous cognitive load index (0..100) of the current screen. */
+  readonly cognitiveLoadIndex?: number;
+  /** Accumulated decision fatigue, 0..1. */
+  readonly decisionFatigue?: number;
+  /**
+   * Cross-session recall for an element label: 0..1 belief, from long-term
+   * memory, that acting on this label previously led somewhere useful.
+   */
+  readonly recall?: (label: string) => number;
 }
 
 export interface Decision {

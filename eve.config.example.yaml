@@ -54,6 +54,28 @@ plugins:
 # The default heuristic cognition is fully offline.
 llmCognition: false                      # or: { model: claude-opus-4-8 }
 
+# --- Phase-2 cognitive systems (all opt-in; default off = phase-1 behavior) ---
+
+# Enable selective attention, cognitive-load estimation, the trust model and
+# the expectation engine.
+cognitive: false                         # default: false
+
+# Use utility-based decision-making (weights driven by emotion/trust/fatigue)
+# instead of the salience-heuristic choice.
+utilityDecisions: false                  # default: false
+
+# Cultural profile: reading direction, date/currency/number formats, privacy
+# expectations. One of: en-US en-GB de-DE fr-FR ja-JP ar-SA he-IL
+# culture: de-DE
+
+# Professional overlay: domain vocabulary, workflow priorities, habits.
+# One of: doctor teacher lawyer designer accountant student salesperson executive
+# profession: accountant
+
+# Persistent cross-session memory. Point at a JSON file and run repeatedly
+# against the same app to see the operator learn and speed up.
+# longTermMemoryPath: .eve-memory.json
+
 # Inline custom personas (same schema as definePersona()).
 customPersonas:
   - name: night-shift-nurse

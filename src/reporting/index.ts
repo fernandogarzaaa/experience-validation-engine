@@ -9,6 +9,7 @@ export { buildReport } from "./report.js";
 export type { ExperienceReport } from "./report.js";
 export { renderMarkdown } from "./markdown.js";
 export { renderHtml } from "./html.js";
+export { renderPanelMarkdown } from "./panelReport.js";
 
 /** JSON rendering strips raw screenshot buffers (kept in HTML instead). */
 export function renderJson(report: ExperienceReport): string {

@@ -1,8 +1,27 @@
 # Roadmap
 
-EVE 0.1 ships the complete cognitive simulation core. This roadmap describes
+EVE 0.1 shipped the cognitive simulation core; **0.2 shipped the enhanced
+cognitive model and analysis platform** (see below). This roadmap describes
 where the project goes next, in rough priority order. Items marked 🤝 are
 great first contributions.
+
+## Delivered in 0.2
+
+- ✅ Long-term cross-session memory + learning metrics (Learning Rate,
+  Retention, Recognition-vs-Recall, forgetting curve)
+- ✅ Selective attention (fixations, change/inattentional blindness)
+- ✅ Utility-based decision model (emotion-modulated weights)
+- ✅ Expectation engine (multi-dimensional predict → score)
+- ✅ Cognitive Load Index + decision fatigue
+- ✅ Trust model (asymmetric build/break)
+- ✅ Social (professions) and cultural personas
+- ✅ Behavioral & temporal regression
+- ✅ Experience forecasting
+- ✅ User-journey discovery
+- ✅ AI panel: design critic, moderator, product manager, developer
+- ✅ Collaborative multi-operator sessions
+- ✅ Benchmark suite + construct-validity harness
+- ✅ Localization plugin
 
 ## 0.2 — Perception depth
 

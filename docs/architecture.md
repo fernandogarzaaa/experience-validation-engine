@@ -54,6 +54,7 @@ Two consequences:
 src/
 ├── core/          Types, seeded RNG, typed event bus
 ├── engine/        EveSession: the human loop orchestrator
+│                  + cognitiveSuite: phase-2 per-step subsystems (opt-in)
 ├── browser/       Adapters (Playwright/Puppeteer/Selenium/Mock),
 │                  perception script, humanizer (motor noise, typos)
 ├── observation/   Percept construction + perceived-latency measurement
@@ -61,18 +62,47 @@ src/
 │                  geometry analysis: overflow, overlap, misalignment;
 │                  color-vision simulation
 ├── personas/      Trait model + 17 built-in personas + trait→behavior math
+│                  + professions (social overlays) + cultures (locale profiles)
 ├── cognition/     Mental model, salience, prediction/comparison,
-│                  HeuristicCognition (default), LlmCognition (optional)
+│                  HeuristicCognition (default), LlmCognition,
+│                  UtilityCognition (utility-based decisions),
+│                  attention (selective attention), expectation engine,
+│                  cognitiveLoad (Cognitive Load Index)
 ├── planning/      Goal stack, keyword semantics, exploration strategies
-├── memory/        Working / episodic / semantic / spatial memory + forgetting
+├── memory/        Working / episodic / semantic / spatial memory + forgetting;
+│                  longTerm (persistent cross-session store) + learning metrics
 ├── emotion/       9-emotion state vector + appraisal rules + decay
-├── workflow/      Workflow signature catalog, detector, discovered graph
+│                  + trust model (predictability/consistency/recovery/...)
+├── workflow/      Workflow signature catalog, detector, graph, journey discovery
 ├── scoring/       Evidence-backed 16-dimension scoring
-├── plugins/       Plugin contract + accessibility/performance/LLM-critic
-├── reporting/     Report assembly + HTML/Markdown/JSON renderers
+├── regression/    Temporal + behavioral experience regression
+├── forecasting/   Predict future struggle / abandonment / confidence drains
+├── panel/         AI panel: design critic, moderator, product manager, developer
+├── benchmarks/    Known-quality apps + construct-validity harness
+├── collaborative/ Multi-operator sessions, handoffs, approval chains
+├── plugins/       Plugin contract + accessibility/performance/LLM-critic/localization
+├── reporting/     Report assembly + HTML/Markdown/JSON + panel renderer
 ├── config/        YAML config schema + validation
 └── cli/           The `eve` command
 ```
+
+## Phase 2: the enhanced cognitive model
+
+Phase 2 evolves the operator from a heuristic agent toward an inspectable
+cognitive simulation, all **opt-in and backwards-compatible** (default
+`EveSession` behavior is unchanged; the 59 phase-1 tests still pass). The
+per-step subsystems — selective attention, utility-based decisions, the
+expectation engine, cognitive-load estimation and the trust model — are
+bundled in `engine/cognitiveSuite.ts` and activated by the `cognitive` option.
+Cross-session learning is activated by supplying a `longTermMemory` store.
+See [cognitive-model.md](./cognitive-model.md) and
+[panel-and-analysis.md](./panel-and-analysis.md) for the full treatment, and
+[research.md](./research.md) for the literature grounding every model.
+
+The phase-1 `HeuristicCognition` was refactored to expose a single protected
+`chooseAffordance` hook; `UtilityCognition` overrides only that step, reusing
+the entire priority cascade — so the utility policy is a decision-model
+upgrade, not a rewrite.
 
 ### Dependency rules (clean architecture)
 

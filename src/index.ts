@@ -34,6 +34,8 @@ export type { EveEventMap, EveEventName } from "./core/events.js";
 // Engine
 export { EveSession } from "./engine/session.js";
 export type { SessionOptions, SessionResult } from "./engine/session.js";
+export { CognitiveSuite } from "./engine/cognitiveSuite.js";
+export type { CognitiveConfig, CognitiveLoadTimeline } from "./engine/cognitiveSuite.js";
 
 // Personas
 export * from "./personas/index.js";
@@ -73,3 +75,18 @@ export * from "./reporting/index.js";
 
 // Configuration
 export * from "./config/index.js";
+
+// Phase-2: experience & behavioral regression
+export * from "./regression/index.js";
+
+// Phase-2: experience forecasting
+export * from "./forecasting/index.js";
+
+// Phase-2: AI evaluation panel (design critic, moderator, PM, developer)
+export * from "./panel/index.js";
+
+// Phase-2: benchmark suite
+export * from "./benchmarks/index.js";
+
+// Phase-2: collaborative multi-operator sessions
+export * from "./collaborative/index.js";

@@ -8,3 +8,5 @@ export type {
   WorkflowTransition,
   DiscoveredWorkflow,
 } from "./graph.js";
+export { discoverJourney, inferJourneyIntent } from "./journeys.js";
+export type { DiscoveredJourney, JourneyStep } from "./journeys.js";

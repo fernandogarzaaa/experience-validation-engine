@@ -117,6 +117,55 @@ signatures.
 - `loadConfigFile(path): Promise<EveConfig>` — YAML.
 - `DEFAULT_CONFIG`, `ConfigError`.
 
+## Phase 2 — enhanced cognition & analysis
+
+All phase-2 surface is exported from the package root and is opt-in;
+nothing here changes a default (phase-1) session.
+
+### Enhanced session options & results
+
+`SessionOptions` gains: `cognitive?: boolean | CognitiveConfig`,
+`longTermMemory?: PersistentMemory`, `culture?: CultureProfile | string`.
+`SessionResult` gains: `capturedScreens` (always), and — when enabled —
+`trustTimeline`, `cognitiveLoad`, `attention`, `expectationTimeline`,
+`learningMetrics`, `journey`, `culture`.
+
+- `UtilityCognition(strategy?)` — `DecisionPolicy` using utility-based choice
+  (softmax over emotion-weighted expected value); drop-in for `policy`.
+- `CognitiveSuite`, `CognitiveConfig`, `CognitiveLoadTimeline` — the
+  per-step subsystem bundle (attention, cognitive load, trust, expectation).
+
+### Long-term memory & learning
+
+- `interface PersistentMemory` — `load()`, `save(memory)`.
+- `InMemoryStore()`, `FileMemoryStore(path)` — implementations; pass as
+  `longTermMemory`.
+- `ApplicationMemory`, `emptyApplicationMemory()`,
+  `computeLearningMetrics(memory) → LearningMetrics`.
+
+### Social & cultural overlays
+
+- `listProfessions()`, `getProfession(name)`,
+  `applyProfession(persona, profession) → Persona`.
+- `getCulture(locale)`, `CultureProfile`, `withCulture`, `cultureOf`,
+  `CULTURES`, `DEFAULT_CULTURE`.
+
+### Regression, forecasting, panel, benchmarks, collaboration
+
+- `compareExperience(baseline, candidate, labels?) → RegressionReport`
+  (`verdict: "improved" | "unchanged" | "regressed"`, `deltas`,
+  `regressions`); `extractMetrics(result) → ExperienceMetrics`.
+- `forecastExperience(sessions) → ExperienceForecast`.
+- `runPanel(sessions) → PanelResult` (`{ executive, critique, forecast,
+  plan, tickets }`); building blocks `critiqueDesign`, `forecastExperience`,
+  `moderatePanel`, `buildProductPlan`, `generateTickets`; exporters
+  `toGitHubIssues`, `toLinearIssues`, `toJiraIssues`, `toMarkdownTasks`;
+  `renderPanelMarkdown(panel)`.
+- `validateBenchmarks(options?) → BenchmarkValidation`; `BENCHMARK_APPS`,
+  `EXCELLENT_APP`, `AVERAGE_APP`, `BAD_APP`, `BenchmarkTier`.
+- `runCollaborative(scenario) → CollaborativeResult` — multi-operator
+  handoff / approval chains.
+
 ## Core utilities
 
 - `createRng(seed)`, `seedFromString(text)` — deterministic randomness.

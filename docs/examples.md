@@ -10,6 +10,10 @@ four are fully offline (mock adapter).
 | `compare-personas.ts` | Same app, four personas — who does your product fail? |
 | `custom-plugin.ts` | A tone-of-voice plugin reporting persona-relative findings |
 | `real-browser.ts` | Playwright against a live URL with screenshots |
+| `learning-across-sessions.ts` | Phase 2: an operator learns an app over 5 sessions (7→5 steps) + learning curve |
+| `ai-panel.ts` | Phase 2: design critic + forecast + moderator + PM backlog + dev tickets |
+| `behavioral-regression.ts` | Phase 2: catch a UX regression that keeps functional tests green |
+| `collaborative-workflow.ts` | Phase 2: multi-operator handoff / approval chain |
 
 ## CLI recipes
 
@@ -33,6 +37,24 @@ eve run https://staging.example.com --headed --persona elderly-user
 
 # Full config file, LLM critique enabled
 eve run --config eve.config.example.yaml --llm-critic
+
+# --- Phase 2 ---
+
+# Full enhanced cognition + utility decisions + the AI panel
+eve run https://staging.example.com --persona first-time-user --cognitive --utility --panel
+
+# A German accountant using the product (profession overlay + locale)
+eve run https://staging.example.com --persona office-worker --profession accountant --culture de-DE
+
+# Learn across runs: run this repeatedly and watch steps/time drop
+eve run https://staging.example.com --remember .eve-memory.json --seed 1 --goal "sign up"
+
+# Validate the instrument against known-quality apps (CI-friendly exit code)
+eve benchmark
+
+# Discover the profession and culture catalogs
+eve professions
+eve cultures
 ```
 
 ## CI gate
