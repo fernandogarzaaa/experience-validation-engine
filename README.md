@@ -154,10 +154,39 @@ eve run mock: --remember .eve-memory.json --seed 1   # run repeatedly → watch 
 eve benchmark                                         # validate the instrument
 ```
 
+## Use it inside your AI assistant
+
+EVE ships an **MCP server** (`eve-mcp`), so any Model Context Protocol client —
+Claude Desktop, Claude Code, OpenAI Codex, Cursor, Windsurf, VS Code Copilot —
+can drive it directly. Your assistant gains tools like `eve_run_session`,
+`eve_list_personas`, and `eve_benchmark`, then *"run an EVE session against
+`mock:` as a first-time user"* just works (offline, no browser).
+
+```bash
+# Claude Code — one line:
+claude mcp add eve -- npx -y experience-validation-engine eve-mcp
+
+# Claude Code — or install as a plugin (bundles the /eve skill):
+#   /plugin marketplace add fernandogarzaaa/experience-validation-engine
+#   /plugin install eve
+```
+
+For every other client, drop this into its MCP config:
+
+```json
+{ "mcpServers": { "eve": {
+  "command": "npx", "args": ["-y", "experience-validation-engine", "eve-mcp"]
+} } }
+```
+
+See the [Integration Guide](docs/integrations.md) for per-platform config
+(Claude Desktop, Codex, Cursor, Windsurf, VS Code) and the full tool reference.
+
 ## Documentation
 
 | | |
 |---|---|
+| [Integration Guide](docs/integrations.md) | Use EVE as an MCP server / plugin in Claude, Codex, Cursor, … |
 | [Architecture](docs/architecture.md) | The human loop, the retina abstraction, module map |
 | [Cognitive Model (Phase 2)](docs/cognitive-model.md) | Attention, utility, expectation, load, trust, learning |
 | [Analysis Systems (Phase 2)](docs/panel-and-analysis.md) | Regression, forecasting, the AI panel, benchmarks, collaboration |
@@ -194,7 +223,8 @@ src/
 ├── plugins/     accessibility, performance, LLM critic + your own
 ├── reporting/   HTML / Markdown / JSON renderers
 ├── config/      YAML config
-└── cli/         the `eve` command
+├── cli/         the `eve` command
+└── mcp/         the `eve-mcp` Model Context Protocol server
 ```
 
 ## License

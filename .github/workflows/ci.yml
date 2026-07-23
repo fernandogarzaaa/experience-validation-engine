@@ -38,6 +38,8 @@ jobs:
         run: "node bin/eve.js run mock: --persona curious-explorer --steps 20 --cognitive --utility --quiet"
       - name: Validate the benchmark suite (construct validity)
         run: node bin/eve.js benchmark
+      - name: Smoke-test the MCP server (stdio handshake + tools/list)
+        run: npm run mcp:smoke
       - uses: actions/upload-artifact@v4
         with:
           name: eve-demo-report
