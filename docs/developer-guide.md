@@ -108,6 +108,116 @@ patterns:
 - **Population testing**: run the same seed across personas
   (see `examples/compare-personas.ts`) to see who your product fails.
 
+## Phase 2 — enhanced cognition, learning, and the AI panel
+
+Phase 2 is entirely **opt-in**. Every option below defaults to off, so
+existing sessions and reports are byte-for-byte unchanged. Turn a capability
+on only when you want it.
+
+### Enhanced cognition (CLI: `--cognitive`, `--utility`)
+
+```ts
+import { EveSession, MockAdapter, DEMO_APP, UtilityCognition } from "experience-validation-engine";
+
+const result = await new EveSession({
+  adapter: new MockAdapter(DEMO_APP),
+  startUrl: "mock:landing",
+  persona: "first-time-user",
+  cognitive: true,                // selective attention, cognitive load,
+                                  // trust, and the expectation engine
+  policy: new UtilityCognition(), // utility-based choice (softmax over
+                                  // emotion-weighted expected value)
+}).run();
+
+result.cognitiveLoad;       // per-step NASA-TLX-style intrinsic/extraneous load
+result.attention;           // fixations per step + count of missed changes
+result.trustTimeline;       // trust rising/eroding across the session
+result.expectationTimeline; // predictions vs. disconfirmations
+```
+
+Pass `cognitive: { attention: true, cognitiveLoad: false, ... }`
+(`CognitiveConfig`) to enable individual subsystems instead of the whole
+suite.
+
+### Long-term memory & learning (CLI: `--remember <file.json>`)
+
+```ts
+import { InMemoryStore, FileMemoryStore } from "experience-validation-engine";
+
+const store = new FileMemoryStore(".eve-memory.json"); // or new InMemoryStore()
+const result = await new EveSession({
+  adapter, startUrl, persona: "power-user",
+  longTermMemory: store,    // carries learned app knowledge across runs;
+                            // FileMemoryStore loads/persists automatically
+}).run();
+
+result.learningMetrics;     // step/time reduction vs. earlier sessions
+```
+
+Run the same config repeatedly and the operator reaches the goal in fewer
+steps (power law of practice). See `examples/learning-across-sessions.ts`.
+
+### Social & cultural overlays (CLI: `--profession`, `--culture`)
+
+The culture is a session option; the profession is applied to the persona:
+
+```ts
+import { getPersona, getProfession, applyProfession } from "experience-validation-engine";
+
+const result = await new EveSession({
+  adapter, startUrl,
+  persona: applyProfession(getPersona("office-worker"), getProfession("accountant")),
+  culture: "de-DE",         // reading direction, formality, patience norms
+}).run();
+```
+
+Discover the catalogs with `eve professions` / `eve cultures`.
+
+### Behavioral & temporal regression
+
+```ts
+import { compareExperience } from "experience-validation-engine";
+
+const report = compareExperience(baseline, candidate, { baseline: "v1.0", candidate: "v1.1" });
+if (report.verdict === "regressed") process.exit(1); // UX regressed even if tests are green
+report.regressions; // the metrics that moved the wrong way, with deltas
+```
+
+`report` (`RegressionReport`) carries per-metric deltas, the regressed
+subset, and a verdict of `improved | unchanged | regressed`. See
+`examples/behavioral-regression.ts`.
+
+### The AI evaluation panel (CLI: `--panel`)
+
+```ts
+import { runPanel, renderPanelMarkdown } from "experience-validation-engine";
+
+const panel = runPanel([result]);        // accepts one or many sessions
+panel.critique;    // design critic (Nielsen heuristics, evidence-linked)
+panel.forecast;    // experience forecast for upcoming sessions
+panel.executive;   // moderator synthesis (consensus issues, disagreements)
+panel.plan;        // PM-prioritized (RICE) epics/stories/roadmap
+panel.tickets;     // developer-ready tickets
+console.log(renderPanelMarkdown(panel));
+```
+
+See `examples/ai-panel.ts`.
+
+### Collaborative multi-operator sessions
+
+```ts
+import { runCollaborative } from "experience-validation-engine";
+```
+
+Models a handoff / approval chain across several operators. See
+`examples/collaborative-workflow.ts`.
+
+### Benchmarks (CLI: `eve benchmark`)
+
+`eve benchmark` runs EVE against known-good / known-bad reference apps and
+exits non-zero if it cannot rank them correctly — a construct-validity gate
+for the instrument itself. Import the suite via `validateBenchmarks()`.
+
 ## Pacing
 
 Real browsers are paced at `paceScale` × human speed (default 0.15). The
