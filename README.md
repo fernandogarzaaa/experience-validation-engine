@@ -121,11 +121,47 @@ Sessions are **deterministic**: (app state, persona, seed) fully determine
 the run — so a changed path after a deploy is a real behavioral change in
 your product, and different seeds sample different plausible humans.
 
+## Beyond one operator (Phase 2)
+
+EVE is also a research platform for autonomous human-experience simulation.
+Opt-in systems (all backwards-compatible — default behavior is unchanged):
+
+- **A deeper mind** — selective **attention** (fixations, change/inattentional
+  blindness), **utility-based decisions** whose weights are driven by emotion,
+  a full **expectation engine** (predict outcome/destination/latency/feedback,
+  then score the surprise), a **Cognitive Load Index**, and a **trust model**
+  that builds slowly and breaks fast. Turn it on with `cognitive: true`.
+- **Long-term memory** — the operator remembers an app between sessions and
+  gets measurably more efficient (e.g. 7 → 5 → 5 steps), with **Learning
+  Rate**, **Retention**, **Recognition-vs-Recall** and a **forgetting curve**.
+- **Social & cultural personas** — professional overlays (doctor, lawyer,
+  accountant…) and locale profiles (reading direction, date/currency, privacy).
+- **Behavioral regression** — catch UX regressions that keep functional tests
+  green: the app still works, but now takes more clicks, hesitation, or trust.
+- **Experience forecasting** — predict where future users will struggle and
+  which changes lift completion most.
+- **An AI panel** — an independent **design critic**, a **moderator** that
+  finds cross-persona consensus, a **product manager** that writes a
+  prioritized backlog, and a **developer** that emits GitHub/Linear/Jira
+  tickets.
+- **Collaborative sessions** — multi-operator handoffs and approval chains.
+- **A benchmark suite** — known-quality apps EVE must rank correctly
+  (`eve benchmark`), its standing construct-validity check.
+
+```bash
+eve run mock: --persona first-time-user --cognitive --utility --panel
+eve run mock: --remember .eve-memory.json --seed 1   # run repeatedly → watch it learn
+eve benchmark                                         # validate the instrument
+```
+
 ## Documentation
 
 | | |
 |---|---|
 | [Architecture](docs/architecture.md) | The human loop, the retina abstraction, module map |
+| [Cognitive Model (Phase 2)](docs/cognitive-model.md) | Attention, utility, expectation, load, trust, learning |
+| [Analysis Systems (Phase 2)](docs/panel-and-analysis.md) | Regression, forecasting, the AI panel, benchmarks, collaboration |
+| [Research Foundations](docs/research.md) | The HCI / cognitive-science grounding for every subsystem |
 | [Developer Guide](docs/developer-guide.md) | Install, CLI, API, CI integration, events |
 | [Persona Guide](docs/persona-guide.md) | The trait model; designing personas |
 | [Plugin Guide](docs/plugin-guide.md) | Writing judgment plugins |

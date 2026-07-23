@@ -3,5 +3,7 @@ dist/
 coverage/
 *.log
 .eve-output/
+.eve-memory.json
+*.eve-memory.json
 .DS_Store
 *.tsbuildinfo

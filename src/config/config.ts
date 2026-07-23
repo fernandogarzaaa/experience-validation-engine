@@ -36,6 +36,18 @@ export interface EveConfig {
   llmCognition: boolean | { model?: string };
   /** Custom personas defined inline in the config file. */
   customPersonas?: PersonaSpec[];
+
+  /* --- Phase-2 --- */
+  /** Enable the enhanced cognitive suite (attention, trust, load, expectation). */
+  cognitive: boolean;
+  /** Use the utility-based decision policy instead of the heuristic one. */
+  utilityDecisions: boolean;
+  /** Cultural profile locale (e.g. "de-DE", "ja-JP", "ar-SA"). */
+  culture?: string;
+  /** Professional overlay (e.g. "doctor", "accountant"). */
+  profession?: string;
+  /** Path to a JSON file for persistent cross-session memory. */
+  longTermMemoryPath?: string;
 }
 
 export const DEFAULT_CONFIG: Omit<EveConfig, "url"> = {
@@ -52,6 +64,8 @@ export const DEFAULT_CONFIG: Omit<EveConfig, "url"> = {
   verbosity: "normal",
   plugins: { accessibility: true, performance: true, llmCritic: false },
   llmCognition: false,
+  cognitive: false,
+  utilityDecisions: false,
 };
 
 const ADAPTERS: readonly AdapterName[] = ["playwright", "puppeteer", "selenium", "mock"];
@@ -155,6 +169,13 @@ export function resolveConfig(raw: unknown): EveConfig {
     config.customPersonas = input["customPersonas"] as PersonaSpec[];
     // Validate each spec eagerly so config errors surface before the run.
     for (const spec of config.customPersonas) definePersona(spec);
+  }
+  if (input["cognitive"] !== undefined) config.cognitive = expectBoolean(input, "cognitive");
+  if (input["utilityDecisions"] !== undefined) config.utilityDecisions = expectBoolean(input, "utilityDecisions");
+  if (input["culture"] !== undefined) config.culture = expectString(input, "culture");
+  if (input["profession"] !== undefined) config.profession = expectString(input, "profession");
+  if (input["longTermMemoryPath"] !== undefined) {
+    config.longTermMemoryPath = expectString(input, "longTermMemoryPath");
   }
   return config;
 }

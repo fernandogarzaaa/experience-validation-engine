@@ -37,6 +37,13 @@ Persona selection: `first-time-user` (onboarding), `impatient-user`
 (accessibility), `power-user` (expert efficiency), `non-technical-user`
 (clarity of language). Always set `--seed` for reproducible reruns.
 
+Phase-2 flags for a deeper simulation: `--cognitive` (attention, cognitive
+load, trust, expectation engine), `--utility` (utility-based decisions),
+`--profession <name>` / `--culture <locale>` (social/cultural overlays),
+`--remember <file.json>` (persistent memory — run repeatedly to see learning),
+`--panel` (generate the AI panel: design critic, forecast, backlog, tickets).
+`eve benchmark` validates EVE against known-quality apps.
+
 ## Outputs
 
 `.eve-output/report.md` (read first: executive summary, scores with

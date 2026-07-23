@@ -118,6 +118,73 @@ export function renderMarkdown(report: ExperienceReport): string {
   }
   push();
 
+  // --- Phase-2 cognitive sections (only when the data is present) ---
+  if (result.cognitiveLoad) {
+    push(`## Cognitive Load`);
+    push();
+    push(`Mean Cognitive Load Index: **${result.cognitiveLoad.meanIndex}/100** · peak **${result.cognitiveLoad.peakIndex}/100**.`);
+    push();
+    const worst = [...result.cognitiveLoad.samples].sort((a, b) => b.index - a.index)[0];
+    if (worst) {
+      const b = worst.breakdown;
+      push(
+        `Heaviest screen (step ${worst.step}): working memory ${pct(b.workingMemoryLoad)}, decisions ${pct(b.decisionLoad)}, reading ${pct(b.informationLoad)}, clutter ${pct(b.visualClutter)}, task-switch ${pct(b.taskSwitchLoad)}.`,
+      );
+    }
+    push();
+  }
+  if (result.trustTimeline && result.trustTimeline.length > 0) {
+    const last = result.trustTimeline[result.trustTimeline.length - 1]!;
+    push(`## Trust`);
+    push();
+    push(`Final trust: **${pct(last.overall)}**.`);
+    push();
+    push(`| Component | Final |`);
+    push(`|---|---:|`);
+    for (const [k, v] of Object.entries(last.components)) {
+      push(`| ${k.replace(/([A-Z])/g, " $1")} | ${pct(v as number)} |`);
+    }
+    push();
+  }
+  if (result.attention) {
+    push(`## Attention`);
+    push();
+    push(
+      `The operator made attention fixations across ${result.attention.fixations.length} glance(s). ` +
+        `**${result.attention.missedChanges}** on-screen change(s) went unnoticed (change blindness).`,
+    );
+    push();
+  }
+  if (result.learningMetrics && result.learningMetrics.sessions > 1) {
+    const lm = result.learningMetrics;
+    push(`## Cross-Session Learning`);
+    push();
+    push(`Sessions on this app: **${lm.sessions}**.`);
+    push(`- Learning rate (power-law α): **${lm.learningRate}** (fit R²=${lm.learningFit})`);
+    push(`- Steps per session: ${lm.stepsSeries.join(" → ")}`);
+    push(`- Task time is now **${Math.round(lm.timeReductionRatio * 100)}%** of the first session`);
+    push(`- Confidence trend: ${lm.confidenceTrend >= 0 ? "+" : ""}${(lm.confidenceTrend * 100).toFixed(0)}%`);
+    push(`- Retention: **${pct(lm.retention)}** · recognized screens: ${lm.recognizedScreens} · recalled paths: ${lm.recalledPaths} (recognition:recall ${lm.recognitionRecallRatio})`);
+    push();
+  }
+  if (result.journey && result.journey.path.length > 0) {
+    push(`## Discovered Journey`);
+    push();
+    push(`Goal: _${result.journey.goal}_`);
+    push();
+    push(`Path: ${result.journey.path.map((p) => `\`${p}\``).join(" → ")}`);
+    push(`- Reached a completion state: ${result.journey.reachedTerminal ? "✅" : "❌"}`);
+    push(`- Wasted steps (friction/backtracking): ${result.journey.wastedSteps}`);
+    if (result.journey.frictionPoints.length > 0) {
+      push();
+      push(`Friction points:`);
+      for (const fp of result.journey.frictionPoints.slice(0, 5)) {
+        push(`- **${fp.title}** — ${fp.reasons.join("; ")} (frustration ${pct(fp.frustration)})`);
+      }
+    }
+    push();
+  }
+
   push(`## Recommendations`);
   push();
   push(`### Quick Wins`);

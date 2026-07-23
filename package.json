@@ -1,6 +1,6 @@
 {
   "name": "experience-validation-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "EVE — an autonomous cognitive simulation engine that evaluates software through the perspective of realistic human operators. AI that experiences software like a human.",
   "license": "MIT",
   "type": "module",

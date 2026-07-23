@@ -44,6 +44,19 @@ Always pass `--seed` so reruns are comparable. Add `--goal` whenever the
 user names a task; include `goalSuccessSignals` via a YAML config when
 success text is known (see `eve.config.example.yaml`).
 
+**Phase-2 flags** (enable for a deeper, more human simulation):
+- `--cognitive` — selective attention, cognitive load, trust, expectation engine
+- `--utility` — utility-based decision-making (emotion-driven weights)
+- `--profession <name>` / `--culture <locale>` — social/cultural overlays
+  (`npx tsx src/cli/main.ts professions` / `cultures`)
+- `--remember <file.json>` — persistent memory; run repeatedly to see learning
+- `--panel` — after the run, generate the AI panel (design critic, forecast,
+  product backlog, dev tickets)
+
+Other commands: `eve benchmark` validates EVE against known-quality apps
+(exits non-zero if it can't rank them). For cross-build UX regression, run two
+sessions and use `compareExperience(baseline, candidate)` from the API.
+
 ## Reading the results
 
 Outputs land in `.eve-output/`:

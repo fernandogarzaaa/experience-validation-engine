@@ -243,6 +243,31 @@ export class OperatorMemory {
     return !node || node.visits <= 1;
   }
 
+  /**
+   * Pre-seed screens the operator remembers from previous sessions, so a
+   * returning user *recognizes* them (skips re-reading) and carries forward
+   * which affordances they knew about. Called once at session start when a
+   * long-term memory profile is loaded; a no-op for first-ever sessions.
+   */
+  seedFamiliarScreens(
+    remembered: ReadonlyArray<{ signature: string; url: string; title: string; affordances: Iterable<string> }>,
+  ): void {
+    for (const r of remembered) {
+      if (this.screens.has(r.signature)) continue;
+      this.screens.set(r.signature, {
+        signature: r.signature,
+        url: r.url,
+        title: r.title,
+        // visits ≥ 2 → isNovelScreen() is false → the operator recognizes it.
+        visits: 2,
+        firstSeenStep: -1,
+        lastSeenStep: -1,
+        affordances: new Set(r.affordances),
+        triedAffordances: new Set(),
+      });
+    }
+  }
+
   trail(): readonly string[] {
     return this.navigationTrail;
   }

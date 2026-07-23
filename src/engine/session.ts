@@ -39,6 +39,19 @@ import { WorkflowGraph } from "../workflow/graph.js";
 import { PluginManager, type EvePlugin, type PluginContext } from "../plugins/plugin.js";
 import { computeScores } from "../scoring/scorer.js";
 import type { DiscoveredWorkflow, WorkflowNode, WorkflowTransition } from "../workflow/graph.js";
+import { CognitiveSuite, type CognitiveConfig, type CognitiveLoadTimeline, type TrustSample, type ExpectationScore, type Fixation } from "./cognitiveSuite.js";
+import {
+  type PersistentMemory,
+  type ApplicationMemory,
+  appIdForUrl,
+  emptyApplicationMemory,
+  applyForgetting,
+  type SessionMemoryRecord,
+} from "../memory/longTerm.js";
+import { computeLearningMetrics, type LearningMetrics } from "../memory/learning.js";
+import { discoverJourney, type DiscoveredJourney } from "../workflow/journeys.js";
+import { CULTURES, DEFAULT_CULTURE, withCulture, cultureOf, type CultureProfile } from "../personas/culture.js";
+import { tokenize } from "../cognition/mentalModel.js";
 
 /**
  * EveSession — one simulated human, one application, one sitting.
@@ -77,6 +90,23 @@ export interface SessionOptions {
   paceScale?: number;
   /** Log sink for progress lines. */
   onLog?: (line: string) => void;
+
+  /* --- Phase-2 opt-in cognitive systems (default off → phase-1 behavior). --- */
+
+  /**
+   * Enable the enhanced cognitive suite: selective attention, cognitive-load
+   * estimation, the trust model, and the expectation engine. `true` enables
+   * all; pass an object to enable subsets. Off by default.
+   */
+  cognitive?: boolean | CognitiveConfig;
+  /**
+   * Persistent cross-session memory. When provided, the operator remembers
+   * this application between sessions (layouts, paths, past frustrations) and
+   * becomes more efficient over repeated runs.
+   */
+  longTermMemory?: PersistentMemory;
+  /** Cultural profile (locale string or object) shaping reading direction etc. */
+  culture?: CultureProfile | string;
 }
 
 export interface SessionResult {
@@ -97,6 +127,24 @@ export interface SessionResult {
   readonly abandonReason: string | null;
   readonly endReason: string;
   readonly appTheory: string;
+
+  /* --- Phase-2 additions. `capturedScreens` is always present (one
+     representative percept per unique screen, screenshots stripped). The
+     rest are populated only when the corresponding subsystem was enabled. --- */
+
+  /** One representative percept per unique screen (screenshot buffers removed). */
+  readonly capturedScreens: readonly Percept[];
+  readonly culture: string;
+  readonly trustTimeline?: readonly TrustSample[];
+  readonly cognitiveLoad?: CognitiveLoadTimeline;
+  readonly attention?: { fixations: Array<{ step: number; fixations: readonly Fixation[] }>; missedChanges: number };
+  readonly expectationTimeline?: readonly ExpectationScore[];
+  /** The application's long-term memory *after* this session (if a store was used). */
+  readonly longTermMemory?: ApplicationMemory;
+  /** Cross-session learning metrics (if a store was used and history exists). */
+  readonly learningMetrics?: LearningMetrics;
+  /** The reconstructed user journey toward the goal. */
+  readonly journey?: DiscoveredJourney;
 }
 
 export class EveSession {
@@ -117,6 +165,8 @@ export class EveSession {
   private geometryCheckedSignatures = new Set<string>();
   /** Simulated human clock, ms. Advances by full human durations. */
   private simClock = 0;
+  private readonly culture: CultureProfile;
+  private readonly capturedScreens = new Map<string, Percept>();
 
   constructor(options: SessionOptions) {
     this.options = {
@@ -127,10 +177,18 @@ export class EveSession {
       paceScale: options.paceScale ?? 0.15,
       ...options,
     };
-    this.persona =
+    let persona =
       typeof options.persona === "string"
         ? getPersona(options.persona)
         : options.persona ?? getPersona("first-time-user");
+    this.culture =
+      typeof options.culture === "string"
+        ? CULTURES[options.culture] ?? DEFAULT_CULTURE
+        : options.culture ?? cultureOf(persona);
+    // Attach the resolved culture so downstream reads (attention direction,
+    // localization checks) see a consistent profile.
+    persona = withCulture(persona, this.culture);
+    this.persona = persona;
     this.policy = options.policy ?? new HeuristicCognition();
     this.seed =
       typeof options.seed === "string"
@@ -158,6 +216,41 @@ export class EveSession {
     const workflowGraph = new WorkflowGraph();
     const iterations: LoopIteration[] = [];
     const wallStart = Date.now();
+
+    /* ---- Long-term memory: load, forget, seed the operator ---- */
+    const appId = appIdForUrl(startUrl);
+    let appMemory: ApplicationMemory | null = null;
+    if (this.options.longTermMemory) {
+      appMemory =
+        (await this.options.longTermMemory.load(appId)) ??
+        emptyApplicationMemory(appId, this.appNameFromUrl(startUrl));
+      const currentSession = appMemory.sessionsCount + 1;
+      applyForgetting(appMemory, currentSession, this.persona.traits.memoryRetention);
+      // A returning operator recognizes remembered screens and starts with
+      // familiarity-driven confidence.
+      memory.seedFamiliarScreens(
+        Object.values(appMemory.screens).map((s) => ({
+          signature: s.signature,
+          url: s.url,
+          title: s.title,
+          affordances: Object.keys(s.affordances),
+        })),
+      );
+      for (const fact of Object.values(appMemory.facts)) {
+        memory.learn({ kind: fact.kind, statement: fact.statement }, fact.confidence);
+      }
+      const familiarity = Math.min(1, retainedKnowledgeQuick(appMemory) / 8);
+      if (familiarity > 0) {
+        emotion.adjust("confidence", familiarity * 0.2);
+        emotion.adjust("curiosity", -familiarity * 0.1);
+        this.log(`(I've used this before — ${Math.round(familiarity * 100)}% familiar)`);
+      }
+    }
+
+    /* ---- Enhanced cognitive suite ---- */
+    const suite = this.options.cognitive
+      ? new CognitiveSuite(this.persona, this.rng, appMemory, this.options.cognitive)
+      : null;
 
     const pluginCtx: PluginContext = {
       persona: this.persona,
@@ -214,7 +307,19 @@ export class EveSession {
 
       this.runVisionChecks(percept, signature);
       const screenshotIndex = this.storeScreenshot(percept, signature);
+      this.captureScreen(percept, signature);
       await this.plugins.percept(pluginCtx, percept, step);
+
+      /* ---- Enhanced perception: attention + cognitive load ---- */
+      const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
+      const stepPerception = suite
+        ? suite.perceive(percept, previousPercept, goalKeywords)
+        : null;
+      const perceptForDecision = stepPerception?.perceptForDecision ?? percept;
+      if (suite && !memory.isNovelScreen(percept)) {
+        // Revisiting a known screen that looks the same reinforces consistency.
+        suite.reinforceConsistency(true);
+      }
 
       /* ---- goal success check ------------------------------------- */
       const text = visibleText(percept).toLowerCase();
@@ -249,8 +354,9 @@ export class EveSession {
       }
 
       /* ---- PREDICT + DECIDE --------------------------------------- */
+      const enrichment = suite ? suite.contextEnrichment(stepPerception?.load ?? null) : {};
       const decision = await this.policy.decide({
-        percept,
+        percept: perceptForDecision,
         previousPercept,
         persona: this.persona,
         emotion: emotion.snapshot(),
@@ -259,6 +365,7 @@ export class EveSession {
         rng: this.rng,
         step,
         elapsedMs: this.simClock,
+        ...enrichment,
       });
       goals.tickEffort();
       await this.events.emit("loop:decide", {
@@ -328,6 +435,8 @@ export class EveSession {
         cognitiveEffort: clamp01(decision.effort + readingLoad(after.percept) * 0.3),
       });
       emotion.decay(decayRate(this.persona, emotion.get("fatigue")));
+      // Phase-2: trust model, expectation engine and fatigue feed back in.
+      if (suite) suite.afterOutcome(decision, outcome, percept, after.percept, emotion, step);
       emotion.record(step, this.simClock);
       await this.events.emit("emotion:update", { emotion: emotion.snapshot(), step });
 
@@ -388,6 +497,31 @@ export class EveSession {
       abandoned,
     });
 
+    /* ---- Journey reconstruction ---- */
+    const journey = discoverJourney(goals.root.description, iterations, workflowGraph, {
+      goalAchieved,
+      abandoned,
+    });
+
+    /* ---- Persist long-term memory + learning metrics ---- */
+    let updatedMemory: ApplicationMemory | undefined;
+    let learningMetrics: LearningMetrics | undefined;
+    if (this.options.longTermMemory && appMemory) {
+      this.updateLongTermMemory(appMemory, memory, workflowGraph, {
+        persona: this.persona.name,
+        goal: goals.root.description,
+        usage,
+        goalAchieved,
+        abandoned,
+        emotion,
+        findings,
+        scores,
+      });
+      await this.options.longTermMemory.save(appMemory);
+      updatedMemory = appMemory;
+      learningMetrics = computeLearningMetrics(appMemory);
+    }
+
     await this.events.emit("session:end", {
       reason: endReason,
       steps: iterations.length,
@@ -412,7 +546,135 @@ export class EveSession {
       abandonReason,
       endReason,
       appTheory,
+      capturedScreens: [...this.capturedScreens.values()],
+      culture: this.culture.locale,
+      trustTimeline: suite?.trustTimeline(),
+      cognitiveLoad: suite?.cognitiveLoadTimeline() ?? undefined,
+      attention: suite?.attentionSummary() ?? undefined,
+      expectationTimeline: suite ? suite.expectationTimeline() : undefined,
+      longTermMemory: updatedMemory,
+      learningMetrics,
+      journey,
     };
+  }
+
+  /** Store one screenshot-free representative percept per unique screen. */
+  private captureScreen(percept: Percept, signature: string): void {
+    if (this.capturedScreens.has(signature)) return;
+    this.capturedScreens.set(signature, { ...percept, screenshot: null });
+  }
+
+  private appNameFromUrl(url: string): string {
+    try {
+      return new URL(url).host || url;
+    } catch {
+      return url.replace(/^mock:\/*/, "").split("/")[0] || url;
+    }
+  }
+
+  /** Fold this session's experience into the persistent application memory. */
+  private updateLongTermMemory(
+    appMemory: ApplicationMemory,
+    memory: OperatorMemory,
+    graph: WorkflowGraph,
+    ctx: {
+      persona: string;
+      goal: string;
+      usage: SessionUsage;
+      goalAchieved: boolean;
+      abandoned: boolean;
+      emotion: EmotionalState;
+      findings: readonly Finding[];
+      scores: readonly Score[];
+    },
+  ): void {
+    const sessionNo = appMemory.sessionsCount + 1;
+    appMemory.sessionsCount = sessionNo;
+
+    // Merge spatial memory (screens + affordances) with reinforcement.
+    for (const node of memory.knownScreens()) {
+      const existing = appMemory.screens[node.signature] ?? {
+        signature: node.signature,
+        url: node.url,
+        title: node.title,
+        affordances: {},
+        totalVisits: 0,
+        lastSeenSession: sessionNo,
+      };
+      existing.url = node.url;
+      existing.title = node.title;
+      existing.totalVisits += node.visits;
+      existing.lastSeenSession = sessionNo;
+      for (const label of node.affordances) {
+        existing.affordances[label] = Math.min(1, (existing.affordances[label] ?? 0) + 0.4);
+      }
+      appMemory.screens[node.signature] = existing;
+    }
+    for (const edge of graph.allTransitions()) {
+      const key = `${edge.from}=>${edge.to}::${edge.via}`;
+      const existing = appMemory.transitions[key] ?? { from: edge.from, to: edge.to, via: edge.via, traversals: 0 };
+      existing.traversals += edge.count;
+      appMemory.transitions[key] = existing;
+    }
+    // Merge semantic facts.
+    for (const fact of memory.knownFacts()) {
+      const key = `${fact.kind}:${fact.statement}`;
+      const existing = appMemory.facts[key];
+      if (existing) {
+        existing.confidence = Math.min(1, existing.confidence + 0.2);
+        existing.reinforcements += 1;
+        existing.lastSeenSession = sessionNo;
+      } else {
+        appMemory.facts[key] = { ...fact, lastSeenSession: sessionNo };
+      }
+      if (fact.kind === "shortcut" && !appMemory.knownShortcuts.includes(fact.statement)) {
+        appMemory.knownShortcuts.push(fact.statement);
+      }
+    }
+    // Favorite (completed) workflows.
+    for (const wf of graph.discoveredWorkflows().filter((w) => w.completed)) {
+      const fav = appMemory.favoriteWorkflows.find((f) => f.kind === wf.kind);
+      if (fav) {
+        fav.completions += 1;
+        fav.lastSession = sessionNo;
+      } else {
+        appMemory.favoriteWorkflows.push({ kind: wf.kind, completions: 1, lastSession: sessionNo });
+      }
+    }
+    appMemory.favoriteWorkflows.sort((a, b) => b.completions - a.completions);
+    // Frustration spots.
+    const frustratingFindings = ctx.findings.filter(
+      (f) => f.severity === "critical" || f.severity === "major",
+    );
+    for (const f of frustratingFindings) {
+      const sig = [...this.capturedScreens.values()].find((p) => p.url === f.url);
+      const key = sig ? screenSignature(sig) : f.url;
+      const spot = appMemory.frustrationSpots.find((s) => s.signature === key);
+      if (spot) spot.occurrences += 1;
+      else appMemory.frustrationSpots.push({ signature: key, title: f.url, occurrences: 1 });
+    }
+
+    const meanConfidence = ctx.emotion.mean("confidence");
+    const peakFrustration = ctx.emotion.peak("frustration");
+    const meanTrust = ctx.emotion.mean("trust");
+    const outcomes = iterationsSurpriseRate(memory);
+    const record: SessionMemoryRecord = {
+      session: sessionNo,
+      timestamp: new Date().toISOString(),
+      persona: ctx.persona,
+      goal: ctx.goal,
+      steps: ctx.usage.steps,
+      durationMs: ctx.usage.durationMs,
+      goalAchieved: ctx.goalAchieved,
+      abandoned: ctx.abandoned,
+      confidence: Number(meanConfidence.toFixed(3)),
+      frustration: Number(peakFrustration.toFixed(3)),
+      trust: Number(meanTrust.toFixed(3)),
+      errors: memory.errorCount(),
+      surpriseRate: outcomes,
+      overallScore: ctx.scores.find((s) => s.dimension === "overall")?.value ?? 0,
+    };
+    appMemory.history.push(record);
   }
 
   /* ---------------------------------------------------------------- */
@@ -694,4 +956,22 @@ function shortLocation(url: string): string {
   } catch {
     return url.slice(0, 50);
   }
+}
+
+/** Quick familiarity proxy: total retained affordance/fact strength. */
+function retainedKnowledgeQuick(memory: ApplicationMemory): number {
+  let sum = 0;
+  for (const screen of Object.values(memory.screens)) {
+    for (const strength of Object.values(screen.affordances)) sum += strength;
+  }
+  for (const fact of Object.values(memory.facts)) sum += fact.confidence;
+  return sum;
+}
+
+/** Surprise/error/dead-click rate from the operator's episodic memory. */
+function iterationsSurpriseRate(memory: OperatorMemory): number {
+  const eps = memory.recallEpisodes();
+  if (eps.length === 0) return 0;
+  const bad = eps.filter((e) => e.outcome === "surprise" || e.outcome === "error" || e.outcome === "nothing").length;
+  return Number((bad / eps.length).toFixed(3));
 }

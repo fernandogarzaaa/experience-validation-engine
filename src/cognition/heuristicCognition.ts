@@ -5,7 +5,7 @@ import { screenSignature } from "../memory/memory.js";
 import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
 import { predictInteraction, tokenize } from "./mentalModel.js";
 import { choiceLoad, readingLoad, scoreAffordances } from "./salience.js";
-import { strategyWeights, type ExplorationStrategy } from "../planning/strategies.js";
+import { strategyWeights, type ExplorationStrategy, type StrategyWeights } from "../planning/strategies.js";
 
 /**
  * The default, fully-offline decision policy.
@@ -26,7 +26,7 @@ import { strategyWeights, type ExplorationStrategy } from "../planning/strategie
  * All stochastic choices go through the session RNG so runs are reproducible.
  */
 export class HeuristicCognition implements DecisionPolicy {
-  readonly name = "heuristic";
+  readonly name: string = "heuristic";
 
   constructor(private readonly strategy: ExplorationStrategy = "curious") {}
 
@@ -129,73 +129,11 @@ export class HeuristicCognition implements DecisionPolicy {
     const submitDecision = this.handleFormSubmit(ctx);
     if (submitDecision) return submitDecision;
 
-    // 6. Pick the most salient affordance (softmax-ish weighted choice so
-    //    behavior is human-variable rather than argmax-robotic).
-    const scored = scoreAffordances(ctx, goalKeywords).filter((s) => {
-      // Anxious/low-risk personas refuse plainly destructive controls.
-      if (s.risk >= 1 && persona.traits.riskTolerance < 0.2) return false;
-      return true;
-    });
-
-    const viable = scored.filter((s) => s.total > 0.05);
-    if (viable.length > 0) {
-      // Attention span controls how far down the salience list the eye wanders.
-      const considered = viable.slice(
-        0,
-        Math.max(1, Math.round(2 + (1 - persona.traits.attentionSpan) * 4)),
-      );
-      const chosen = rng.weightedPick(
-        considered,
-        considered.map((s) => Math.exp(s.total * (1 + weights.goalWeight))),
-      );
-      const el = chosen.element;
-      memory.markTried(sig, el.text);
-
-      // Keyboard-first personas prefer pressing Enter on focused controls.
-      if (
-        persona.accessibility.keyboardOnly ||
-        (persona.traits.keyboardPreference > 0.7 && el.focused)
-      ) {
-        if (el.focused) {
-          return {
-            action: { kind: "press", key: "Enter" },
-            rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
-            prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
-            effort: effortBase,
-          };
-        }
-        if (persona.accessibility.keyboardOnly) {
-          return {
-            action: { kind: "press", key: "Tab" },
-            rationale: "I only use the keyboard — tabbing toward the control I want.",
-            prediction: {
-              description: "Focus should move to the next control with a visible focus ring.",
-              expectedSignals: [],
-              expectsChange: false,
-              confidence: 0.75,
-            },
-            effort: effortBase + 0.1,
-          };
-        }
-      }
-
-      const hesitant =
-        chosen.risk > 0.4 && (persona.traits.riskTolerance < 0.4 || emotion.confidence < 0.4);
-      const rationale = hesitant
-        ? `"${el.text.trim()}" looks consequential… but it seems like the way forward, so carefully clicking it.`
-        : chosen.goalRelevance > 0.4
-          ? `"${el.text.trim()}" matches what I'm trying to do (${goals.current.description}).`
-          : chosen.novelty > 0
-            ? `I haven't tried "${el.text.trim()}" yet — curious what it does.`
-            : `"${el.text.trim()}" is the most promising thing on screen.`;
-
-      return {
-        action: { kind: "click", target: el },
-        rationale,
-        prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
-        effort: clamp01(effortBase + (hesitant ? 0.2 : 0)),
-      };
-    }
+    // 6. Pick an affordance to act on. Extracted into a protected hook so
+    //    alternative decision models (e.g. the utility-based policy) can
+    //    override just this step while reusing the whole cascade.
+    const affordanceDecision = this.chooseAffordance(ctx, goalKeywords, weights, effortBase, sig);
+    if (affordanceDecision) return affordanceDecision;
 
     // 7. More page below the fold?
     const canScrollDown = percept.scrollY + percept.viewport.height < percept.scrollHeight - 40;
@@ -250,7 +188,87 @@ export class HeuristicCognition implements DecisionPolicy {
 
   /* ---------------------------------------------------------------- */
 
-  private baseConfidence(ctx: CognitiveContext): number {
+  /**
+   * Choose which visible affordance to act on. The default implementation is
+   * salience-driven softmax selection (phase-1 behavior, unchanged).
+   * Subclasses may override to substitute a different decision model.
+   */
+  protected chooseAffordance(
+    ctx: CognitiveContext,
+    goalKeywords: readonly string[],
+    weights: StrategyWeights,
+    effortBase: number,
+    sig: string,
+  ): Decision | null {
+    const { persona, emotion, memory, goals, rng } = ctx;
+    const scored = scoreAffordances(ctx, goalKeywords).filter((s) => {
+      // Anxious/low-risk personas refuse plainly destructive controls.
+      if (s.risk >= 1 && persona.traits.riskTolerance < 0.2) return false;
+      return true;
+    });
+
+    const viable = scored.filter((s) => s.total > 0.05);
+    if (viable.length === 0) return null;
+
+    // Attention span controls how far down the salience list the eye wanders.
+    const considered = viable.slice(
+      0,
+      Math.max(1, Math.round(2 + (1 - persona.traits.attentionSpan) * 4)),
+    );
+    const chosen = rng.weightedPick(
+      considered,
+      considered.map((s) => Math.exp(s.total * (1 + weights.goalWeight))),
+    );
+    const el = chosen.element;
+    memory.markTried(sig, el.text);
+
+    // Keyboard-first personas prefer pressing Enter on focused controls.
+    if (
+      persona.accessibility.keyboardOnly ||
+      (persona.traits.keyboardPreference > 0.7 && el.focused)
+    ) {
+      if (el.focused) {
+        return {
+          action: { kind: "press", key: "Enter" },
+          rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
+          prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
+          effort: effortBase,
+        };
+      }
+      if (persona.accessibility.keyboardOnly) {
+        return {
+          action: { kind: "press", key: "Tab" },
+          rationale: "I only use the keyboard — tabbing toward the control I want.",
+          prediction: {
+            description: "Focus should move to the next control with a visible focus ring.",
+            expectedSignals: [],
+            expectsChange: false,
+            confidence: 0.75,
+          },
+          effort: effortBase + 0.1,
+        };
+      }
+    }
+
+    const hesitant =
+      chosen.risk > 0.4 && (persona.traits.riskTolerance < 0.4 || emotion.confidence < 0.4);
+    const rationale = hesitant
+      ? `"${el.text.trim()}" looks consequential… but it seems like the way forward, so carefully clicking it.`
+      : chosen.goalRelevance > 0.4
+        ? `"${el.text.trim()}" matches what I'm trying to do (${goals.current.description}).`
+        : chosen.novelty > 0
+          ? `I haven't tried "${el.text.trim()}" yet — curious what it does.`
+          : `"${el.text.trim()}" is the most promising thing on screen.`;
+
+    return {
+      action: { kind: "click", target: el },
+      rationale,
+      prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
+      effort: clamp01(effortBase + (hesitant ? 0.2 : 0)),
+    };
+  }
+
+  protected baseConfidence(ctx: CognitiveContext): number {
     return clamp01(
       0.3 + ctx.persona.traits.techLiteracy * 0.4 + ctx.emotion.confidence * 0.3,
     );

@@ -77,6 +77,15 @@ export class EmotionalState {
   }
 
   /**
+   * Set one emotion directly (clamped). Used by phase-2 subsystems that own
+   * a dimension outright — e.g. the trust model drives `trust`. No-op-safe:
+   * phase-1 sessions never call this, so default dynamics are unchanged.
+   */
+  override(key: keyof EmotionVector, value: number): void {
+    this.values[key] = clamp01(value);
+  }
+
+  /**
    * Natural regression toward baseline. Called once per loop iteration;
    * `rate` is how far toward baseline each emotion moves (fatigue never
    * decays during a session — tiredness only accumulates).
