@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — The autonomous UX research platform
+
+Turns EVE from a cognitive-simulation engine into an **autonomous UX research
+platform, consumable through MCP** — an AI coding agent can run a full usability
+study before shipping. Ten Phase-3 systems (population simulation, AI-moderated
+study, product intelligence, continuous UX regression, autonomous application
+mapping, predictive UX, digital twins, human-validation calibration, multimodal
+perception, and EVE Bench) land behind **16 MCP tools**, plus the `eve-mcp`
+server and Claude plugin. Fully backwards compatible; 190 tests.
 
 ### Phase 3 — EVE Bench (benchmark platform)
 
