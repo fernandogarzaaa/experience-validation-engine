@@ -58,6 +58,10 @@ prefer them over shelling out.
   an **application map**: screens and their purpose, the navigation graph (as a
   Mermaid diagram), information architecture, hubs, dead-ends, and unexercised
   affordances. Use to understand an unfamiliar app's structure and coverage.
+- **`eve_predict_ux`** — predict the wider user base's experience with
+  **confidence intervals**: abandonment, confusion, onboarding-failure, and
+  accessibility-barrier rates, a modeled support-contact rate, and predicted
+  struggle screens. Use to forecast where users will struggle before shipping.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps

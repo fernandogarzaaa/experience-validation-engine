@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Phase 3 — Predictive UX
+
+Forecast the wider user base's experience, with confidence intervals.
+
+- **`predictUX(study)`** (`src/predict/`) — extrapolates from a population to
+  predicted abandonment, confusion, onboarding-failure, and
+  accessibility-barrier rates (each a proportion with a 95% **Wilson** interval,
+  exported as `wilsonInterval`), a modeled support-contact rate per 100 users
+  (explicit ±30% band), and the screens predicted to cause struggle. Each item
+  declares its `basis` (observed vs modeled) so nothing overstates certainty.
+  Deterministic; `renderUXPredictionMarkdown` renders it.
+- **MCP tool `eve_predict_ux`** (12 tools total).
+- 9 tests (`tests/predict.test.ts`), `examples/predictive-ux.ts`,
+  `docs/predictive-ux.md`.
+
 ### Phase 3 — Autonomous exploration → application map
 
 Given only a URL, reconstruct the whole app from perception.

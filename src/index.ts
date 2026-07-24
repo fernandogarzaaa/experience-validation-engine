@@ -108,3 +108,6 @@ export * from "./trends/index.js";
 
 // Phase-3: autonomous exploration → application map
 export * from "./appmap/index.js";
+
+// Phase-3: predictive UX (confusion / abandonment / support with CIs)
+export * from "./predict/index.js";

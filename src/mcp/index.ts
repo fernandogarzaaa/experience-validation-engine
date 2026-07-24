@@ -15,6 +15,7 @@ export {
   runProductReport,
   compareBuilds,
   runApplicationMap,
+  runPredictUX,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,

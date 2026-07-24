@@ -39,6 +39,7 @@ import {
   runProductReport,
   compareBuilds,
   runApplicationMap,
+  runPredictUX,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -170,6 +171,34 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runUserStudy(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_predict_ux",
+    {
+      title: "Predict UX with confidence intervals",
+      description:
+        "Run a population, then extrapolate to the wider user base: predicted " +
+        "abandonment, confusion, onboarding-failure, and accessibility-barrier " +
+        "rates (each a proportion with a 95% Wilson confidence interval), a " +
+        "modeled support-contact rate per 100 users, and the screens predicted " +
+        "to cause struggle. Use to forecast where and how much users will " +
+        "struggle before you ship. Offline with `mock:`.",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runPredictUX(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

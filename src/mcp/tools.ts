@@ -28,6 +28,7 @@ import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
 import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
 import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
+import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
 import {
   getPersona,
   listPersonas,
@@ -450,6 +451,28 @@ export async function compareBuilds(input: CompareBuildsInput): Promise<ToolOutp
   const report = analyzeTrends(builds);
   const markdown = truncate(renderTrendReportMarkdown(report));
   return { markdown, structured: { ...report } };
+}
+
+/**
+ * Run a population, then predict the UX the wider user base will experience —
+ * confusion, abandonment, onboarding failure, support contacts, and
+ * accessibility barriers, each with a confidence interval.
+ */
+export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+  const prediction = predictUX(study);
+
+  let file: string | null = null;
+  if (input.output_dir) {
+    file = join(input.output_dir, "ux-prediction.md");
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(input.output_dir, { recursive: true });
+    await writeFile(file, renderUXPredictionMarkdown(prediction), "utf8");
+  }
+
+  const structured: Record<string, unknown> = { ...prediction, file };
+  const markdown = truncate(renderUXPredictionMarkdown(prediction) + (file ? `\n\nWritten: ${file}` : ""));
+  return { markdown, structured };
 }
 
 /** Curiosity-weighted default explorer personas (fall back to the library). */

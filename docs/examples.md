@@ -19,6 +19,7 @@ four are fully offline (mock adapter).
 | `product-intelligence.ts` | Phase 3: infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
 | `continuous-regression.ts` | Phase 3: trend experience across three builds (bad → average → excellent) and flag regressions |
 | `application-map.ts` | Phase 3: autonomously explore an app → screens, navigation graph (Mermaid), IA, hubs, dead-ends |
+| `predictive-ux.ts` | Phase 3: predict abandonment / confusion / support / a11y rates with confidence intervals |
 
 ## CLI recipes
 
