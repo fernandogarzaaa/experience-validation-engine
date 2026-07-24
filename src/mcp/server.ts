@@ -32,6 +32,7 @@ import {
   runSession,
   runUsabilityStudy,
   runUserStudy,
+  runProductReport,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -163,6 +164,35 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runUserStudy(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_product_report",
+    {
+      title: "Infer product intelligence",
+      description:
+        "Run a population, then infer product-level intelligence from how it " +
+        "behaved — the user personas the population reveals, the business goals " +
+        "its traffic serves, the critical workflows people traverse, feature " +
+        "importance, high-friction pages, and the causes of drop-off. Produces " +
+        "product insight, not just UX findings, so a PM or founder can see what " +
+        "the product is for and where it leaks. Offline with `mock:`. Same inputs " +
+        "as eve_run_usability_study.",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runProductReport(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

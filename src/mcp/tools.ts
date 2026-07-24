@@ -25,6 +25,7 @@ import { simulatePopulation } from "../population/index.js";
 import type { AdapterName } from "../browser/index.js";
 import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
+import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
 import {
   getPersona,
   listPersonas,
@@ -392,6 +393,29 @@ export async function runUserStudy(input: RunUsabilityStudyInput): Promise<ToolO
   const markdown = truncate(
     renderModeratedStudyMarkdown(report) +
       (files ? `\n\nWritten: ${files.moderated} · ${files.study}` : ""),
+  );
+  return { markdown, structured };
+}
+
+/**
+ * Run a population, then infer product intelligence from how it behaved:
+ * personas, business goals, critical workflows, feature importance,
+ * high-friction pages, and drop-off causes.
+ */
+export async function runProductReport(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+  const intel = inferProductIntelligence(study);
+
+  let file: string | null = null;
+  if (input.output_dir) {
+    await writeStudyDataset(study, input.output_dir);
+    file = join(input.output_dir, "product-report.md");
+    await writeFile(file, renderProductIntelligenceMarkdown(intel), "utf8");
+  }
+
+  const structured: Record<string, unknown> = { ...intel, file };
+  const markdown = truncate(
+    renderProductIntelligenceMarkdown(intel) + (file ? `\n\nWritten: ${file}` : ""),
   );
   return { markdown, structured };
 }

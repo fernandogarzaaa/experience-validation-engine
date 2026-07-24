@@ -45,6 +45,11 @@ prefer them over shelling out.
   executive report with a **ship verdict** (ship / ship-with-fixes /
   do-not-ship), consensus, conflicts, and prioritized fixes. Use this when the
   user wants a go/no-go decision with a rationale, not just numbers.
+- **`eve_product_report`** — infer **product intelligence** from how the
+  population behaved: user personas, business goals, critical workflows,
+  feature importance, high-friction pages, and drop-off causes. Use when the
+  user wants product insight ("what is this product for, where does it leak?"),
+  not just UX findings.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps

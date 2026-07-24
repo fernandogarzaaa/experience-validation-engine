@@ -12,6 +12,7 @@ export {
   runSession,
   runUsabilityStudy,
   runUserStudy,
+  runProductReport,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,

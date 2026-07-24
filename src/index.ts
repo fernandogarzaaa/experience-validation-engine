@@ -99,3 +99,6 @@ export * from "./research/index.js";
 
 // Phase-3: AI-moderated user study (specialist panel + moderator synthesis)
 export * from "./study/index.js";
+
+// Phase-3: product intelligence (personas, workflows, goals, friction, drop-off)
+export * from "./product/index.js";

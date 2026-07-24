@@ -12,6 +12,7 @@ Once connected, your assistant gains six tools:
 | `eve_run_session` | Simulate a persona using a web app; returns a scored, evidence-backed experience report |
 | `eve_run_usability_study` | Simulate a **population** of varied operators; returns aggregate stats, segments, heatmap, and a research dataset |
 | `eve_run_user_study` | Population **+ an AI research panel** (6 specialists + moderator); returns an executive report with a ship verdict |
+| `eve_product_report` | Infer **product intelligence** — personas, business goals, critical workflows, feature importance, friction, drop-off causes |
 | `eve_list_personas` | List the built-in personas |
 | `eve_list_professions` | List professional overlays (doctor, accountant, …) |
 | `eve_list_cultures` | List cultural profiles / locales |

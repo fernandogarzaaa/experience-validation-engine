@@ -16,6 +16,7 @@ four are fully offline (mock adapter).
 | `collaborative-workflow.ts` | Phase 2: multi-operator handoff / approval chain |
 | `population-study.ts` | Phase 3: simulate a population of 40 operators → aggregate study + research dataset (JSON/CSV/MD) |
 | `moderated-study.ts` | Phase 3: a 6-specialist AI research panel + moderator → an executive report with a ship verdict |
+| `product-intelligence.ts` | Phase 3: infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
 
 ## CLI recipes
 

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Phase 3 — Product intelligence
+
+Product insight, not just UX findings — inferred purely from population
+behaviour (no app source inspected).
+
+- **`inferProductIntelligence(study)`** (`src/product/`) — reconstructs the
+  **personas** the population reveals (with real per-cohort success rates), the
+  **business goals** its traffic serves (keyword-classified, ranked by traffic
+  share), the **critical workflows** (dominant path from observed transitions),
+  **feature importance** (reach × engagement, critical-path flagged),
+  **high-friction pages**, and **drop-off causes**. Deterministic;
+  `renderProductIntelligenceMarkdown` renders it.
+- **MCP tool `eve_product_report`** (9 tools total).
+- **CLI `eve study --product`**.
+- 8 tests (`tests/product.test.ts`), `examples/product-intelligence.ts`,
+  `docs/product-intelligence.md`.
+
 ### Phase 3 — AI-moderated user study
 
 Turns a population study's numbers into a decision.

@@ -32,6 +32,7 @@ import { runPanel } from "../panel/index.js";
 import { simulatePopulation } from "../population/index.js";
 import { writeStudyDataset, renderStudyJson, renderStudyMarkdown } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
+import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
 
 /**
  * The `eve` CLI.
@@ -92,6 +93,8 @@ Options for "study" (population usability study):
   --format <fmt>        Console output: markdown | json (default markdown)
   --panel               Convene the AI-moderated study panel (6 specialists +
                         moderator) and append an executive report with a verdict
+  --product             Append inferred product intelligence (personas,
+                        workflows, business goals, friction, drop-off causes)
   --quiet               Suppress per-operator progress
 
 Examples:
@@ -336,6 +339,7 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
       out: { type: "string" },
       format: { type: "string" },
       panel: { type: "boolean" },
+      product: { type: "boolean" },
       quiet: { type: "boolean" },
     },
   });
@@ -372,22 +376,34 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
     });
 
     const report = values.panel ? moderateStudy(study) : null;
+    const intel = values.product ? inferProductIntelligence(study) : null;
+    const base = values.out ? values.out.replace(/\/$/, "") : null;
 
-    if (values.out) {
-      const written = await writeStudyDataset(study, values.out);
+    if (base) {
+      const written = await writeStudyDataset(study, base);
       process.stderr.write(`\nDataset written: ${written.markdown} · ${written.csv} · ${written.json}\n`);
       if (report) {
-        const moderatedPath = `${values.out.replace(/\/$/, "")}/moderated-study.md`;
-        await writeFile(moderatedPath, renderModeratedStudyMarkdown(report), "utf8");
-        process.stderr.write(`Moderated study: ${moderatedPath}\n`);
+        await writeFile(`${base}/moderated-study.md`, renderModeratedStudyMarkdown(report), "utf8");
+        process.stderr.write(`Moderated study: ${base}/moderated-study.md\n`);
+      }
+      if (intel) {
+        await writeFile(`${base}/product-report.md`, renderProductIntelligenceMarkdown(intel), "utf8");
+        process.stderr.write(`Product report: ${base}/product-report.md\n`);
       }
     }
 
     if (format === "json") {
-      process.stdout.write(JSON.stringify(report ? { study, moderated: report } : study, null, 2) + "\n");
+      process.stdout.write(
+        JSON.stringify(
+          { study, ...(report ? { moderated: report } : {}), ...(intel ? { product: intel } : {}) },
+          null,
+          2,
+        ) + "\n",
+      );
     } else {
       process.stdout.write(renderStudyMarkdown(study) + "\n");
       if (report) process.stdout.write("\n" + renderModeratedStudyMarkdown(report) + "\n");
+      if (intel) process.stdout.write("\n" + renderProductIntelligenceMarkdown(intel) + "\n");
     }
     // Non-zero exit if most of the population fails — CI-gate friendly.
     return study.successRate < 0.5 ? 1 : 0;
