@@ -24,6 +24,7 @@ const EXPECTED = [
   "eve_twin_session",
   "eve_calibrate",
   "eve_multimodal_scan",
+  "eve_bench",
   "eve_list_personas",
   "eve_list_professions",
   "eve_list_cultures",

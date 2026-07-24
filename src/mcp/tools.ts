@@ -32,6 +32,7 @@ import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
 import { createTwin, runTwinSession, renderTwinMarkdown, FileTwinStore } from "../twins/index.js";
 import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
 import { analyzeMultimodal, renderMultimodalMarkdown } from "../multimodal/index.js";
+import { runEveBench, renderEveBenchMarkdown } from "../evebench/index.js";
 import {
   getPersona,
   listPersonas,
@@ -50,6 +51,7 @@ import type {
   TwinSessionInput,
   CalibrateInput,
   MultimodalScanInput,
+  EveBenchInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -706,6 +708,12 @@ export function listCulturesTool(): ToolOutput {
     ),
   ].join("\n");
   return { markdown, structured: { count: cultures.length, cultures } };
+}
+
+/** Run the formal EVE Bench multi-dimensional benchmark platform. */
+export async function runEveBenchTool(input: EveBenchInput): Promise<ToolOutput> {
+  const report = await runEveBench({ seed: input.seed, maxSteps: input.max_steps });
+  return { markdown: truncate(renderEveBenchMarkdown(report)), structured: { ...report } };
 }
 
 /** Validate EVE against the known-quality benchmark apps (construct validity). */

@@ -23,6 +23,7 @@ import {
   TwinSessionSchema,
   CalibrateSchema,
   MultimodalScanSchema,
+  EveBenchSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
@@ -34,6 +35,7 @@ import {
   type TwinSessionInput,
   type CalibrateInput,
   type MultimodalScanInput,
+  type EveBenchInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
@@ -49,6 +51,7 @@ import {
   runTwinSessionTool,
   runCalibrate,
   runMultimodalScan,
+  runEveBenchTool,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -426,6 +429,34 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     async (input: ListInput) => respond(listCulturesTool(), input.response_format),
+  );
+
+  server.registerTool(
+    "eve_bench",
+    {
+      title: "Run the EVE Bench scorecard",
+      description:
+        "Run the formal EVE Bench platform: a suite of known-quality reference " +
+        "apps put through the full cognitive simulation, producing a multi-" +
+        "dimensional scorecard per case — task success, overall experience, " +
+        "frustration, trust, cognitive load, expectation alignment, and " +
+        "learnability — plus an overall score and a construct-validity check " +
+        "(excellent > average > bad). Richer than eve_benchmark; runs offline.",
+      inputSchema: EveBenchSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input: EveBenchInput) => {
+      try {
+        return respond(await runEveBenchTool(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
   );
 
   server.registerTool(

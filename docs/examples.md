@@ -23,6 +23,7 @@ four are fully offline (mock adapter).
 | `digital-twin.ts` | Phase 3: a persistent twin ("Power User A") evolves across five sessions — expertise & confidence grow |
 | `human-calibration.ts` | Phase 3: score EVE's realism against a small human study (similarity + correlations) |
 | `multimodal-perception.ts` | Phase 3: recognize charts, icons, loading, toasts on a visually rich mock; flag unlabeled visuals |
+| `eve-bench.ts` | Phase 3: the formal EVE Bench scorecard (task success, load, trust, learnability, …) with a CI gate |
 
 ## CLI recipes
 

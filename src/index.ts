@@ -120,3 +120,6 @@ export * from "./calibration/index.js";
 
 // Phase-3: multimodal perception (icons, charts, loading, toasts, motion)
 export * from "./multimodal/index.js";
+
+// Phase-3: EVE Bench — the formal multi-dimensional benchmark platform
+export * from "./evebench/index.js";

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Phase 3 — EVE Bench (benchmark platform)
+
+Formalizes the benchmark into a multi-dimensional platform.
+
+- **`runEveBench(options?)`** (`src/evebench/`) — runs a suite of known-quality
+  reference apps (`EVEBENCH_CASES`) through the full cognitive simulation and
+  publishes a per-case scorecard: task success, overall experience, frustration,
+  trust, cognitive load, expectation alignment, and learnability (measured by
+  step reduction on a second memory-backed run), rolled into a composite and an
+  overall score, with a construct-validity check (excellent > average > bad).
+  `renderEveBenchMarkdown` renders it; pass your own `cases` to benchmark a
+  custom reference set.
+- **MCP tool `eve_bench`** (16 tools total) — richer than `eve_benchmark`.
+- 5 tests (`tests/evebench.test.ts`), `examples/eve-bench.ts` (with a CI gate),
+  `docs/eve-bench.md`.
+
 ### Phase 3 — Multimodal perception
 
 Perception beyond text, still inside the human boundary.

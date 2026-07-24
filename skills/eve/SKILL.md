@@ -74,6 +74,10 @@ prefer them over shelling out.
 - **`eve_multimodal_scan`** — perceive **visual cues** (icons, charts, media,
   loading states, toasts, text-in-images, motion) across an app and flag
   unlabeled visuals that are ambiguous to humans / invisible to screen readers.
+- **`eve_bench`** — run **EVE Bench**, a multi-dimensional scorecard for the
+  instrument itself (task success, overall, frustration, trust, cognitive load,
+  expectation alignment, learnability) over reference apps, with a
+  construct-validity check. Use to publish or gate on EVE's own calibration.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps
