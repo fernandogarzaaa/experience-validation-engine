@@ -209,6 +209,38 @@ export const RunUsabilityStudySchema = z
   })
   .strict();
 
+/** `eve_twin_session` — run one session as a persistent, evolving digital twin. */
+export const TwinSessionSchema = z
+  .object({
+    twin_file: z
+      .string()
+      .min(1)
+      .describe("Path to the JSON file that persists this twin across sessions."),
+    twin_id: z.string().min(1).describe("Stable id of the twin within the file."),
+    name: z
+      .string()
+      .optional()
+      .describe("Display name (required only when creating the twin the first time)."),
+    base_persona: z
+      .string()
+      .optional()
+      .describe("Base persona (required only when creating the twin, e.g. power-user)."),
+    profession: z.string().optional().describe("Optional professional overlay (creation only)."),
+    culture: z.string().optional().describe("Optional cultural profile / locale (creation only)."),
+    url: z.string().min(1).describe("The app to use this session, or `mock:` for the offline demo."),
+    goal: z.string().optional().describe("The task the twin attempts this session."),
+    goal_success_signals: z.array(z.string()).default([]).describe("Success signals for the goal."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Seed for this session."),
+    max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps this session."),
+    cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
+    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' profile or 'json'."),
+  })
+  .strict();
+
 /** `eve_application_map` — autonomously explore an app and map it. */
 export const ApplicationMapSchema = z
   .object({
@@ -317,6 +349,7 @@ export type RunSessionInput = z.infer<typeof RunSessionSchema>;
 export type RunUsabilityStudyInput = z.infer<typeof RunUsabilityStudySchema>;
 export type CompareBuildsInput = z.infer<typeof CompareBuildsSchema>;
 export type ApplicationMapInput = z.infer<typeof ApplicationMapSchema>;
+export type TwinSessionInput = z.infer<typeof TwinSessionSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;

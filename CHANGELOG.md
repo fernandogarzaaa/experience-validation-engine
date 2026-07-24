@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Phase 3 — Human digital twins
+
+Persistent, named user models that evolve across sessions.
+
+- **`createTwin` / `runTwinSession` / `evolveTwin`** (`src/twins/`) — a twin
+  ("Power User A", "Senior Accountant", …) couples a base persona (+ optional
+  profession/culture) with an accumulating history: it remembers the apps it
+  has used (reusing per-app memory, so it gets faster on familiar apps), grows
+  more expert (power law of practice), and its confidence baseline drifts
+  toward its lived performance. `runTwinSession` runs an ordinary EveSession as
+  the evolved persona and folds the result back in. `renderTwinMarkdown`
+  renders the profile.
+- **Persistence**: `FileTwinStore` (JSON, many twins by id) and
+  `InMemoryTwinStore`.
+- **MCP tool `eve_twin_session`** — stateful: creates a twin on first use and
+  evolves it across calls via `twin_file` (13 tools total).
+- 8 tests (`tests/twins.test.ts`), `examples/digital-twin.ts`,
+  `docs/digital-twins.md`.
+
 ### Phase 3 — Predictive UX
 
 Forecast the wider user base's experience, with confidence intervals.

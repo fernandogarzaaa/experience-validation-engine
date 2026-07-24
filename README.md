@@ -193,6 +193,7 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [Continuous UX Regression (Phase 3)](docs/continuous-regression.md) | Trend experience across builds; catch UX regressions functional tests miss |
 | [Application Map (Phase 3)](docs/application-map.md) | Autonomous exploration → screens, nav graph (Mermaid), IA, hubs, dead-ends |
 | [Predictive UX (Phase 3)](docs/predictive-ux.md) | Predict abandonment / confusion / support / a11y issues with confidence intervals |
+| [Digital Twins (Phase 3)](docs/digital-twins.md) | Persistent, named user models that evolve (expertise, confidence, memory) across sessions |
 | [Architecture](docs/architecture.md) | The human loop, the retina abstraction, module map |
 | [Cognitive Model (Phase 2)](docs/cognitive-model.md) | Attention, utility, expectation, load, trust, learning |
 | [Analysis Systems (Phase 2)](docs/panel-and-analysis.md) | Regression, forecasting, the AI panel, benchmarks, collaboration |

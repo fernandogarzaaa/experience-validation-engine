@@ -111,3 +111,6 @@ export * from "./appmap/index.js";
 
 // Phase-3: predictive UX (confusion / abandonment / support with CIs)
 export * from "./predict/index.js";
+
+// Phase-3: human digital twins (persistent, evolving user models)
+export * from "./twins/index.js";

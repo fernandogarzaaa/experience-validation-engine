@@ -62,6 +62,11 @@ prefer them over shelling out.
   **confidence intervals**: abandonment, confusion, onboarding-failure, and
   accessibility-barrier rates, a modeled support-contact rate, and predicted
   struggle screens. Use to forecast where users will struggle before shipping.
+- **`eve_twin_session`** — run a session as a persistent, evolving **digital
+  twin** (a named user model that remembers apps, grows more expert, and shifts
+  confidence across sessions). Created on first use; call repeatedly with the
+  same `twin_file`/`twin_id` to evolve it. Use to model a specific recurring
+  user over time.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps

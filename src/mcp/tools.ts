@@ -29,6 +29,7 @@ import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../
 import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
 import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
 import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
+import { createTwin, runTwinSession, renderTwinMarkdown, FileTwinStore } from "../twins/index.js";
 import {
   getPersona,
   listPersonas,
@@ -44,6 +45,7 @@ import type {
   RunUsabilityStudyInput,
   CompareBuildsInput,
   ApplicationMapInput,
+  TwinSessionInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -472,6 +474,67 @@ export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolO
 
   const structured: Record<string, unknown> = { ...prediction, file };
   const markdown = truncate(renderUXPredictionMarkdown(prediction) + (file ? `\n\nWritten: ${file}` : ""));
+  return { markdown, structured };
+}
+
+/**
+ * Run one session as a persistent digital twin, creating it on first use and
+ * persisting its evolved profile (expertise, confidence, memory) to disk.
+ */
+export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolOutput> {
+  const store = new FileTwinStore(input.twin_file);
+  let twin = await store.load(input.twin_id);
+  if (!twin) {
+    if (!input.name || !input.base_persona) {
+      throw new ToolInputError(
+        `Twin "${input.twin_id}" does not exist yet — provide \`name\` and ` +
+          `\`base_persona\` to create it.`,
+      );
+    }
+    try {
+      twin = createTwin({
+        id: input.twin_id,
+        name: input.name,
+        basePersona: input.base_persona,
+        ...(input.profession ? { profession: input.profession } : {}),
+        ...(input.culture ? { culture: input.culture } : {}),
+      });
+    } catch (err) {
+      throw new ToolInputError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  const isMock = input.url.startsWith("mock:");
+  const browser = input.browser ?? (isMock ? "mock" : "playwright");
+  let adapter;
+  try {
+    adapter = createAdapter(browser as AdapterName, { headless: true });
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const { twin: updated, outcome } = await runTwinSession(twin, {
+    adapter,
+    url: input.url,
+    goal: input.goal,
+    goalSuccessSignals: input.goal_success_signals,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    cognitive: input.cognitive,
+  });
+  await store.save(updated);
+
+  const structured: Record<string, unknown> = {
+    twin: { id: updated.id, name: updated.name, evolution: updated.evolution },
+    outcome,
+  };
+  const markdown = truncate(
+    renderTwinMarkdown(updated) +
+      `\n_Last session:_ ${outcome.completed ? "completed" : "did not complete"}, ` +
+      `score ${outcome.overall}, ${outcome.steps} steps.`,
+  );
   return { markdown, structured };
 }
 

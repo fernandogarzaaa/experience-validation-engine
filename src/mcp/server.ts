@@ -20,6 +20,7 @@ import {
   RunUsabilityStudySchema,
   CompareBuildsSchema,
   ApplicationMapSchema,
+  TwinSessionSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
@@ -28,6 +29,7 @@ import {
   type RunUsabilityStudyInput,
   type CompareBuildsInput,
   type ApplicationMapInput,
+  type TwinSessionInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
@@ -40,6 +42,7 @@ import {
   compareBuilds,
   runApplicationMap,
   runPredictUX,
+  runTwinSessionTool,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -228,6 +231,35 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runProductReport(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_twin_session",
+    {
+      title: "Run a session as a persistent digital twin",
+      description:
+        "Run one session as a named, persistent digital twin — a user model that " +
+        "evolves across sessions. On first use (provide `name` and " +
+        "`base_persona`) the twin is created; thereafter it is loaded from " +
+        "`twin_file`, remembers the apps it has used, grows more expert, and its " +
+        "confidence baseline drifts toward its lived experience. Call repeatedly " +
+        "with the same twin_file/twin_id to watch it evolve (e.g. get faster on a " +
+        "familiar app). Offline with `mock:`.",
+      inputSchema: TwinSessionSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (input: TwinSessionInput) => {
+      try {
+        return respond(await runTwinSessionTool(input), input.response_format);
       } catch (error) {
         return fail(error);
       }
