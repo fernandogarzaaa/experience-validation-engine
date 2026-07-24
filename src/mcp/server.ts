@@ -21,6 +21,7 @@ import {
   CompareBuildsSchema,
   ApplicationMapSchema,
   TwinSessionSchema,
+  CalibrateSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
@@ -30,6 +31,7 @@ import {
   type CompareBuildsInput,
   type ApplicationMapInput,
   type TwinSessionInput,
+  type CalibrateInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
@@ -43,6 +45,7 @@ import {
   runApplicationMap,
   runPredictUX,
   runTwinSessionTool,
+  runCalibrate,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -231,6 +234,35 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runProductReport(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_calibrate",
+    {
+      title: "Calibrate EVE against a human study",
+      description:
+        "Import anonymized human usability traces from a JSON file, run a " +
+        "matching EVE population, and score how realistic the simulation is: a " +
+        "0–100 similarity score plus behavior, navigation, and timing similarity, " +
+        "a friction-location correlation, and frustration/confidence alignment. " +
+        "Low dimensions reveal where EVE and real humans diverge — the next place " +
+        "to tune. The file is { task?, traces: [{ completed, path, steps?, " +
+        "frustration?, confidence?, abandonedOn? }, ...] }.",
+      inputSchema: CalibrateSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: CalibrateInput) => {
+      try {
+        return respond(await runCalibrate(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

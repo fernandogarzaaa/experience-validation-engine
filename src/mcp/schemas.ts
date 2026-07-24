@@ -209,6 +209,27 @@ export const RunUsabilityStudySchema = z
   })
   .strict();
 
+/** `eve_calibrate` — score EVE's realism against a human study. */
+export const CalibrateSchema = z
+  .object({
+    human_file: z
+      .string()
+      .min(1)
+      .describe("Path to a JSON file with anonymized human traces ({ task?, traces: [...] })."),
+    url: z.string().min(1).describe("The same app the humans used (or `mock:`)."),
+    size: z.number().int().min(2).max(200).default(30).describe("EVE operators to simulate."),
+    goal: z.string().optional().describe("The task (should match the human study's task)."),
+    goal_success_signals: z.array(z.string()).default([]).describe("Success signals for the goal."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed."),
+    max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps per operator."),
+    concurrency: z.number().int().min(1).max(16).default(4).describe("Operators run concurrently."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' report or 'json'."),
+  })
+  .strict();
+
 /** `eve_twin_session` — run one session as a persistent, evolving digital twin. */
 export const TwinSessionSchema = z
   .object({
@@ -350,6 +371,7 @@ export type RunUsabilityStudyInput = z.infer<typeof RunUsabilityStudySchema>;
 export type CompareBuildsInput = z.infer<typeof CompareBuildsSchema>;
 export type ApplicationMapInput = z.infer<typeof ApplicationMapSchema>;
 export type TwinSessionInput = z.infer<typeof TwinSessionSchema>;
+export type CalibrateInput = z.infer<typeof CalibrateSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;

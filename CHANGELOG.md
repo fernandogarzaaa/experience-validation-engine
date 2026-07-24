@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Phase 3 — Human validation engine (calibration)
+
+Measure EVE's realism against real humans instead of assuming it.
+
+- **`calibrate(human, study)`** (`src/calibration/`) — imports anonymized human
+  usability traces (`importHumanStudy` validates the JSON) and scores how
+  closely EVE's population matches: a 0–100 similarity score plus behavior
+  similarity (completion/abandonment), navigation similarity (cosine of
+  transition vectors), timing similarity (effort), a per-screen friction-
+  location Pearson correlation, and frustration/confidence alignment. Metrics
+  that can't be computed are `null` with an explanatory note — nothing is
+  fabricated. `renderCalibrationMarkdown` renders it.
+- **MCP tool `eve_calibrate`** — loads a human-study file, runs a matching
+  population, and reports realism (14 tools total).
+- 8 tests (`tests/calibration.test.ts`), `examples/human-calibration.ts`,
+  `docs/human-calibration.md`.
+
 ### Phase 3 — Human digital twins
 
 Persistent, named user models that evolve across sessions.

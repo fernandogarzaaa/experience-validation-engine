@@ -22,6 +22,7 @@ const EXPECTED = [
   "eve_application_map",
   "eve_predict_ux",
   "eve_twin_session",
+  "eve_calibrate",
   "eve_list_personas",
   "eve_list_professions",
   "eve_list_cultures",

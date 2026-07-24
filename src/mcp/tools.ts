@@ -30,6 +30,7 @@ import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
 import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
 import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
 import { createTwin, runTwinSession, renderTwinMarkdown, FileTwinStore } from "../twins/index.js";
+import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
 import {
   getPersona,
   listPersonas,
@@ -46,6 +47,7 @@ import type {
   CompareBuildsInput,
   ApplicationMapInput,
   TwinSessionInput,
+  CalibrateInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -475,6 +477,36 @@ export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolO
   const structured: Record<string, unknown> = { ...prediction, file };
   const markdown = truncate(renderUXPredictionMarkdown(prediction) + (file ? `\n\nWritten: ${file}` : ""));
   return { markdown, structured };
+}
+
+/**
+ * Calibrate EVE against a human study: load anonymized human traces from a
+ * file, run a matching EVE population, and score the simulation's realism.
+ */
+export async function runCalibrate(input: CalibrateInput): Promise<ToolOutput> {
+  let human;
+  try {
+    const raw = await readFile(input.human_file, "utf8");
+    human = importHumanStudy(JSON.parse(raw));
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not read the human study at "${input.human_file}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const study = await simulatePopulation({
+    url: input.url,
+    size: input.size,
+    goal: input.goal ?? human.task,
+    goalSuccessSignals: input.goal_success_signals,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    concurrency: input.concurrency,
+  });
+
+  const report = calibrate(human, study);
+  const markdown = truncate(renderCalibrationMarkdown(report));
+  return { markdown, structured: { ...report } };
 }
 
 /**

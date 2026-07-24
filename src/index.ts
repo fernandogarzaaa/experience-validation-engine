@@ -114,3 +114,6 @@ export * from "./predict/index.js";
 
 // Phase-3: human digital twins (persistent, evolving user models)
 export * from "./twins/index.js";
+
+// Phase-3: human validation engine (calibrate EVE against real human traces)
+export * from "./calibration/index.js";

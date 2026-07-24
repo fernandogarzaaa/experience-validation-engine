@@ -21,6 +21,7 @@ four are fully offline (mock adapter).
 | `application-map.ts` | Phase 3: autonomously explore an app → screens, navigation graph (Mermaid), IA, hubs, dead-ends |
 | `predictive-ux.ts` | Phase 3: predict abandonment / confusion / support / a11y rates with confidence intervals |
 | `digital-twin.ts` | Phase 3: a persistent twin ("Power User A") evolves across five sessions — expertise & confidence grow |
+| `human-calibration.ts` | Phase 3: score EVE's realism against a small human study (similarity + correlations) |
 
 ## CLI recipes
 
