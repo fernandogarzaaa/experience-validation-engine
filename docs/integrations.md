@@ -10,6 +10,16 @@ Once connected, your assistant gains six tools:
 | Tool | What it does |
 |---|---|
 | `eve_run_session` | Simulate a persona using a web app; returns a scored, evidence-backed experience report |
+| `eve_run_usability_study` | Simulate a **population** of varied operators; returns aggregate stats, segments, heatmap, and a research dataset |
+| `eve_run_user_study` | Population **+ an AI research panel** (6 specialists + moderator); returns an executive report with a ship verdict |
+| `eve_product_report` | Infer **product intelligence** — personas, business goals, critical workflows, feature importance, friction, drop-off causes |
+| `eve_compare_builds` | Trend experience across a series of **builds**; flags improvements and regressions per metric |
+| `eve_application_map` | Autonomously explore a URL → an **application map** (screens, nav graph, IA, hubs, dead-ends) |
+| `eve_predict_ux` | Predict abandonment / confusion / support / a11y rates with **confidence intervals** |
+| `eve_twin_session` | Run a session as a persistent, evolving **digital twin** (created on first use, loaded thereafter) |
+| `eve_calibrate` | Score EVE's **realism** against anonymized human traces (similarity + correlations) |
+| `eve_multimodal_scan` | Perceive **visual cues** (icons, charts, loading, toasts) and flag unlabeled visuals |
+| `eve_bench` | Run **EVE Bench** — a multi-dimensional scorecard for the instrument (success, load, trust, learnability, …) |
 | `eve_list_personas` | List the built-in personas |
 | `eve_list_professions` | List professional overlays (doctor, accountant, …) |
 | `eve_list_cultures` | List cultural profiles / locales |

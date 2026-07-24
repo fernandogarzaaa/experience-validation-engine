@@ -14,6 +14,16 @@ four are fully offline (mock adapter).
 | `ai-panel.ts` | Phase 2: design critic + forecast + moderator + PM backlog + dev tickets |
 | `behavioral-regression.ts` | Phase 2: catch a UX regression that keeps functional tests green |
 | `collaborative-workflow.ts` | Phase 2: multi-operator handoff / approval chain |
+| `population-study.ts` | Phase 3: simulate a population of 40 operators → aggregate study + research dataset (JSON/CSV/MD) |
+| `moderated-study.ts` | Phase 3: a 6-specialist AI research panel + moderator → an executive report with a ship verdict |
+| `product-intelligence.ts` | Phase 3: infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
+| `continuous-regression.ts` | Phase 3: trend experience across three builds (bad → average → excellent) and flag regressions |
+| `application-map.ts` | Phase 3: autonomously explore an app → screens, navigation graph (Mermaid), IA, hubs, dead-ends |
+| `predictive-ux.ts` | Phase 3: predict abandonment / confusion / support / a11y rates with confidence intervals |
+| `digital-twin.ts` | Phase 3: a persistent twin ("Power User A") evolves across five sessions — expertise & confidence grow |
+| `human-calibration.ts` | Phase 3: score EVE's realism against a small human study (similarity + correlations) |
+| `multimodal-perception.ts` | Phase 3: recognize charts, icons, loading, toasts on a visually rich mock; flag unlabeled visuals |
+| `eve-bench.ts` | Phase 3: the formal EVE Bench scorecard (task success, load, trust, learnability, …) with a CI gate |
 
 ## CLI recipes
 
@@ -51,6 +61,18 @@ eve run https://staging.example.com --remember .eve-memory.json --seed 1 --goal 
 
 # Validate the instrument against known-quality apps (CI-friendly exit code)
 eve benchmark
+
+# --- Phase 3 ---
+
+# Population usability study: 50 varied operators → aggregate stats + dataset
+eve study mock: --size 50 --seed 7 --out .eve-output/study
+
+# ...plus the AI-moderated research panel and a ship verdict
+eve study mock: --size 50 --seed 7 --panel
+
+# A population attempting a specific task, mixing professions
+eve study https://staging.example.com --goal "sign up" \
+  --professions accountant,designer --size 60 --out .eve-output/study
 
 # Discover the profession and culture catalogs
 eve professions

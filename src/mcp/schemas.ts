@@ -137,6 +137,218 @@ export const RunSessionSchema = z
   })
   .strict();
 
+/** `eve_run_usability_study` — simulate a population and aggregate it. */
+export const RunUsabilityStudySchema = z
+  .object({
+    url: z
+      .string()
+      .min(1)
+      .describe(
+        "Target to study. A real URL drives real browsers (one per operator), " +
+          "or `mock:` runs EVE's offline demo app.",
+      ),
+    size: z
+      .number()
+      .int()
+      .min(2)
+      .max(200)
+      .default(25)
+      .describe("Number of simulated operators in the population (2–200)."),
+    personas: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "Persona names to sample from (round-robin). Empty = the whole " +
+          "built-in library, giving a diverse population.",
+      ),
+    professions: z
+      .array(z.string())
+      .default([])
+      .describe("Professional overlays to mix across the population (optional)."),
+    cultures: z
+      .array(z.string())
+      .default([])
+      .describe("Cultural profiles / locales to mix across the population (optional)."),
+    goal: z
+      .string()
+      .optional()
+      .describe("The task every operator attempts. Omit for open-ended exploration."),
+    goal_success_signals: z
+      .array(z.string())
+      .default([])
+      .describe("Visible text that all must appear for the goal to count as achieved."),
+    seed: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe("Base seed; each operator derives a distinct seed. Set for reproducibility."),
+    max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps per operator."),
+    cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
+    utility: z.boolean().default(false).describe("Use utility-based decisions."),
+    browser: z
+      .nativeEnum(BrowserBackend)
+      .optional()
+      .describe("Browser backend (defaults to mock for `mock:` URLs, else playwright)."),
+    concurrency: z
+      .number()
+      .int()
+      .min(1)
+      .max(16)
+      .default(4)
+      .describe("How many operators to run concurrently."),
+    output_dir: z
+      .string()
+      .optional()
+      .describe(
+        "If set, write the full research dataset (study.json, operators.csv, " +
+          "study.md) here.",
+      ),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' report or 'json' aggregate."),
+  })
+  .strict();
+
+/** `eve_bench` — run the formal EVE Bench multi-dimensional benchmark suite. */
+export const EveBenchSchema = z
+  .object({
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed for reproducibility."),
+    max_steps: z.number().int().min(1).max(500).default(40).describe("Max steps per benchmark session."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' scorecard or 'json'."),
+  })
+  .strict();
+
+/** `eve_multimodal_scan` — perceive higher-level visual cues across an app. */
+export const MultimodalScanSchema = z
+  .object({
+    url: z.string().min(1).describe("The app to scan, or `mock:` for the offline demo."),
+    persona: z.string().default("curious-explorer").describe("Persona used to explore the app."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Seed for reproducibility."),
+    max_steps: z.number().int().min(1).max(500).default(50).describe("Max exploration steps."),
+    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' report or 'json'."),
+  })
+  .strict();
+
+/** `eve_calibrate` — score EVE's realism against a human study. */
+export const CalibrateSchema = z
+  .object({
+    human_file: z
+      .string()
+      .min(1)
+      .describe("Path to a JSON file with anonymized human traces ({ task?, traces: [...] })."),
+    url: z.string().min(1).describe("The same app the humans used (or `mock:`)."),
+    size: z.number().int().min(2).max(200).default(30).describe("EVE operators to simulate."),
+    goal: z.string().optional().describe("The task (should match the human study's task)."),
+    goal_success_signals: z.array(z.string()).default([]).describe("Success signals for the goal."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed."),
+    max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps per operator."),
+    concurrency: z.number().int().min(1).max(16).default(4).describe("Operators run concurrently."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' report or 'json'."),
+  })
+  .strict();
+
+/** `eve_twin_session` — run one session as a persistent, evolving digital twin. */
+export const TwinSessionSchema = z
+  .object({
+    twin_file: z
+      .string()
+      .min(1)
+      .describe("Path to the JSON file that persists this twin across sessions."),
+    twin_id: z.string().min(1).describe("Stable id of the twin within the file."),
+    name: z
+      .string()
+      .optional()
+      .describe("Display name (required only when creating the twin the first time)."),
+    base_persona: z
+      .string()
+      .optional()
+      .describe("Base persona (required only when creating the twin, e.g. power-user)."),
+    profession: z.string().optional().describe("Optional professional overlay (creation only)."),
+    culture: z.string().optional().describe("Optional cultural profile / locale (creation only)."),
+    url: z.string().min(1).describe("The app to use this session, or `mock:` for the offline demo."),
+    goal: z.string().optional().describe("The task the twin attempts this session."),
+    goal_success_signals: z.array(z.string()).default([]).describe("Success signals for the goal."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Seed for this session."),
+    max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps this session."),
+    cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
+    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' profile or 'json'."),
+  })
+  .strict();
+
+/** `eve_application_map` — autonomously explore an app and map it. */
+export const ApplicationMapSchema = z
+  .object({
+    url: z.string().min(1).describe("The app to explore, or `mock:` for the offline demo."),
+    explorers: z
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .default(3)
+      .describe("Number of exploratory operators (more = broader coverage)."),
+    personas: z
+      .array(z.string())
+      .default([])
+      .describe("Persona pool for the explorers (default: a curiosity-weighted mix)."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed for reproducibility."),
+    max_steps: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .default(50)
+      .describe("Max exploration steps per operator."),
+    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    output_dir: z.string().optional().describe("If set, write application-map.md here."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' map (with a Mermaid graph) or 'json'."),
+  })
+  .strict();
+
+/** `eve_compare_builds` — trend experience across an ordered series of builds. */
+export const CompareBuildsSchema = z
+  .object({
+    builds: z
+      .array(
+        z.object({
+          url: z.string().min(1).describe("The build's URL, or `mock:` for the offline app."),
+          label: z.string().optional().describe("A label for this build (e.g. a version or commit)."),
+        }),
+      )
+      .min(2)
+      .max(10)
+      .describe("Ordered builds, oldest first (2–10). Each is studied with the same population config."),
+    size: z.number().int().min(2).max(200).default(20).describe("Operators per build."),
+    goal: z.string().optional().describe("The task every operator attempts (applied to all builds)."),
+    goal_success_signals: z.array(z.string()).default([]).describe("Success signals (applied to all builds)."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed (shared across builds)."),
+    max_steps: z.number().int().min(1).max(500).default(40).describe("Max steps per operator."),
+    cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
+    utility: z.boolean().default(false).describe("Use utility-based decisions."),
+    concurrency: z.number().int().min(1).max(16).default(4).describe("Operators run concurrently per build."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' trend report or 'json' aggregate."),
+  })
+  .strict();
+
 /** Shared shape for the catalog-listing tools. */
 export const ListSchema = z
   .object({
@@ -182,6 +394,13 @@ export const GetReportSchema = z
   .strict();
 
 export type RunSessionInput = z.infer<typeof RunSessionSchema>;
+export type RunUsabilityStudyInput = z.infer<typeof RunUsabilityStudySchema>;
+export type CompareBuildsInput = z.infer<typeof CompareBuildsSchema>;
+export type ApplicationMapInput = z.infer<typeof ApplicationMapSchema>;
+export type TwinSessionInput = z.infer<typeof TwinSessionSchema>;
+export type CalibrateInput = z.infer<typeof CalibrateSchema>;
+export type MultimodalScanInput = z.infer<typeof MultimodalScanSchema>;
+export type EveBenchInput = z.infer<typeof EveBenchSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;

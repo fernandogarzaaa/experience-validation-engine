@@ -2,6 +2,182 @@
 
 ## Unreleased
 
+### Phase 3 — EVE Bench (benchmark platform)
+
+Formalizes the benchmark into a multi-dimensional platform.
+
+- **`runEveBench(options?)`** (`src/evebench/`) — runs a suite of known-quality
+  reference apps (`EVEBENCH_CASES`) through the full cognitive simulation and
+  publishes a per-case scorecard: task success, overall experience, frustration,
+  trust, cognitive load, expectation alignment, and learnability (measured by
+  step reduction on a second memory-backed run), rolled into a composite and an
+  overall score, with a construct-validity check (excellent > average > bad).
+  `renderEveBenchMarkdown` renders it; pass your own `cases` to benchmark a
+  custom reference set.
+- **MCP tool `eve_bench`** (16 tools total) — richer than `eve_benchmark`.
+- 5 tests (`tests/evebench.test.ts`), `examples/eve-bench.ts` (with a CI gate),
+  `docs/eve-bench.md`.
+
+### Phase 3 — Multimodal perception
+
+Perception beyond text, still inside the human boundary.
+
+- **`analyzeMultimodal(session)` / `HeuristicMultimodalPerceptor`**
+  (`src/multimodal/`) — recognizes higher-level visual constructs from the
+  rendered `Percept`: icons, charts, media, loading states, toasts, text-in-
+  images, and (with real screenshots) animation via frame diffs. Aggregates a
+  `MultimodalReport` and surfaces perception risks — unlabeled icons/charts/
+  images that are ambiguous to humans and invisible to screen readers. The
+  `MultimodalPerceptor` interface is the extension point for OCR / vision-
+  language backends; the default is deterministic. No source is inspected.
+- **MCP tool `eve_multimodal_scan`** (15 tools total).
+- 6 tests (`tests/multimodal.test.ts`), `examples/multimodal-perception.ts`,
+  `docs/multimodal-perception.md`.
+
+### Phase 3 — Human validation engine (calibration)
+
+Measure EVE's realism against real humans instead of assuming it.
+
+- **`calibrate(human, study)`** (`src/calibration/`) — imports anonymized human
+  usability traces (`importHumanStudy` validates the JSON) and scores how
+  closely EVE's population matches: a 0–100 similarity score plus behavior
+  similarity (completion/abandonment), navigation similarity (cosine of
+  transition vectors), timing similarity (effort), a per-screen friction-
+  location Pearson correlation, and frustration/confidence alignment. Metrics
+  that can't be computed are `null` with an explanatory note — nothing is
+  fabricated. `renderCalibrationMarkdown` renders it.
+- **MCP tool `eve_calibrate`** — loads a human-study file, runs a matching
+  population, and reports realism (14 tools total).
+- 8 tests (`tests/calibration.test.ts`), `examples/human-calibration.ts`,
+  `docs/human-calibration.md`.
+
+### Phase 3 — Human digital twins
+
+Persistent, named user models that evolve across sessions.
+
+- **`createTwin` / `runTwinSession` / `evolveTwin`** (`src/twins/`) — a twin
+  ("Power User A", "Senior Accountant", …) couples a base persona (+ optional
+  profession/culture) with an accumulating history: it remembers the apps it
+  has used (reusing per-app memory, so it gets faster on familiar apps), grows
+  more expert (power law of practice), and its confidence baseline drifts
+  toward its lived performance. `runTwinSession` runs an ordinary EveSession as
+  the evolved persona and folds the result back in. `renderTwinMarkdown`
+  renders the profile.
+- **Persistence**: `FileTwinStore` (JSON, many twins by id) and
+  `InMemoryTwinStore`.
+- **MCP tool `eve_twin_session`** — stateful: creates a twin on first use and
+  evolves it across calls via `twin_file` (13 tools total).
+- 8 tests (`tests/twins.test.ts`), `examples/digital-twin.ts`,
+  `docs/digital-twins.md`.
+
+### Phase 3 — Predictive UX
+
+Forecast the wider user base's experience, with confidence intervals.
+
+- **`predictUX(study)`** (`src/predict/`) — extrapolates from a population to
+  predicted abandonment, confusion, onboarding-failure, and
+  accessibility-barrier rates (each a proportion with a 95% **Wilson** interval,
+  exported as `wilsonInterval`), a modeled support-contact rate per 100 users
+  (explicit ±30% band), and the screens predicted to cause struggle. Each item
+  declares its `basis` (observed vs modeled) so nothing overstates certainty.
+  Deterministic; `renderUXPredictionMarkdown` renders it.
+- **MCP tool `eve_predict_ux`** (12 tools total).
+- 9 tests (`tests/predict.test.ts`), `examples/predictive-ux.ts`,
+  `docs/predictive-ux.md`.
+
+### Phase 3 — Autonomous exploration → application map
+
+Given only a URL, reconstruct the whole app from perception.
+
+- **`buildApplicationMap(sessions)`** (`src/appmap/`) — from one or more
+  exploratory sessions, reconstructs the application map: screens with inferred
+  purpose and visible affordances, the navigation graph (transitions with
+  counts), entry points, hubs, dead-ends, an information architecture grouped by
+  purpose, and the **unexercised affordances** (candidate hidden / edge paths).
+  Perception only — no app source. `renderApplicationMapMarkdown` embeds a
+  Mermaid nav-graph diagram; `renderApplicationMapMermaid` returns just the graph.
+- **MCP tool `eve_application_map`** — explores with several operators and
+  returns the map (11 tools total).
+- 8 tests (`tests/appmap.test.ts`), `examples/application-map.ts`,
+  `docs/application-map.md`.
+
+### Phase 3 — Continuous UX regression
+
+Track experience across a series of builds and catch regressions functional
+tests miss.
+
+- **`analyzeTrends(builds)`** (`src/trends/`) — given an ordered series of
+  population studies (build 1 → N), turns each tracked metric (success rate,
+  drop-off, overall score, confidence, frustration, trust, median steps) into a
+  trend with its series, delta, least-squares slope, and a direction
+  (`improved` / `regressed` / `stable`, direction-aware and epsilon-guarded),
+  rolled up into `regressions`, `improvements`, and a verdict. Deterministic;
+  `renderTrendReportMarkdown` renders it.
+- **MCP tool `eve_compare_builds`** — studies each build URL and returns the
+  trend (10 tools total).
+- 8 tests (`tests/trends.test.ts`, incl. a bad→average→excellent construct
+  check), `examples/continuous-regression.ts`, `docs/continuous-regression.md`.
+
+### Phase 3 — Product intelligence
+
+Product insight, not just UX findings — inferred purely from population
+behaviour (no app source inspected).
+
+- **`inferProductIntelligence(study)`** (`src/product/`) — reconstructs the
+  **personas** the population reveals (with real per-cohort success rates), the
+  **business goals** its traffic serves (keyword-classified, ranked by traffic
+  share), the **critical workflows** (dominant path from observed transitions),
+  **feature importance** (reach × engagement, critical-path flagged),
+  **high-friction pages**, and **drop-off causes**. Deterministic;
+  `renderProductIntelligenceMarkdown` renders it.
+- **MCP tool `eve_product_report`** (9 tools total).
+- **CLI `eve study --product`**.
+- 8 tests (`tests/product.test.ts`), `examples/product-intelligence.ts`,
+  `docs/product-intelligence.md`.
+
+### Phase 3 — AI-moderated user study
+
+Turns a population study's numbers into a decision.
+
+- **`moderateStudy(study)`** (`src/study/`) — convenes six specialist
+  "researcher" agents (UX Researcher, Interaction Designer, Accessibility
+  Specialist, QA Engineer, Behavioral Psychologist, Product Manager). Each files
+  an independent report — observations grounded in concrete study statistics,
+  prioritized recommendations, a confidence, and a release stance. A moderator
+  synthesizes them into an `ExecutiveStudyReport`: a **verdict**
+  (ship / ship-with-fixes / do-not-ship), the panel's **consensus** and
+  **conflicts**, a merged **priority** list, and an overall confidence.
+  Deterministic; `renderModeratedStudyMarkdown` renders it.
+- **MCP tool `eve_run_user_study`** — population + panel in one call (8 tools).
+- **CLI `eve study --panel`** — appends the executive report to a study.
+- 8 new tests (`tests/study.test.ts`), `examples/moderated-study.ts`,
+  `docs/moderated-study.md`.
+
+### Phase 3 — Population simulation & Research Mode
+
+The first Phase 3 system: EVE now runs **populations**, not just individuals —
+the "usability study" primitive of an autonomous UX research platform.
+
+- **`simulatePopulation(options)`** (`src/population/`) — runs many varied
+  operators (sampled across the persona library, optionally mixed with
+  professions and cultures) against one app and aggregates them into a
+  `PopulationStudy`: success/drop-off rates, overall-score and
+  confidence/frustration/trust **distributions**, a task-completion
+  **histogram**, a navigation **heatmap** (visits, reach, drop-off screens),
+  the expected **user segments**, and findings ranked by population
+  **prevalence**. Bounded-concurrency, and as reproducible as its seed.
+- **Research Mode** (`src/research/`) — export any study to reproducible
+  artifacts: `renderStudy`/`writeStudyDataset` produce a JSON snapshot, an
+  operator-level **CSV** (pandas/R-ready), and a Markdown report.
+- **MCP tool `eve_run_usability_study`** — the population study exposed to any
+  MCP client (7 tools total now).
+- **CLI `eve study`** — `eve study <url> --size 50 --seed 7 --out dir`, with a
+  CI-friendly exit code (non-zero if <50% of the population succeeds).
+- **Construct validity** — a population out-scores a bad app vs. an excellent
+  one, the standing validity check (EVE Bench). 14 new tests
+  (`tests/population.test.ts`), plus `examples/population-study.ts` and
+  `docs/population.md`.
+
 ### MCP server & AI-platform plugin
 
 EVE is now usable **inside any AI assistant** that speaks the Model Context

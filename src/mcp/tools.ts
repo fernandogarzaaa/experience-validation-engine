@@ -10,7 +10,7 @@
  * full machine-readable object, letting callers pick a response format.
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { createAdapter } from "../browser/index.js";
@@ -21,6 +21,18 @@ import { EveSession, type SessionResult } from "../engine/session.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { validateBenchmarks } from "../benchmarks/index.js";
 import { writeReports } from "../reporting/index.js";
+import { simulatePopulation } from "../population/index.js";
+import type { AdapterName } from "../browser/index.js";
+import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
+import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
+import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
+import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
+import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
+import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
+import { createTwin, runTwinSession, renderTwinMarkdown, FileTwinStore } from "../twins/index.js";
+import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
+import { analyzeMultimodal, renderMultimodalMarkdown } from "../multimodal/index.js";
+import { runEveBench, renderEveBenchMarkdown } from "../evebench/index.js";
 import {
   getPersona,
   listPersonas,
@@ -33,6 +45,13 @@ import {
 } from "../personas/index.js";
 import type {
   RunSessionInput,
+  RunUsabilityStudyInput,
+  CompareBuildsInput,
+  ApplicationMapInput,
+  TwinSessionInput,
+  CalibrateInput,
+  MultimodalScanInput,
+  EveBenchInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -299,6 +318,352 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
   return { markdown: truncate(lines.join("\n")), structured };
 }
 
+/**
+ * Run a population usability study: simulate many varied operators against the
+ * same app and aggregate the results statistically. Optionally writes the full
+ * research dataset (JSON/CSV/Markdown) to disk.
+ */
+/** Map the shared study MCP input to `simulatePopulation` options. */
+function toPopulationOptions(input: RunUsabilityStudyInput) {
+  return {
+    url: input.url,
+    size: input.size,
+    personas: input.personas.length ? input.personas : undefined,
+    professions: input.professions.length ? input.professions : undefined,
+    cultures: input.cultures.length ? input.cultures : undefined,
+    goal: input.goal,
+    goalSuccessSignals: input.goal_success_signals,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    cognitive: input.cognitive,
+    utility: input.utility,
+    browser: input.browser as AdapterName | undefined,
+    concurrency: input.concurrency,
+  };
+}
+
+export async function runUsabilityStudy(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+
+  let dataset: { json: string; csv: string; markdown: string } | null = null;
+  if (input.output_dir) dataset = await writeStudyDataset(study, input.output_dir);
+
+  // Keep the inline structured payload bounded: summary + a sample of
+  // operators, with the full per-operator table available in the CSV/JSON.
+  const { operators, ...summary } = study;
+  const structured: Record<string, unknown> = {
+    ...summary,
+    operatorSample: operators.slice(0, 10),
+    operatorCount: operators.length,
+    dataset,
+  };
+
+  const markdown = truncate(
+    renderStudyMarkdown(study) +
+      (dataset
+        ? `\n\nResearch dataset written to: ${dataset.markdown} · ${dataset.csv} · ${dataset.json}`
+        : ""),
+  );
+  return { markdown, structured };
+}
+
+/**
+ * Run a full AI-moderated user study: simulate a population, then convene the
+ * specialist panel (UX Researcher, Interaction Designer, Accessibility
+ * Specialist, QA Engineer, Behavioral Psychologist, Product Manager) and the
+ * moderator synthesis. Returns an executive report with a release verdict.
+ */
+export async function runUserStudy(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+  const report = moderateStudy(study);
+
+  let files: { study: string; moderated: string } | null = null;
+  if (input.output_dir) {
+    const dataset = await writeStudyDataset(study, input.output_dir);
+    const moderatedPath = join(input.output_dir, "moderated-study.md");
+    await writeFile(moderatedPath, renderModeratedStudyMarkdown(report), "utf8");
+    files = { study: dataset.markdown, moderated: moderatedPath };
+  }
+
+  const structured: Record<string, unknown> = {
+    verdict: report.verdict,
+    headline: report.headline,
+    confidence: report.confidence,
+    successRate: report.successRate,
+    dropoffRate: report.dropoffRate,
+    consensus: report.consensus,
+    conflicts: report.conflicts,
+    priorities: report.priorities,
+    specialists: report.specialists.map((s) => ({
+      role: s.role,
+      stance: s.stance,
+      confidence: s.confidence,
+      summary: s.summary,
+    })),
+    files,
+  };
+
+  const markdown = truncate(
+    renderModeratedStudyMarkdown(report) +
+      (files ? `\n\nWritten: ${files.moderated} · ${files.study}` : ""),
+  );
+  return { markdown, structured };
+}
+
+/**
+ * Run a population, then infer product intelligence from how it behaved:
+ * personas, business goals, critical workflows, feature importance,
+ * high-friction pages, and drop-off causes.
+ */
+export async function runProductReport(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+  const intel = inferProductIntelligence(study);
+
+  let file: string | null = null;
+  if (input.output_dir) {
+    await writeStudyDataset(study, input.output_dir);
+    file = join(input.output_dir, "product-report.md");
+    await writeFile(file, renderProductIntelligenceMarkdown(intel), "utf8");
+  }
+
+  const structured: Record<string, unknown> = { ...intel, file };
+  const markdown = truncate(
+    renderProductIntelligenceMarkdown(intel) + (file ? `\n\nWritten: ${file}` : ""),
+  );
+  return { markdown, structured };
+}
+
+/**
+ * Study several builds and analyze the experience trend across them —
+ * detecting improvements and regressions in success, drop-off, score,
+ * confidence, frustration, trust, and effort.
+ */
+export async function compareBuilds(input: CompareBuildsInput): Promise<ToolOutput> {
+  const builds: { label: string; study: Awaited<ReturnType<typeof simulatePopulation>> }[] = [];
+  for (let i = 0; i < input.builds.length; i += 1) {
+    const b = input.builds[i]!;
+    const study = await simulatePopulation({
+      url: b.url,
+      size: input.size,
+      goal: input.goal,
+      goalSuccessSignals: input.goal_success_signals,
+      seed: input.seed,
+      maxSteps: input.max_steps,
+      cognitive: input.cognitive,
+      utility: input.utility,
+      concurrency: input.concurrency,
+    });
+    builds.push({ label: b.label ?? b.url, study });
+  }
+
+  const report = analyzeTrends(builds);
+  const markdown = truncate(renderTrendReportMarkdown(report));
+  return { markdown, structured: { ...report } };
+}
+
+/**
+ * Run a population, then predict the UX the wider user base will experience —
+ * confusion, abandonment, onboarding failure, support contacts, and
+ * accessibility barriers, each with a confidence interval.
+ */
+export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+  const prediction = predictUX(study);
+
+  let file: string | null = null;
+  if (input.output_dir) {
+    file = join(input.output_dir, "ux-prediction.md");
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(input.output_dir, { recursive: true });
+    await writeFile(file, renderUXPredictionMarkdown(prediction), "utf8");
+  }
+
+  const structured: Record<string, unknown> = { ...prediction, file };
+  const markdown = truncate(renderUXPredictionMarkdown(prediction) + (file ? `\n\nWritten: ${file}` : ""));
+  return { markdown, structured };
+}
+
+/**
+ * Calibrate EVE against a human study: load anonymized human traces from a
+ * file, run a matching EVE population, and score the simulation's realism.
+ */
+export async function runCalibrate(input: CalibrateInput): Promise<ToolOutput> {
+  let human;
+  try {
+    const raw = await readFile(input.human_file, "utf8");
+    human = importHumanStudy(JSON.parse(raw));
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not read the human study at "${input.human_file}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const study = await simulatePopulation({
+    url: input.url,
+    size: input.size,
+    goal: input.goal ?? human.task,
+    goalSuccessSignals: input.goal_success_signals,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    concurrency: input.concurrency,
+  });
+
+  const report = calibrate(human, study);
+  const markdown = truncate(renderCalibrationMarkdown(report));
+  return { markdown, structured: { ...report } };
+}
+
+/**
+ * Run one session as a persistent digital twin, creating it on first use and
+ * persisting its evolved profile (expertise, confidence, memory) to disk.
+ */
+export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolOutput> {
+  const store = new FileTwinStore(input.twin_file);
+  let twin = await store.load(input.twin_id);
+  if (!twin) {
+    if (!input.name || !input.base_persona) {
+      throw new ToolInputError(
+        `Twin "${input.twin_id}" does not exist yet — provide \`name\` and ` +
+          `\`base_persona\` to create it.`,
+      );
+    }
+    try {
+      twin = createTwin({
+        id: input.twin_id,
+        name: input.name,
+        basePersona: input.base_persona,
+        ...(input.profession ? { profession: input.profession } : {}),
+        ...(input.culture ? { culture: input.culture } : {}),
+      });
+    } catch (err) {
+      throw new ToolInputError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  const isMock = input.url.startsWith("mock:");
+  const browser = input.browser ?? (isMock ? "mock" : "playwright");
+  let adapter;
+  try {
+    adapter = createAdapter(browser as AdapterName, { headless: true });
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const { twin: updated, outcome } = await runTwinSession(twin, {
+    adapter,
+    url: input.url,
+    goal: input.goal,
+    goalSuccessSignals: input.goal_success_signals,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    cognitive: input.cognitive,
+  });
+  await store.save(updated);
+
+  const structured: Record<string, unknown> = {
+    twin: { id: updated.id, name: updated.name, evolution: updated.evolution },
+    outcome,
+  };
+  const markdown = truncate(
+    renderTwinMarkdown(updated) +
+      `\n_Last session:_ ${outcome.completed ? "completed" : "did not complete"}, ` +
+      `score ${outcome.overall}, ${outcome.steps} steps.`,
+  );
+  return { markdown, structured };
+}
+
+/**
+ * Explore an app and analyze its multimodal perception — icons, charts, media,
+ * loading states, toasts, and text-in-images — surfacing unlabeled visuals.
+ */
+export async function runMultimodalScan(input: MultimodalScanInput): Promise<ToolOutput> {
+  const isMock = input.url.startsWith("mock:");
+  const browser = input.browser ?? (isMock ? "mock" : "playwright");
+  let adapter;
+  try {
+    adapter = createAdapter(browser as AdapterName, { headless: true });
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  let persona;
+  try {
+    persona = getPersona(input.persona);
+  } catch {
+    throw new ToolInputError(`Unknown persona "${input.persona}". Call eve_list_personas.`);
+  }
+
+  const result = await new EveSession({
+    adapter,
+    startUrl: input.url,
+    persona,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    screenshots: browser !== "mock",
+  }).run();
+
+  const report = analyzeMultimodal(result);
+  return { markdown: truncate(renderMultimodalMarkdown(report)), structured: { ...report } };
+}
+
+/** Curiosity-weighted default explorer personas (fall back to the library). */
+const DEFAULT_EXPLORERS = ["curious-explorer", "power-user", "first-time-user", "impatient-user"];
+
+/**
+ * Autonomously explore an app with several curious operators and reconstruct
+ * its application map: screens, navigation graph, information architecture,
+ * hubs, dead-ends, and unexercised affordances.
+ */
+export async function runApplicationMap(input: ApplicationMapInput): Promise<ToolOutput> {
+  const isMock = input.url.startsWith("mock:");
+  const browser = input.browser ?? (isMock ? "mock" : "playwright");
+  const pool =
+    input.personas.length > 0
+      ? input.personas
+      : DEFAULT_EXPLORERS.filter((name) => listPersonas().some((p) => p.name === name));
+  const personas = pool.length > 0 ? pool : listPersonas().map((p) => p.name);
+  const base = String(input.seed ?? 1);
+
+  const results: SessionResult[] = [];
+  for (let i = 0; i < input.explorers; i += 1) {
+    let adapter;
+    try {
+      adapter = createAdapter(browser as AdapterName, { headless: true });
+    } catch (err) {
+      throw new ToolInputError(
+        `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    const persona = getPersona(personas[i % personas.length]!);
+    results.push(
+      await new EveSession({
+        adapter,
+        startUrl: input.url,
+        persona,
+        seed: `${base}#${i}`,
+        maxSteps: input.max_steps,
+        screenshots: false,
+      }).run(),
+    );
+  }
+
+  const map = buildApplicationMap(results);
+  let file: string | null = null;
+  if (input.output_dir) {
+    file = join(input.output_dir, "application-map.md");
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(input.output_dir, { recursive: true });
+    await writeFile(file, renderApplicationMapMarkdown(map), "utf8");
+  }
+
+  const structured: Record<string, unknown> = { ...map, file };
+  const markdown = truncate(renderApplicationMapMarkdown(map) + (file ? `\n\nWritten: ${file}` : ""));
+  return { markdown, structured };
+}
+
 /** List the built-in personas. */
 export function listPersonasTool(): ToolOutput {
   const personas = listPersonas().map((p) => ({ name: p.name, description: p.description }));
@@ -343,6 +708,12 @@ export function listCulturesTool(): ToolOutput {
     ),
   ].join("\n");
   return { markdown, structured: { count: cultures.length, cultures } };
+}
+
+/** Run the formal EVE Bench multi-dimensional benchmark platform. */
+export async function runEveBenchTool(input: EveBenchInput): Promise<ToolOutput> {
+  const report = await runEveBench({ seed: input.seed, maxSteps: input.max_steps });
+  return { markdown: truncate(renderEveBenchMarkdown(report)), structured: { ...report } };
 }
 
 /** Validate EVE against the known-quality benchmark apps (construct validity). */

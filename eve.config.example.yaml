@@ -87,3 +87,12 @@ customPersonas:
     disposition:
       fatigue: 0.5
       stress: 0.45
+
+# --- Population studies (Phase 3) ------------------------------------------
+# Population studies are not configured here — they run many operators and are
+# driven by CLI flags or the MCP tool, not this single-session YAML:
+#
+#   eve study mock: --size 50 --seed 7 --professions accountant,designer \
+#     --out .eve-output/study
+#
+# or the `eve_run_usability_study` MCP tool. See docs/population.md.

@@ -17,17 +17,41 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import {
   RunSessionSchema,
+  RunUsabilityStudySchema,
+  CompareBuildsSchema,
+  ApplicationMapSchema,
+  TwinSessionSchema,
+  CalibrateSchema,
+  MultimodalScanSchema,
+  EveBenchSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
   ResponseFormat,
   type RunSessionInput,
+  type RunUsabilityStudyInput,
+  type CompareBuildsInput,
+  type ApplicationMapInput,
+  type TwinSessionInput,
+  type CalibrateInput,
+  type MultimodalScanInput,
+  type EveBenchInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
 } from "./schemas.js";
 import {
   runSession,
+  runUsabilityStudy,
+  runUserStudy,
+  runProductReport,
+  compareBuilds,
+  runApplicationMap,
+  runPredictUX,
+  runTwinSessionTool,
+  runCalibrate,
+  runMultimodalScan,
+  runEveBenchTool,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -103,6 +127,269 @@ export function createServer(): McpServer {
   );
 
   server.registerTool(
+    "eve_run_usability_study",
+    {
+      title: "Run a population usability study",
+      description:
+        "Simulate a whole population of varied operators (different personas, " +
+        "confidence, patience, professions, cultures) against the same app and " +
+        "aggregate the results into a statistical usability study: success and " +
+        "drop-off rates, confidence/frustration/trust distributions, a " +
+        "task-completion histogram, a navigation heatmap, the expected user " +
+        "segments, and the findings most humans hit. This is what you run before " +
+        "shipping to answer 'how will the distribution of real users fare?' — " +
+        "the population analogue of eve_run_session. Offline with `mock:`. Set " +
+        "output_dir to also write the full research dataset (JSON/CSV/Markdown).",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runUsabilityStudy(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_run_user_study",
+    {
+      title: "Run an AI-moderated user study",
+      description:
+        "Run a full autonomous user study: simulate a population, then convene a " +
+        "panel of specialist AI researchers — UX Researcher, Interaction " +
+        "Designer, Accessibility Specialist, QA Engineer, Behavioral " +
+        "Psychologist, and Product Manager — who each file an independent report, " +
+        "and a moderator who synthesizes them into an executive report with a " +
+        "release verdict (ship / ship-with-fixes / do-not-ship), the panel's " +
+        "consensus and conflicts, and a prioritized recommendation list. Use this " +
+        "when you want a decision and a rationale, not just raw numbers. Offline " +
+        "with `mock:`. Same inputs as eve_run_usability_study; set output_dir to " +
+        "also write the study dataset and the moderated report.",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runUserStudy(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_predict_ux",
+    {
+      title: "Predict UX with confidence intervals",
+      description:
+        "Run a population, then extrapolate to the wider user base: predicted " +
+        "abandonment, confusion, onboarding-failure, and accessibility-barrier " +
+        "rates (each a proportion with a 95% Wilson confidence interval), a " +
+        "modeled support-contact rate per 100 users, and the screens predicted " +
+        "to cause struggle. Use to forecast where and how much users will " +
+        "struggle before you ship. Offline with `mock:`.",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runPredictUX(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_product_report",
+    {
+      title: "Infer product intelligence",
+      description:
+        "Run a population, then infer product-level intelligence from how it " +
+        "behaved — the user personas the population reveals, the business goals " +
+        "its traffic serves, the critical workflows people traverse, feature " +
+        "importance, high-friction pages, and the causes of drop-off. Produces " +
+        "product insight, not just UX findings, so a PM or founder can see what " +
+        "the product is for and where it leaks. Offline with `mock:`. Same inputs " +
+        "as eve_run_usability_study.",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runProductReport(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_multimodal_scan",
+    {
+      title: "Scan an app's multimodal perception",
+      description:
+        "Explore an app and analyze its perception beyond text: icons, charts, " +
+        "media, loading states, toasts/notifications, text-in-images, and (with " +
+        "real screenshots) animation. Surfaces perception risks — unlabeled " +
+        "icons/charts/images that are ambiguous to humans and invisible to " +
+        "screen readers. Stays within the human-perception boundary (no source " +
+        "inspection). Offline with `mock:`.",
+      inputSchema: MultimodalScanSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: MultimodalScanInput) => {
+      try {
+        return respond(await runMultimodalScan(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_calibrate",
+    {
+      title: "Calibrate EVE against a human study",
+      description:
+        "Import anonymized human usability traces from a JSON file, run a " +
+        "matching EVE population, and score how realistic the simulation is: a " +
+        "0–100 similarity score plus behavior, navigation, and timing similarity, " +
+        "a friction-location correlation, and frustration/confidence alignment. " +
+        "Low dimensions reveal where EVE and real humans diverge — the next place " +
+        "to tune. The file is { task?, traces: [{ completed, path, steps?, " +
+        "frustration?, confidence?, abandonedOn? }, ...] }.",
+      inputSchema: CalibrateSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: CalibrateInput) => {
+      try {
+        return respond(await runCalibrate(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_twin_session",
+    {
+      title: "Run a session as a persistent digital twin",
+      description:
+        "Run one session as a named, persistent digital twin — a user model that " +
+        "evolves across sessions. On first use (provide `name` and " +
+        "`base_persona`) the twin is created; thereafter it is loaded from " +
+        "`twin_file`, remembers the apps it has used, grows more expert, and its " +
+        "confidence baseline drifts toward its lived experience. Call repeatedly " +
+        "with the same twin_file/twin_id to watch it evolve (e.g. get faster on a " +
+        "familiar app). Offline with `mock:`.",
+      inputSchema: TwinSessionSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (input: TwinSessionInput) => {
+      try {
+        return respond(await runTwinSessionTool(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_application_map",
+    {
+      title: "Autonomously map an application",
+      description:
+        "Given only a URL, explore the app with several curious operators and " +
+        "reconstruct a complete application map from what they perceived — the " +
+        "screens and their inferred purpose, the navigation graph (as a Mermaid " +
+        "diagram), the information architecture, entry points, hubs, dead-ends, " +
+        "and affordances no operator got to exercise (candidate hidden / edge " +
+        "functionality). No predefined workflows and no app source — perception " +
+        "only. Offline with `mock:`.",
+      inputSchema: ApplicationMapSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: ApplicationMapInput) => {
+      try {
+        return respond(await runApplicationMap(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_compare_builds",
+    {
+      title: "Compare experience across builds",
+      description:
+        "Run a usability study on each of several builds (ordered oldest to " +
+        "newest) and analyze the experience trend across them — detecting which " +
+        "metrics improved, regressed, or held steady (success rate, drop-off, " +
+        "overall score, confidence, frustration, trust, effort). This is " +
+        "continuous UX regression: catch an experience regression between builds " +
+        "even when functional tests stay green. Use `mock:` builds offline.",
+      inputSchema: CompareBuildsSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: CompareBuildsInput) => {
+      try {
+        return respond(await compareBuilds(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
     "eve_list_personas",
     {
       title: "List EVE personas",
@@ -142,6 +429,34 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     async (input: ListInput) => respond(listCulturesTool(), input.response_format),
+  );
+
+  server.registerTool(
+    "eve_bench",
+    {
+      title: "Run the EVE Bench scorecard",
+      description:
+        "Run the formal EVE Bench platform: a suite of known-quality reference " +
+        "apps put through the full cognitive simulation, producing a multi-" +
+        "dimensional scorecard per case — task success, overall experience, " +
+        "frustration, trust, cognitive load, expectation alignment, and " +
+        "learnability — plus an overall score and a construct-validity check " +
+        "(excellent > average > bad). Richer than eve_benchmark; runs offline.",
+      inputSchema: EveBenchSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input: EveBenchInput) => {
+      try {
+        return respond(await runEveBenchTool(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
   );
 
   server.registerTool(

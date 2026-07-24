@@ -32,6 +32,52 @@ prefer them over shelling out.
   - `remember_file`: persist memory across runs — call repeatedly against the
     same app to watch the operator learn (get faster).
   - Writes the full report to `output_dir` (default `.eve-output`).
+- **`eve_run_usability_study`** — simulate a whole **population** of varied
+  operators against the app and get aggregate stats (success/drop-off rates,
+  distributions, a task-completion histogram, a navigation heatmap, expected
+  user segments, and the findings most people hit). Use this instead of a
+  single session when the user wants "how will *users* fare?" rather than "how
+  did this one persona do?". Set `output_dir` to also write a research dataset
+  (JSON/CSV/Markdown).
+- **`eve_run_user_study`** — the population study **plus an AI research panel**
+  (UX Researcher, Interaction Designer, Accessibility Specialist, QA Engineer,
+  Behavioral Psychologist, Product Manager) and a moderator that returns an
+  executive report with a **ship verdict** (ship / ship-with-fixes /
+  do-not-ship), consensus, conflicts, and prioritized fixes. Use this when the
+  user wants a go/no-go decision with a rationale, not just numbers.
+- **`eve_product_report`** — infer **product intelligence** from how the
+  population behaved: user personas, business goals, critical workflows,
+  feature importance, high-friction pages, and drop-off causes. Use when the
+  user wants product insight ("what is this product for, where does it leak?"),
+  not just UX findings.
+- **`eve_compare_builds`** — study several **builds** (ordered oldest→newest)
+  and report the experience **trend**: which metrics improved or regressed
+  (success, drop-off, score, confidence, frustration, trust, effort). Use to
+  catch a UX regression between builds even when functional tests pass.
+- **`eve_application_map`** — given only a URL, autonomously explore and return
+  an **application map**: screens and their purpose, the navigation graph (as a
+  Mermaid diagram), information architecture, hubs, dead-ends, and unexercised
+  affordances. Use to understand an unfamiliar app's structure and coverage.
+- **`eve_predict_ux`** — predict the wider user base's experience with
+  **confidence intervals**: abandonment, confusion, onboarding-failure, and
+  accessibility-barrier rates, a modeled support-contact rate, and predicted
+  struggle screens. Use to forecast where users will struggle before shipping.
+- **`eve_twin_session`** — run a session as a persistent, evolving **digital
+  twin** (a named user model that remembers apps, grows more expert, and shifts
+  confidence across sessions). Created on first use; call repeatedly with the
+  same `twin_file`/`twin_id` to evolve it. Use to model a specific recurring
+  user over time.
+- **`eve_calibrate`** — score EVE's **realism** against a file of anonymized
+  human usability traces: a 0–100 similarity score plus behavior/navigation/
+  timing similarity and frustration/confidence alignment. Use to validate (and
+  improve) how human-like EVE is for a given app.
+- **`eve_multimodal_scan`** — perceive **visual cues** (icons, charts, media,
+  loading states, toasts, text-in-images, motion) across an app and flag
+  unlabeled visuals that are ambiguous to humans / invisible to screen readers.
+- **`eve_bench`** — run **EVE Bench**, a multi-dimensional scorecard for the
+  instrument itself (task success, overall, frustration, trust, cognitive load,
+  expectation alignment, learnability) over reference apps, with a
+  construct-validity check. Use to publish or gate on EVE's own calibration.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps
