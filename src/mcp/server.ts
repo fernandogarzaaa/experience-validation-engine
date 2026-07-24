@@ -18,12 +18,14 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   RunSessionSchema,
   RunUsabilityStudySchema,
+  CompareBuildsSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
   ResponseFormat,
   type RunSessionInput,
   type RunUsabilityStudyInput,
+  type CompareBuildsInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
@@ -33,6 +35,7 @@ import {
   runUsabilityStudy,
   runUserStudy,
   runProductReport,
+  compareBuilds,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -193,6 +196,34 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runProductReport(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_compare_builds",
+    {
+      title: "Compare experience across builds",
+      description:
+        "Run a usability study on each of several builds (ordered oldest to " +
+        "newest) and analyze the experience trend across them — detecting which " +
+        "metrics improved, regressed, or held steady (success rate, drop-off, " +
+        "overall score, confidence, frustration, trust, effort). This is " +
+        "continuous UX regression: catch an experience regression between builds " +
+        "even when functional tests stay green. Use `mock:` builds offline.",
+      inputSchema: CompareBuildsSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: CompareBuildsInput) => {
+      try {
+        return respond(await compareBuilds(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

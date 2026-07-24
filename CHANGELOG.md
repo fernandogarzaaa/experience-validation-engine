@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Phase 3 — Continuous UX regression
+
+Track experience across a series of builds and catch regressions functional
+tests miss.
+
+- **`analyzeTrends(builds)`** (`src/trends/`) — given an ordered series of
+  population studies (build 1 → N), turns each tracked metric (success rate,
+  drop-off, overall score, confidence, frustration, trust, median steps) into a
+  trend with its series, delta, least-squares slope, and a direction
+  (`improved` / `regressed` / `stable`, direction-aware and epsilon-guarded),
+  rolled up into `regressions`, `improvements`, and a verdict. Deterministic;
+  `renderTrendReportMarkdown` renders it.
+- **MCP tool `eve_compare_builds`** — studies each build URL and returns the
+  trend (10 tools total).
+- 8 tests (`tests/trends.test.ts`, incl. a bad→average→excellent construct
+  check), `examples/continuous-regression.ts`, `docs/continuous-regression.md`.
+
 ### Phase 3 — Product intelligence
 
 Product insight, not just UX findings — inferred purely from population

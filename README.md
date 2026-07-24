@@ -190,6 +190,7 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [Population Simulation (Phase 3)](docs/population.md) | Run hundreds of operators → a statistical usability study + research dataset |
 | [AI-Moderated Study (Phase 3)](docs/moderated-study.md) | A 6-specialist research panel + moderator → an executive report with a ship verdict |
 | [Product Intelligence (Phase 3)](docs/product-intelligence.md) | Infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
+| [Continuous UX Regression (Phase 3)](docs/continuous-regression.md) | Trend experience across builds; catch UX regressions functional tests miss |
 | [Architecture](docs/architecture.md) | The human loop, the retina abstraction, module map |
 | [Cognitive Model (Phase 2)](docs/cognitive-model.md) | Attention, utility, expectation, load, trust, learning |
 | [Analysis Systems (Phase 2)](docs/panel-and-analysis.md) | Regression, forecasting, the AI panel, benchmarks, collaboration |

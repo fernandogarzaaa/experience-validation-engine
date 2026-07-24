@@ -13,6 +13,7 @@ export {
   runUsabilityStudy,
   runUserStudy,
   runProductReport,
+  compareBuilds,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -25,6 +26,7 @@ export {
 export {
   RunSessionSchema,
   RunUsabilityStudySchema,
+  CompareBuildsSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
@@ -32,6 +34,7 @@ export {
   BrowserBackend,
   type RunSessionInput,
   type RunUsabilityStudyInput,
+  type CompareBuildsInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,

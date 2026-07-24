@@ -102,3 +102,6 @@ export * from "./study/index.js";
 
 // Phase-3: product intelligence (personas, workflows, goals, friction, drop-off)
 export * from "./product/index.js";
+
+// Phase-3: continuous UX regression (experience trends across builds)
+export * from "./trends/index.js";

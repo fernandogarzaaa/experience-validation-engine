@@ -17,6 +17,7 @@ four are fully offline (mock adapter).
 | `population-study.ts` | Phase 3: simulate a population of 40 operators → aggregate study + research dataset (JSON/CSV/MD) |
 | `moderated-study.ts` | Phase 3: a 6-specialist AI research panel + moderator → an executive report with a ship verdict |
 | `product-intelligence.ts` | Phase 3: infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
+| `continuous-regression.ts` | Phase 3: trend experience across three builds (bad → average → excellent) and flag regressions |
 
 ## CLI recipes
 

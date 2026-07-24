@@ -26,6 +26,7 @@ import type { AdapterName } from "../browser/index.js";
 import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
+import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
 import {
   getPersona,
   listPersonas,
@@ -39,6 +40,7 @@ import {
 import type {
   RunSessionInput,
   RunUsabilityStudyInput,
+  CompareBuildsInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -418,6 +420,34 @@ export async function runProductReport(input: RunUsabilityStudyInput): Promise<T
     renderProductIntelligenceMarkdown(intel) + (file ? `\n\nWritten: ${file}` : ""),
   );
   return { markdown, structured };
+}
+
+/**
+ * Study several builds and analyze the experience trend across them —
+ * detecting improvements and regressions in success, drop-off, score,
+ * confidence, frustration, trust, and effort.
+ */
+export async function compareBuilds(input: CompareBuildsInput): Promise<ToolOutput> {
+  const builds: { label: string; study: Awaited<ReturnType<typeof simulatePopulation>> }[] = [];
+  for (let i = 0; i < input.builds.length; i += 1) {
+    const b = input.builds[i]!;
+    const study = await simulatePopulation({
+      url: b.url,
+      size: input.size,
+      goal: input.goal,
+      goalSuccessSignals: input.goal_success_signals,
+      seed: input.seed,
+      maxSteps: input.max_steps,
+      cognitive: input.cognitive,
+      utility: input.utility,
+      concurrency: input.concurrency,
+    });
+    builds.push({ label: b.label ?? b.url, study });
+  }
+
+  const report = analyzeTrends(builds);
+  const markdown = truncate(renderTrendReportMarkdown(report));
+  return { markdown, structured: { ...report } };
 }
 
 /** List the built-in personas. */

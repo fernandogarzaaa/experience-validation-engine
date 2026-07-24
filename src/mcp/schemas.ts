@@ -209,6 +209,34 @@ export const RunUsabilityStudySchema = z
   })
   .strict();
 
+/** `eve_compare_builds` — trend experience across an ordered series of builds. */
+export const CompareBuildsSchema = z
+  .object({
+    builds: z
+      .array(
+        z.object({
+          url: z.string().min(1).describe("The build's URL, or `mock:` for the offline app."),
+          label: z.string().optional().describe("A label for this build (e.g. a version or commit)."),
+        }),
+      )
+      .min(2)
+      .max(10)
+      .describe("Ordered builds, oldest first (2–10). Each is studied with the same population config."),
+    size: z.number().int().min(2).max(200).default(20).describe("Operators per build."),
+    goal: z.string().optional().describe("The task every operator attempts (applied to all builds)."),
+    goal_success_signals: z.array(z.string()).default([]).describe("Success signals (applied to all builds)."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed (shared across builds)."),
+    max_steps: z.number().int().min(1).max(500).default(40).describe("Max steps per operator."),
+    cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
+    utility: z.boolean().default(false).describe("Use utility-based decisions."),
+    concurrency: z.number().int().min(1).max(16).default(4).describe("Operators run concurrently per build."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' trend report or 'json' aggregate."),
+  })
+  .strict();
+
 /** Shared shape for the catalog-listing tools. */
 export const ListSchema = z
   .object({
@@ -255,6 +283,7 @@ export const GetReportSchema = z
 
 export type RunSessionInput = z.infer<typeof RunSessionSchema>;
 export type RunUsabilityStudyInput = z.infer<typeof RunUsabilityStudySchema>;
+export type CompareBuildsInput = z.infer<typeof CompareBuildsSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;

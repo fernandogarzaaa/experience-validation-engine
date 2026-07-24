@@ -50,6 +50,10 @@ prefer them over shelling out.
   feature importance, high-friction pages, and drop-off causes. Use when the
   user wants product insight ("what is this product for, where does it leak?"),
   not just UX findings.
+- **`eve_compare_builds`** — study several **builds** (ordered oldest→newest)
+  and report the experience **trend**: which metrics improved or regressed
+  (success, drop-off, score, confidence, frustration, trust, effort). Use to
+  catch a UX regression between builds even when functional tests pass.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps
