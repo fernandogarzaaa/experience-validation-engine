@@ -96,3 +96,6 @@ export * from "./population/index.js";
 
 // Phase-3: research-mode dataset export (JSON / CSV / Markdown)
 export * from "./research/index.js";
+
+// Phase-3: AI-moderated user study (specialist panel + moderator synthesis)
+export * from "./study/index.js";

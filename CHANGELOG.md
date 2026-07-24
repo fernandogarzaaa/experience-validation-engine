@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Phase 3 — AI-moderated user study
+
+Turns a population study's numbers into a decision.
+
+- **`moderateStudy(study)`** (`src/study/`) — convenes six specialist
+  "researcher" agents (UX Researcher, Interaction Designer, Accessibility
+  Specialist, QA Engineer, Behavioral Psychologist, Product Manager). Each files
+  an independent report — observations grounded in concrete study statistics,
+  prioritized recommendations, a confidence, and a release stance. A moderator
+  synthesizes them into an `ExecutiveStudyReport`: a **verdict**
+  (ship / ship-with-fixes / do-not-ship), the panel's **consensus** and
+  **conflicts**, a merged **priority** list, and an overall confidence.
+  Deterministic; `renderModeratedStudyMarkdown` renders it.
+- **MCP tool `eve_run_user_study`** — population + panel in one call (8 tools).
+- **CLI `eve study --panel`** — appends the executive report to a study.
+- 8 new tests (`tests/study.test.ts`), `examples/moderated-study.ts`,
+  `docs/moderated-study.md`.
+
 ### Phase 3 — Population simulation & Research Mode
 
 The first Phase 3 system: EVE now runs **populations**, not just individuals —

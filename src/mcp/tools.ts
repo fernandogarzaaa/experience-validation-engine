@@ -10,7 +10,7 @@
  * full machine-readable object, letting callers pick a response format.
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { createAdapter } from "../browser/index.js";
@@ -24,6 +24,7 @@ import { writeReports } from "../reporting/index.js";
 import { simulatePopulation } from "../population/index.js";
 import type { AdapterName } from "../browser/index.js";
 import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
+import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import {
   getPersona,
   listPersonas,
@@ -308,8 +309,9 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
  * same app and aggregate the results statistically. Optionally writes the full
  * research dataset (JSON/CSV/Markdown) to disk.
  */
-export async function runUsabilityStudy(input: RunUsabilityStudyInput): Promise<ToolOutput> {
-  const study = await simulatePopulation({
+/** Map the shared study MCP input to `simulatePopulation` options. */
+function toPopulationOptions(input: RunUsabilityStudyInput) {
+  return {
     url: input.url,
     size: input.size,
     personas: input.personas.length ? input.personas : undefined,
@@ -323,7 +325,11 @@ export async function runUsabilityStudy(input: RunUsabilityStudyInput): Promise<
     utility: input.utility,
     browser: input.browser as AdapterName | undefined,
     concurrency: input.concurrency,
-  });
+  };
+}
+
+export async function runUsabilityStudy(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
 
   let dataset: { json: string; csv: string; markdown: string } | null = null;
   if (input.output_dir) dataset = await writeStudyDataset(study, input.output_dir);
@@ -343,6 +349,49 @@ export async function runUsabilityStudy(input: RunUsabilityStudyInput): Promise<
       (dataset
         ? `\n\nResearch dataset written to: ${dataset.markdown} · ${dataset.csv} · ${dataset.json}`
         : ""),
+  );
+  return { markdown, structured };
+}
+
+/**
+ * Run a full AI-moderated user study: simulate a population, then convene the
+ * specialist panel (UX Researcher, Interaction Designer, Accessibility
+ * Specialist, QA Engineer, Behavioral Psychologist, Product Manager) and the
+ * moderator synthesis. Returns an executive report with a release verdict.
+ */
+export async function runUserStudy(input: RunUsabilityStudyInput): Promise<ToolOutput> {
+  const study = await simulatePopulation(toPopulationOptions(input));
+  const report = moderateStudy(study);
+
+  let files: { study: string; moderated: string } | null = null;
+  if (input.output_dir) {
+    const dataset = await writeStudyDataset(study, input.output_dir);
+    const moderatedPath = join(input.output_dir, "moderated-study.md");
+    await writeFile(moderatedPath, renderModeratedStudyMarkdown(report), "utf8");
+    files = { study: dataset.markdown, moderated: moderatedPath };
+  }
+
+  const structured: Record<string, unknown> = {
+    verdict: report.verdict,
+    headline: report.headline,
+    confidence: report.confidence,
+    successRate: report.successRate,
+    dropoffRate: report.dropoffRate,
+    consensus: report.consensus,
+    conflicts: report.conflicts,
+    priorities: report.priorities,
+    specialists: report.specialists.map((s) => ({
+      role: s.role,
+      stance: s.stance,
+      confidence: s.confidence,
+      summary: s.summary,
+    })),
+    files,
+  };
+
+  const markdown = truncate(
+    renderModeratedStudyMarkdown(report) +
+      (files ? `\n\nWritten: ${files.moderated} · ${files.study}` : ""),
   );
   return { markdown, structured };
 }

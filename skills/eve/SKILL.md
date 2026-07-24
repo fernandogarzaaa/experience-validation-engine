@@ -39,6 +39,12 @@ prefer them over shelling out.
   single session when the user wants "how will *users* fare?" rather than "how
   did this one persona do?". Set `output_dir` to also write a research dataset
   (JSON/CSV/Markdown).
+- **`eve_run_user_study`** — the population study **plus an AI research panel**
+  (UX Researcher, Interaction Designer, Accessibility Specialist, QA Engineer,
+  Behavioral Psychologist, Product Manager) and a moderator that returns an
+  executive report with a **ship verdict** (ship / ship-with-fixes /
+  do-not-ship), consensus, conflicts, and prioritized fixes. Use this when the
+  user wants a go/no-go decision with a rationale, not just numbers.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps

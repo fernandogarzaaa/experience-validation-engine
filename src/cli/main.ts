@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { writeFile } from "node:fs/promises";
 import { resolveConfig, loadConfigFile, type EveConfig } from "../config/config.js";
 import { createAdapter } from "../browser/index.js";
 import {
@@ -30,6 +31,7 @@ import { validateBenchmarks } from "../benchmarks/index.js";
 import { runPanel } from "../panel/index.js";
 import { simulatePopulation } from "../population/index.js";
 import { writeStudyDataset, renderStudyJson, renderStudyMarkdown } from "../research/index.js";
+import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 
 /**
  * The `eve` CLI.
@@ -88,6 +90,8 @@ Options for "study" (population usability study):
   --concurrency <n>     Operators to run in parallel (default 4)
   --out <dir>           Write the research dataset here (study.json/csv/md)
   --format <fmt>        Console output: markdown | json (default markdown)
+  --panel               Convene the AI-moderated study panel (6 specialists +
+                        moderator) and append an executive report with a verdict
   --quiet               Suppress per-operator progress
 
 Examples:
@@ -331,6 +335,7 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
       concurrency: { type: "string" },
       out: { type: "string" },
       format: { type: "string" },
+      panel: { type: "boolean" },
       quiet: { type: "boolean" },
     },
   });
@@ -366,14 +371,24 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
           },
     });
 
+    const report = values.panel ? moderateStudy(study) : null;
+
     if (values.out) {
       const written = await writeStudyDataset(study, values.out);
       process.stderr.write(`\nDataset written: ${written.markdown} · ${written.csv} · ${written.json}\n`);
+      if (report) {
+        const moderatedPath = `${values.out.replace(/\/$/, "")}/moderated-study.md`;
+        await writeFile(moderatedPath, renderModeratedStudyMarkdown(report), "utf8");
+        process.stderr.write(`Moderated study: ${moderatedPath}\n`);
+      }
     }
 
-    process.stdout.write(
-      (format === "json" ? renderStudyJson(study) : renderStudyMarkdown(study)) + "\n",
-    );
+    if (format === "json") {
+      process.stdout.write(JSON.stringify(report ? { study, moderated: report } : study, null, 2) + "\n");
+    } else {
+      process.stdout.write(renderStudyMarkdown(study) + "\n");
+      if (report) process.stdout.write("\n" + renderModeratedStudyMarkdown(report) + "\n");
+    }
     // Non-zero exit if most of the population fails — CI-gate friendly.
     return study.successRate < 0.5 ? 1 : 0;
   } catch (err) {

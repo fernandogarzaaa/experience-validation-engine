@@ -31,6 +31,7 @@ import {
 import {
   runSession,
   runUsabilityStudy,
+  runUserStudy,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -130,6 +131,38 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runUsabilityStudy(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_run_user_study",
+    {
+      title: "Run an AI-moderated user study",
+      description:
+        "Run a full autonomous user study: simulate a population, then convene a " +
+        "panel of specialist AI researchers — UX Researcher, Interaction " +
+        "Designer, Accessibility Specialist, QA Engineer, Behavioral " +
+        "Psychologist, and Product Manager — who each file an independent report, " +
+        "and a moderator who synthesizes them into an executive report with a " +
+        "release verdict (ship / ship-with-fixes / do-not-ship), the panel's " +
+        "consensus and conflicts, and a prioritized recommendation list. Use this " +
+        "when you want a decision and a rationale, not just raw numbers. Offline " +
+        "with `mock:`. Same inputs as eve_run_usability_study; set output_dir to " +
+        "also write the study dataset and the moderated report.",
+      inputSchema: RunUsabilityStudySchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: RunUsabilityStudyInput) => {
+      try {
+        return respond(await runUserStudy(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

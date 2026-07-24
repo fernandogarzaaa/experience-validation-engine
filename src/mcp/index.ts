@@ -11,6 +11,7 @@ export { createServer, main } from "./server.js";
 export {
   runSession,
   runUsabilityStudy,
+  runUserStudy,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,

@@ -15,6 +15,7 @@ four are fully offline (mock adapter).
 | `behavioral-regression.ts` | Phase 2: catch a UX regression that keeps functional tests green |
 | `collaborative-workflow.ts` | Phase 2: multi-operator handoff / approval chain |
 | `population-study.ts` | Phase 3: simulate a population of 40 operators → aggregate study + research dataset (JSON/CSV/MD) |
+| `moderated-study.ts` | Phase 3: a 6-specialist AI research panel + moderator → an executive report with a ship verdict |
 
 ## CLI recipes
 
@@ -57,6 +58,9 @@ eve benchmark
 
 # Population usability study: 50 varied operators → aggregate stats + dataset
 eve study mock: --size 50 --seed 7 --out .eve-output/study
+
+# ...plus the AI-moderated research panel and a ship verdict
+eve study mock: --size 50 --seed 7 --panel
 
 # A population attempting a specific task, mixing professions
 eve study https://staging.example.com --goal "sign up" \
