@@ -195,6 +195,7 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [Predictive UX (Phase 3)](docs/predictive-ux.md) | Predict abandonment / confusion / support / a11y issues with confidence intervals |
 | [Digital Twins (Phase 3)](docs/digital-twins.md) | Persistent, named user models that evolve (expertise, confidence, memory) across sessions |
 | [Human Validation (Phase 3)](docs/human-calibration.md) | Calibrate EVE against anonymized human traces; a 0–100 realism similarity score |
+| [Multimodal Perception (Phase 3)](docs/multimodal-perception.md) | Recognize icons, charts, loading, toasts, motion; flag unlabeled visuals |
 | [Architecture](docs/architecture.md) | The human loop, the retina abstraction, module map |
 | [Cognitive Model (Phase 2)](docs/cognitive-model.md) | Attention, utility, expectation, load, trust, learning |
 | [Analysis Systems (Phase 2)](docs/panel-and-analysis.md) | Regression, forecasting, the AI panel, benchmarks, collaboration |

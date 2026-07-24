@@ -22,6 +22,7 @@ import {
   ApplicationMapSchema,
   TwinSessionSchema,
   CalibrateSchema,
+  MultimodalScanSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
@@ -32,6 +33,7 @@ import {
   type ApplicationMapInput,
   type TwinSessionInput,
   type CalibrateInput,
+  type MultimodalScanInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
@@ -46,6 +48,7 @@ import {
   runPredictUX,
   runTwinSessionTool,
   runCalibrate,
+  runMultimodalScan,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -234,6 +237,34 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runProductReport(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_multimodal_scan",
+    {
+      title: "Scan an app's multimodal perception",
+      description:
+        "Explore an app and analyze its perception beyond text: icons, charts, " +
+        "media, loading states, toasts/notifications, text-in-images, and (with " +
+        "real screenshots) animation. Surfaces perception risks — unlabeled " +
+        "icons/charts/images that are ambiguous to humans and invisible to " +
+        "screen readers. Stays within the human-perception boundary (no source " +
+        "inspection). Offline with `mock:`.",
+      inputSchema: MultimodalScanSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: MultimodalScanInput) => {
+      try {
+        return respond(await runMultimodalScan(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

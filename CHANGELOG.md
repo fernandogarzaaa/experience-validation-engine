@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Phase 3 — Multimodal perception
+
+Perception beyond text, still inside the human boundary.
+
+- **`analyzeMultimodal(session)` / `HeuristicMultimodalPerceptor`**
+  (`src/multimodal/`) — recognizes higher-level visual constructs from the
+  rendered `Percept`: icons, charts, media, loading states, toasts, text-in-
+  images, and (with real screenshots) animation via frame diffs. Aggregates a
+  `MultimodalReport` and surfaces perception risks — unlabeled icons/charts/
+  images that are ambiguous to humans and invisible to screen readers. The
+  `MultimodalPerceptor` interface is the extension point for OCR / vision-
+  language backends; the default is deterministic. No source is inspected.
+- **MCP tool `eve_multimodal_scan`** (15 tools total).
+- 6 tests (`tests/multimodal.test.ts`), `examples/multimodal-perception.ts`,
+  `docs/multimodal-perception.md`.
+
 ### Phase 3 — Human validation engine (calibration)
 
 Measure EVE's realism against real humans instead of assuming it.

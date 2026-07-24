@@ -117,3 +117,6 @@ export * from "./twins/index.js";
 
 // Phase-3: human validation engine (calibrate EVE against real human traces)
 export * from "./calibration/index.js";
+
+// Phase-3: multimodal perception (icons, charts, loading, toasts, motion)
+export * from "./multimodal/index.js";

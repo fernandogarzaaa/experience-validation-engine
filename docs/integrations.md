@@ -18,6 +18,7 @@ Once connected, your assistant gains six tools:
 | `eve_predict_ux` | Predict abandonment / confusion / support / a11y rates with **confidence intervals** |
 | `eve_twin_session` | Run a session as a persistent, evolving **digital twin** (created on first use, loaded thereafter) |
 | `eve_calibrate` | Score EVE's **realism** against anonymized human traces (similarity + correlations) |
+| `eve_multimodal_scan` | Perceive **visual cues** (icons, charts, loading, toasts) and flag unlabeled visuals |
 | `eve_list_personas` | List the built-in personas |
 | `eve_list_professions` | List professional overlays (doctor, accountant, …) |
 | `eve_list_cultures` | List cultural profiles / locales |

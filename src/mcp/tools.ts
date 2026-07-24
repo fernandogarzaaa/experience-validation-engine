@@ -31,6 +31,7 @@ import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/ind
 import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
 import { createTwin, runTwinSession, renderTwinMarkdown, FileTwinStore } from "../twins/index.js";
 import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
+import { analyzeMultimodal, renderMultimodalMarkdown } from "../multimodal/index.js";
 import {
   getPersona,
   listPersonas,
@@ -48,6 +49,7 @@ import type {
   ApplicationMapInput,
   TwinSessionInput,
   CalibrateInput,
+  MultimodalScanInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -568,6 +570,41 @@ export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolO
       `score ${outcome.overall}, ${outcome.steps} steps.`,
   );
   return { markdown, structured };
+}
+
+/**
+ * Explore an app and analyze its multimodal perception — icons, charts, media,
+ * loading states, toasts, and text-in-images — surfacing unlabeled visuals.
+ */
+export async function runMultimodalScan(input: MultimodalScanInput): Promise<ToolOutput> {
+  const isMock = input.url.startsWith("mock:");
+  const browser = input.browser ?? (isMock ? "mock" : "playwright");
+  let adapter;
+  try {
+    adapter = createAdapter(browser as AdapterName, { headless: true });
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  let persona;
+  try {
+    persona = getPersona(input.persona);
+  } catch {
+    throw new ToolInputError(`Unknown persona "${input.persona}". Call eve_list_personas.`);
+  }
+
+  const result = await new EveSession({
+    adapter,
+    startUrl: input.url,
+    persona,
+    seed: input.seed,
+    maxSteps: input.max_steps,
+    screenshots: browser !== "mock",
+  }).run();
+
+  const report = analyzeMultimodal(result);
+  return { markdown: truncate(renderMultimodalMarkdown(report)), structured: { ...report } };
 }
 
 /** Curiosity-weighted default explorer personas (fall back to the library). */

@@ -209,6 +209,21 @@ export const RunUsabilityStudySchema = z
   })
   .strict();
 
+/** `eve_multimodal_scan` — perceive higher-level visual cues across an app. */
+export const MultimodalScanSchema = z
+  .object({
+    url: z.string().min(1).describe("The app to scan, or `mock:` for the offline demo."),
+    persona: z.string().default("curious-explorer").describe("Persona used to explore the app."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Seed for reproducibility."),
+    max_steps: z.number().int().min(1).max(500).default(50).describe("Max exploration steps."),
+    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' report or 'json'."),
+  })
+  .strict();
+
 /** `eve_calibrate` — score EVE's realism against a human study. */
 export const CalibrateSchema = z
   .object({
@@ -372,6 +387,7 @@ export type CompareBuildsInput = z.infer<typeof CompareBuildsSchema>;
 export type ApplicationMapInput = z.infer<typeof ApplicationMapSchema>;
 export type TwinSessionInput = z.infer<typeof TwinSessionSchema>;
 export type CalibrateInput = z.infer<typeof CalibrateSchema>;
+export type MultimodalScanInput = z.infer<typeof MultimodalScanSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;
