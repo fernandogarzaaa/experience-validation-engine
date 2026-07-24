@@ -80,14 +80,19 @@ function shortName(screen: string): string {
 const round = (v: number, p = 2): number => Math.round(v * 10 ** p) / 10 ** p;
 
 /** Keyword → business-goal classification for a screen name. */
+// Ordered rules (first match wins). Cover product/tool/console vocabulary —
+// not just web-commerce funnels — so non-e-commerce apps still yield insight.
 const GOAL_RULES: readonly { goal: string; pattern: RegExp }[] = [
-  { goal: "User acquisition (signup)", pattern: /sign-?up|register|create-?account|get-?started|trial/i },
+  { goal: "User acquisition (signup)", pattern: /sign-?up|register|create-?account|get-?started|trial|onboard/i },
   { goal: "Monetization", pattern: /pricing|plan|upgrade|billing|checkout|purchase|buy|subscribe|cart/i },
-  { goal: "Returning-user access", pattern: /log-?in|sign-?in|auth/i },
-  { goal: "Core product engagement", pattern: /dashboard|home|workspace|editor|feed|app|notes?/i },
-  { goal: "Account configuration", pattern: /settings|preferences|profile|account/i },
+  { goal: "Returning-user access", pattern: /log-?in|sign-?in|\bauth\b/i },
+  { goal: "Help & documentation", pattern: /\bdocs?\b|documentation|guide|help|tutorial|readme|reference/i },
+  { goal: "Reporting & analytics", pattern: /report|results|analytics|insights|summary|scorecard|metrics|stats?\b/i },
+  { goal: "Task execution", pattern: /\brun(?:ning)?\b|execute|process(?:ing)?|\bjob\b|build|study|session|scan|render/i },
+  { goal: "Configuration & setup", pattern: /settings|preferences|profile|account|config|setup|\bnew\b|options/i },
   { goal: "Data portability / retention", pattern: /export|download|backup|import/i },
-  { goal: "Discovery", pattern: /search|browse|explore|results/i },
+  { goal: "Core product engagement", pattern: /dashboard|home|workspace|editor|feed|app|note/i },
+  { goal: "Discovery", pattern: /search|browse|explore|catalog|results/i },
 ];
 
 function classifyGoal(screen: string): string | null {
@@ -277,7 +282,7 @@ export function inferProductIntelligence(study: PopulationStudy): ProductIntelli
     criticalWorkflows.push(topTransition);
 
   return {
-    url: study.url,
+    url: study.label,
     size: study.size,
     personas: inferPersonas(study),
     businessGoals: inferBusinessGoals(study),

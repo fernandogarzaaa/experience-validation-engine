@@ -161,7 +161,7 @@ export function predictUX(study: PopulationStudy): UXPrediction {
     .slice(0, 5);
 
   return {
-    url: study.url,
+    url: study.label,
     size: n,
     predictions,
     struggleForecasts,

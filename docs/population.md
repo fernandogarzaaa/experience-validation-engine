@@ -62,6 +62,7 @@ Each segment reports its size, share, mean score, and mean steps.
 | Option | Default | Notes |
 |---|---|---|
 | `url` | — | required; `mock:` for offline |
+| `label` | `url` | human-facing target name shown in reports (set when an `adapterFactory` drives an app that isn't the literal `url`) |
 | `size` | `25` | number of operators |
 | `personas` | whole library | names to sample from (round-robin) |
 | `professions` / `cultures` | none | overlays mixed round-robin |

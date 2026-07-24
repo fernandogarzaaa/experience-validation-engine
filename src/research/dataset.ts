@@ -73,7 +73,7 @@ function dist(label: string, d: Distribution): string {
 export function renderStudyMarkdown(study: PopulationStudy): string {
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   const lines: string[] = [
-    `# EVE usability study — ${study.url}`,
+    `# EVE usability study — ${study.label}`,
     "",
     `Simulated **${study.size} operators**` +
       (study.goal ? ` attempting: _${study.goal}_` : " (open-ended exploration)") +

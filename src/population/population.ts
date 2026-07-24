@@ -86,6 +86,9 @@ export interface AggregatedFinding {
 
 export interface PopulationStudy {
   readonly url: string;
+  /** Human-facing target name for reports (defaults to `url`). Useful when an
+   * `adapterFactory` supplies an app that isn't the literal `url`. */
+  readonly label: string;
   readonly size: number;
   readonly goal: string | null;
   readonly successRate: number;
@@ -107,6 +110,9 @@ export interface PopulationStudy {
 export interface PopulationOptions {
   /** Target URL, or `mock:`/`mock:<screen>` for the offline demo app. */
   readonly url: string;
+  /** Human-facing name for reports (defaults to `url`). Set this when an
+   * `adapterFactory` drives an app that isn't the literal `url`. */
+  readonly label?: string;
   /** Number of operators to simulate (default 25). */
   readonly size?: number;
   /** Persona names to sample from (default: the whole built-in library). */
@@ -365,6 +371,7 @@ export async function simulatePopulation(options: PopulationOptions): Promise<Po
 
   return {
     url: options.url,
+    label: options.label ?? options.url,
     size,
     goal: options.goal ?? null,
     successRate: size > 0 ? Math.round((completed / size) * 1000) / 1000 : 0,
