@@ -19,6 +19,7 @@ const EXPECTED = [
   "eve_run_user_study",
   "eve_product_report",
   "eve_compare_builds",
+  "eve_application_map",
   "eve_list_personas",
   "eve_list_professions",
   "eve_list_cultures",

@@ -27,6 +27,7 @@ import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
 import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
+import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
 import {
   getPersona,
   listPersonas,
@@ -41,6 +42,7 @@ import type {
   RunSessionInput,
   RunUsabilityStudyInput,
   CompareBuildsInput,
+  ApplicationMapInput,
   BenchmarkInput,
   GetReportInput,
 } from "./schemas.js";
@@ -448,6 +450,61 @@ export async function compareBuilds(input: CompareBuildsInput): Promise<ToolOutp
   const report = analyzeTrends(builds);
   const markdown = truncate(renderTrendReportMarkdown(report));
   return { markdown, structured: { ...report } };
+}
+
+/** Curiosity-weighted default explorer personas (fall back to the library). */
+const DEFAULT_EXPLORERS = ["curious-explorer", "power-user", "first-time-user", "impatient-user"];
+
+/**
+ * Autonomously explore an app with several curious operators and reconstruct
+ * its application map: screens, navigation graph, information architecture,
+ * hubs, dead-ends, and unexercised affordances.
+ */
+export async function runApplicationMap(input: ApplicationMapInput): Promise<ToolOutput> {
+  const isMock = input.url.startsWith("mock:");
+  const browser = input.browser ?? (isMock ? "mock" : "playwright");
+  const pool =
+    input.personas.length > 0
+      ? input.personas
+      : DEFAULT_EXPLORERS.filter((name) => listPersonas().some((p) => p.name === name));
+  const personas = pool.length > 0 ? pool : listPersonas().map((p) => p.name);
+  const base = String(input.seed ?? 1);
+
+  const results: SessionResult[] = [];
+  for (let i = 0; i < input.explorers; i += 1) {
+    let adapter;
+    try {
+      adapter = createAdapter(browser as AdapterName, { headless: true });
+    } catch (err) {
+      throw new ToolInputError(
+        `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    const persona = getPersona(personas[i % personas.length]!);
+    results.push(
+      await new EveSession({
+        adapter,
+        startUrl: input.url,
+        persona,
+        seed: `${base}#${i}`,
+        maxSteps: input.max_steps,
+        screenshots: false,
+      }).run(),
+    );
+  }
+
+  const map = buildApplicationMap(results);
+  let file: string | null = null;
+  if (input.output_dir) {
+    file = join(input.output_dir, "application-map.md");
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(input.output_dir, { recursive: true });
+    await writeFile(file, renderApplicationMapMarkdown(map), "utf8");
+  }
+
+  const structured: Record<string, unknown> = { ...map, file };
+  const markdown = truncate(renderApplicationMapMarkdown(map) + (file ? `\n\nWritten: ${file}` : ""));
+  return { markdown, structured };
 }
 
 /** List the built-in personas. */

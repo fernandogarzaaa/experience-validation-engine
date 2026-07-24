@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Phase 3 — Autonomous exploration → application map
+
+Given only a URL, reconstruct the whole app from perception.
+
+- **`buildApplicationMap(sessions)`** (`src/appmap/`) — from one or more
+  exploratory sessions, reconstructs the application map: screens with inferred
+  purpose and visible affordances, the navigation graph (transitions with
+  counts), entry points, hubs, dead-ends, an information architecture grouped by
+  purpose, and the **unexercised affordances** (candidate hidden / edge paths).
+  Perception only — no app source. `renderApplicationMapMarkdown` embeds a
+  Mermaid nav-graph diagram; `renderApplicationMapMermaid` returns just the graph.
+- **MCP tool `eve_application_map`** — explores with several operators and
+  returns the map (11 tools total).
+- 8 tests (`tests/appmap.test.ts`), `examples/application-map.ts`,
+  `docs/application-map.md`.
+
 ### Phase 3 — Continuous UX regression
 
 Track experience across a series of builds and catch regressions functional

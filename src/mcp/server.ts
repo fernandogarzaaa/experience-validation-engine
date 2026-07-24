@@ -19,6 +19,7 @@ import {
   RunSessionSchema,
   RunUsabilityStudySchema,
   CompareBuildsSchema,
+  ApplicationMapSchema,
   ListSchema,
   BenchmarkSchema,
   GetReportSchema,
@@ -26,6 +27,7 @@ import {
   type RunSessionInput,
   type RunUsabilityStudyInput,
   type CompareBuildsInput,
+  type ApplicationMapInput,
   type ListInput,
   type BenchmarkInput,
   type GetReportInput,
@@ -36,6 +38,7 @@ import {
   runUserStudy,
   runProductReport,
   compareBuilds,
+  runApplicationMap,
   listPersonasTool,
   listProfessionsTool,
   listCulturesTool,
@@ -196,6 +199,35 @@ export function createServer(): McpServer {
     async (input: RunUsabilityStudyInput) => {
       try {
         return respond(await runProductReport(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_application_map",
+    {
+      title: "Autonomously map an application",
+      description:
+        "Given only a URL, explore the app with several curious operators and " +
+        "reconstruct a complete application map from what they perceived — the " +
+        "screens and their inferred purpose, the navigation graph (as a Mermaid " +
+        "diagram), the information architecture, entry points, hubs, dead-ends, " +
+        "and affordances no operator got to exercise (candidate hidden / edge " +
+        "functionality). No predefined workflows and no app source — perception " +
+        "only. Offline with `mock:`.",
+      inputSchema: ApplicationMapSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: ApplicationMapInput) => {
+      try {
+        return respond(await runApplicationMap(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

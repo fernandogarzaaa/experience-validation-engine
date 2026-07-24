@@ -18,6 +18,7 @@ four are fully offline (mock adapter).
 | `moderated-study.ts` | Phase 3: a 6-specialist AI research panel + moderator → an executive report with a ship verdict |
 | `product-intelligence.ts` | Phase 3: infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
 | `continuous-regression.ts` | Phase 3: trend experience across three builds (bad → average → excellent) and flag regressions |
+| `application-map.ts` | Phase 3: autonomously explore an app → screens, navigation graph (Mermaid), IA, hubs, dead-ends |
 
 ## CLI recipes
 

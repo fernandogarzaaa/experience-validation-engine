@@ -209,6 +209,38 @@ export const RunUsabilityStudySchema = z
   })
   .strict();
 
+/** `eve_application_map` — autonomously explore an app and map it. */
+export const ApplicationMapSchema = z
+  .object({
+    url: z.string().min(1).describe("The app to explore, or `mock:` for the offline demo."),
+    explorers: z
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .default(3)
+      .describe("Number of exploratory operators (more = broader coverage)."),
+    personas: z
+      .array(z.string())
+      .default([])
+      .describe("Persona pool for the explorers (default: a curiosity-weighted mix)."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Base seed for reproducibility."),
+    max_steps: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .default(50)
+      .describe("Max exploration steps per operator."),
+    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    output_dir: z.string().optional().describe("If set, write application-map.md here."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' map (with a Mermaid graph) or 'json'."),
+  })
+  .strict();
+
 /** `eve_compare_builds` — trend experience across an ordered series of builds. */
 export const CompareBuildsSchema = z
   .object({
@@ -284,6 +316,7 @@ export const GetReportSchema = z
 export type RunSessionInput = z.infer<typeof RunSessionSchema>;
 export type RunUsabilityStudyInput = z.infer<typeof RunUsabilityStudySchema>;
 export type CompareBuildsInput = z.infer<typeof CompareBuildsSchema>;
+export type ApplicationMapInput = z.infer<typeof ApplicationMapSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;
 export type GetReportInput = z.infer<typeof GetReportSchema>;

@@ -54,6 +54,10 @@ prefer them over shelling out.
   and report the experience **trend**: which metrics improved or regressed
   (success, drop-off, score, confidence, frustration, trust, effort). Use to
   catch a UX regression between builds even when functional tests pass.
+- **`eve_application_map`** — given only a URL, autonomously explore and return
+  an **application map**: screens and their purpose, the navigation graph (as a
+  Mermaid diagram), information architecture, hubs, dead-ends, and unexercised
+  affordances. Use to understand an unfamiliar app's structure and coverage.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps

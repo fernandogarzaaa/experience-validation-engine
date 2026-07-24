@@ -105,3 +105,6 @@ export * from "./product/index.js";
 
 // Phase-3: continuous UX regression (experience trends across builds)
 export * from "./trends/index.js";
+
+// Phase-3: autonomous exploration → application map
+export * from "./appmap/index.js";
