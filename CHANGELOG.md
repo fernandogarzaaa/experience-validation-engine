@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — Dogfooding fixes
+
+Quality fixes surfaced by running EVE's own Phase-3 analysis against a model of
+EVE's console, plus a reproducible example and guide for the practice
+(`examples/eve-on-eve.ts`, [docs/dogfooding.md](docs/dogfooding.md)).
 
 ### Quality — improvements surfaced by dogfooding
 
