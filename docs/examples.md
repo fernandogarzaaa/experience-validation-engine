@@ -24,6 +24,7 @@ four are fully offline (mock adapter).
 | `human-calibration.ts` | Phase 3: score EVE's realism against a small human study (similarity + correlations) |
 | `multimodal-perception.ts` | Phase 3: recognize charts, icons, loading, toasts on a visually rich mock; flag unlabeled visuals |
 | `eve-bench.ts` | Phase 3: the formal EVE Bench scorecard (task success, load, trust, learnability, …) with a CI gate |
+| `eve-on-eve.ts` | Dogfooding: the whole Phase-3 pipeline run against a model of EVE's own console |
 
 ## CLI recipes
 
