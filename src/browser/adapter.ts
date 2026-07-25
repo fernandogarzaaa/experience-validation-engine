@@ -1,4 +1,5 @@
 import type { Percept, Point, Viewport } from "../core/types.js";
+import type { SurfaceCapabilities } from "../surface/capabilities.js";
 
 /**
  * Browser adapter contract.
@@ -23,6 +24,9 @@ export interface RawSnapshot {
 
 export interface BrowserAdapter {
   readonly name: string;
+
+  /** Which perceptual dimensions this surface actually has. */
+  readonly capabilities: SurfaceCapabilities;
 
   /** Launch/attach and navigate to the starting URL. */
   open(url: string, viewport: Viewport): Promise<void>;
@@ -66,3 +70,6 @@ export interface AdapterOptions {
   /** Extra ms to wait after navigation for the page to settle. */
   settleMs?: number;
 }
+
+/** Adapters are not browser-specific; this alias names the general contract. */
+export type SurfaceAdapter = BrowserAdapter;

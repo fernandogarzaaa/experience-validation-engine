@@ -1,5 +1,6 @@
 import type { Point, Viewport, VisibleElement } from "../core/types.js";
 import type { BrowserAdapter, RawSnapshot } from "./adapter.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * MockAdapter — an in-memory simulated application.
@@ -172,6 +173,7 @@ export const DEMO_APP: MockAppSpec = {
 
 export class MockAdapter implements BrowserAdapter {
   readonly name = "mock";
+  readonly capabilities = VISUAL_SURFACE;
   private readonly app: MockAppSpec;
   private currentId: string;
   private history: string[] = [];

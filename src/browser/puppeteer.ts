@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * Puppeteer adapter. Puppeteer is an optional peer dependency, loaded
@@ -33,6 +34,7 @@ type PuppeteerBrowser = {
 
 export class PuppeteerAdapter implements BrowserAdapter {
   readonly name = "puppeteer";
+  readonly capabilities = VISUAL_SURFACE;
   private browser: PuppeteerBrowser | null = null;
   private page: PuppeteerPage | null = null;
   private pendingNativeDialogs: string[] = [];
