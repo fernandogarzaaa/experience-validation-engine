@@ -40,6 +40,7 @@ const CSV_COLUMNS: readonly (keyof OperatorRun | "confidence" | "frustration" | 
   "segment",
 ];
 
+/** Escape a value for CSV (quotes fields containing commas, quotes, newlines). */
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -62,6 +63,7 @@ export function renderOperatorCsv(study: PopulationStudy): string {
   return [header, ...rows].join("\n");
 }
 
+/** Render a distribution as a one-line Markdown bullet. */
 function dist(label: string, d: Distribution): string {
   return (
     `- **${label}:** mean ${d.mean}, sd ${d.stdDev}, ` +

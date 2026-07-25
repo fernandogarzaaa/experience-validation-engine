@@ -17,11 +17,17 @@ e-commerce) console:
   the step budget rather than path length; it reports exploration depth
   neutrally instead.
 - **Report labels** — `simulatePopulation` accepts an optional `label` (and
-  `PopulationStudy` carries it), so reports show a meaningful target name
-  instead of the literal `mock:` url when an `adapterFactory` supplies the app.
-  Defaults to `url`, so existing behavior is unchanged.
+  `PopulationStudy`, `ProductIntelligence`, and `UXPrediction` carry it), so
+  reports show a meaningful target name instead of the literal `mock:` url when
+  an `adapterFactory` supplies the app. `url` keeps its identity meaning and
+  `label` is the display name; both default to the url, so existing behavior is
+  unchanged.
+- **Token normalization** — screen identifiers are normalized (camelCase split,
+  separators to spaces) before keyword matching, so `newStudy` and
+  `search-results` classify correctly and a hostname can no longer hijack a
+  match.
 
-5 new tests (`tests/dogfooding.test.ts`); 195 total.
+7 new tests (`tests/dogfooding.test.ts`); 197 total.
 
 ## 0.3.0 — The autonomous UX research platform
 

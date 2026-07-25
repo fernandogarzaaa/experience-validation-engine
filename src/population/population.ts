@@ -155,6 +155,7 @@ interface FindingRecord {
 const MAX_HEATMAP_ROWS = 20;
 const MAX_TOP_FINDINGS = 15;
 
+/** Sort key for finding severities (critical first). */
 function severityRank(severity: string): number {
   switch (severity) {
     case "critical":
@@ -193,6 +194,7 @@ export function sampleOperators(options: PopulationOptions): OperatorSpec[] {
   return specs;
 }
 
+/** The operator's end-state emotion vector (zeros if no timeline). */
 function finalEmotions(result: SessionResult): EmotionVector {
   const last = result.emotionTimeline.at(-1);
   if (last) return { ...last.values };
@@ -282,6 +284,7 @@ function accumulateFindings(result: SessionResult, into: Map<string, FindingReco
   }
 }
 
+/** Aggregate per-screen visits, reach, and drop-offs across the population. */
 function buildHeatmap(operators: readonly OperatorRun[]): HeatmapEntry[] {
   const visits = new Map<string, number>();
   const operatorsOn = new Map<string, number>();

@@ -10,7 +10,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { EveSession, type SessionResult } from "../src/engine/session.js";
 import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
 import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
-import { inferProductIntelligence } from "../src/product/index.js";
+import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../src/product/index.js";
+import { predictUX } from "../src/predict/index.js";
 import { renderStudyMarkdown } from "../src/research/index.js";
 import { buildApplicationMap } from "../src/appmap/index.js";
 import { moderateStudy } from "../src/study/index.js";
@@ -67,6 +68,35 @@ const EVE_CONSOLE: MockAppSpec = {
   ],
 };
 
+/**
+ * Classify a single screen by running product intelligence over a minimal
+ * synthetic study whose heatmap contains only that screen. (`classifyGoal` is
+ * internal; this exercises it through the public surface.)
+ */
+function classifyGoalForTest(screen: string): string | undefined {
+  const base = {
+    url: "mock:",
+    label: "mock:",
+    size: 1,
+    goal: null,
+    successRate: 1,
+    dropoffRate: 0,
+    endReasonBreakdown: {},
+    overallScore: { count: 1, mean: 70, stdDev: 0, min: 70, max: 70, p25: 70, median: 70, p75: 70 },
+    confidence: { count: 1, mean: 0.6, stdDev: 0, min: 0.6, max: 0.6, p25: 0.6, median: 0.6, p75: 0.6 },
+    frustration: { count: 1, mean: 0.1, stdDev: 0, min: 0.1, max: 0.1, p25: 0.1, median: 0.1, p75: 0.1 },
+    trust: { count: 1, mean: 0.6, stdDev: 0, min: 0.6, max: 0.6, p25: 0.6, median: 0.6, p75: 0.6 },
+    stepsToComplete: { count: 1, mean: 5, stdDev: 0, min: 5, max: 5, p25: 5, median: 5, p75: 5 },
+    completionHistogram: { bins: [], total: 0 },
+    navigationHeatmap: [{ screen, visits: 10, operators: 1, reach: 1, dropoffs: 0 }],
+    segments: [],
+    topFindings: [],
+    operators: [],
+    generatedAt: new Date().toISOString(),
+  } as unknown as PopulationStudy;
+  return inferProductIntelligence(base).businessGoals[0]?.goal;
+}
+
 describe("dogfooding fixes", () => {
   let study: PopulationStudy;
   let explorers: SessionResult[];
@@ -96,8 +126,22 @@ describe("dogfooding fixes", () => {
 
   it("#3 carries a label and uses it in reports (not the literal mock: url)", () => {
     expect(study.label).toBe("EVE Console");
-    expect(renderStudyMarkdown(study)).toContain("EVE Console");
-    expect(inferProductIntelligence(study).url).toBe("EVE Console");
+    // The heading must *replace* the url, not merely mention the label.
+    const heading = renderStudyMarkdown(study).split("\n")[0];
+    expect(heading).toBe("# EVE usability study — EVE Console");
+    expect(heading).not.toContain("mock:");
+
+    // url stays the identity; label is the display name (kept separate).
+    const intel = inferProductIntelligence(study);
+    expect(intel.url).toBe("mock:");
+    expect(intel.label).toBe("EVE Console");
+    expect(renderProductIntelligenceMarkdown(intel).split("\n")[0]).toBe(
+      "# Product intelligence — EVE Console",
+    );
+
+    const prediction = predictUX(study);
+    expect(prediction.url).toBe("mock:");
+    expect(prediction.label).toBe("EVE Console");
   });
 
   it("#3 defaults the label to the url when none is given", async () => {
@@ -107,11 +151,42 @@ describe("dogfooding fixes", () => {
 
   it("#1 classifies tool/console screens into meaningful business goals", () => {
     const goals = inferProductIntelligence(study).businessGoals.map((g) => g.goal);
-    // Previously only "Account configuration" matched; now the console's real
-    // purposes are recognized.
-    expect(goals.some((g) => /Reporting|Task execution|Help/.test(g))).toBe(true);
+    // Previously only "Account configuration" matched. Assert each expected
+    // category explicitly so an overlapping first-match rule fails the test
+    // (e.g. `newStudy` must be Configuration & setup, not Task execution).
+    expect(goals).toContain("Reporting & analytics");
+    expect(goals).toContain("Task execution");
+    expect(goals).toContain("Help & documentation");
+    expect(goals).toContain("Configuration & setup");
     expect(goals.length).toBeGreaterThan(1);
   });
+
+  it("#1 keeps generic nouns from hijacking first-match goal rules", () => {
+    // "study"/"session" must not read as execution; "search results" is discovery.
+    expect(classifyGoalForTest("mock://console/newStudy")).toBe("Configuration & setup");
+    expect(classifyGoalForTest("mock://console/search-results")).toBe("Discovery");
+    expect(classifyGoalForTest("mock://console/running")).toBe("Task execution");
+  });
+
+  it("#1 classifies a standalone 'Run' screen as a task (not just 'running')", async () => {
+    const runApp: MockAppSpec = {
+      name: "Runner",
+      start: "home",
+      screens: [
+        { id: "home", title: "Runner", elements: [{ role: "button", text: "Go", goto: "run" }] },
+        { id: "run", title: "Run study", elements: [{ role: "link", text: "Back", goto: "home" }] },
+      ],
+    };
+    const session = await new EveSession({
+      adapter: new MockAdapter(runApp),
+      startUrl: "mock:",
+      persona: "curious-explorer",
+      seed: 3,
+      maxSteps: 15,
+    }).run();
+    const map = buildApplicationMap([session]);
+    expect(map.screens.find((s) => s.id.endsWith("run"))?.purpose).toBe("Task / run");
+  }, 60_000);
 
   it("#1 infers screen purposes for a tool (docs is not an 'editor')", () => {
     const map = buildApplicationMap(explorers);
