@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "The Experience Validation Engine (EVE) — AI that experiences software like a human.",
-    "version": "0.2.0"
+    "version": "0.3.1"
   },
   "plugins": [
     {

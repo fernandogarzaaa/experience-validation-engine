@@ -1,6 +1,6 @@
 {
   "name": "eve",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "EVE — validate software the way a human experiences it. Simulates realistic personas (attention, memory, emotion, patience) using a web app through a browser and returns an evidence-backed experience report: scores, findings, and a first-person journal.",
   "author": {
     "name": "fernandogarzaaa",
@@ -12,8 +12,8 @@
   "keywords": ["ux", "usability", "experience-validation", "cognitive-simulation", "mcp"],
   "mcpServers": {
     "eve": {
-      "command": "npx",
-      "args": ["-y", "experience-validation-engine", "eve-mcp"]
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/eve-mcp.js"]
     }
   }
 }
