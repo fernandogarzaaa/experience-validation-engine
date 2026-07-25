@@ -59,7 +59,11 @@ export interface DropoffCause {
 }
 
 export interface ProductIntelligence {
+  /** The study's target URL (identity — unchanged by display labels). */
   readonly url: string;
+  /** Human-facing target name for report headers. Optional — renderers fall
+   * back to `url`, so pre-existing consumers/constructors are unaffected. */
+  readonly label?: string;
   readonly size: number;
   readonly personas: readonly InferredPersona[];
   readonly businessGoals: readonly BusinessGoal[];
@@ -80,21 +84,42 @@ function shortName(screen: string): string {
 const round = (v: number, p = 2): number => Math.round(v * 10 ** p) / 10 ** p;
 
 /** Keyword → business-goal classification for a screen name. */
+// Ordered rules (first match wins). Cover product/tool/console vocabulary —
+// not just web-commerce funnels — so non-e-commerce apps still yield insight.
 const GOAL_RULES: readonly { goal: string; pattern: RegExp }[] = [
-  { goal: "User acquisition (signup)", pattern: /sign-?up|register|create-?account|get-?started|trial/i },
+  { goal: "User acquisition (signup)", pattern: /sign-?up|register|create-?account|get-?started|trial|onboard/i },
   { goal: "Monetization", pattern: /pricing|plan|upgrade|billing|checkout|purchase|buy|subscribe|cart/i },
-  { goal: "Returning-user access", pattern: /log-?in|sign-?in|auth/i },
-  { goal: "Core product engagement", pattern: /dashboard|home|workspace|editor|feed|app|notes?/i },
-  { goal: "Account configuration", pattern: /settings|preferences|profile|account/i },
+  { goal: "Returning-user access", pattern: /log-?in|sign-?in|\bauth\b/i },
+  { goal: "Help & documentation", pattern: /\bdocs?\b|documentation|guide|help|tutorial|readme|reference/i },
+  { goal: "Reporting & analytics", pattern: /report|analytics|insights|summary|scorecard|metrics|\bstats?\b/i },
+  // Only unambiguous task verbs — generic nouns like "study"/"session" would
+  // otherwise pull config/new-item screens into execution (first-match wins).
+  { goal: "Task execution", pattern: /\brun(?:ning)?\b|execute|process(?:ing)?|\bjob\b|build|scan|render/i },
+  { goal: "Configuration & setup", pattern: /settings|preferences|profile|account|config|setup|\bnew\b|options/i },
   { goal: "Data portability / retention", pattern: /export|download|backup|import/i },
-  { goal: "Discovery", pattern: /search|browse|explore|results/i },
+  { goal: "Core product engagement", pattern: /dashboard|home|workspace|editor|feed|app|note/i },
+  { goal: "Discovery", pattern: /search|browse|explore|catalog|results/i },
 ];
 
-function classifyGoal(screen: string): string | null {
-  const name = shortName(screen);
-  return GOAL_RULES.find((r) => r.pattern.test(name) || r.pattern.test(screen))?.goal ?? null;
+/**
+ * Normalize an identifier for keyword matching: split camelCase and treat
+ * separators as spaces, so `newStudy` / `search-results` expose word
+ * boundaries the rules can anchor on.
+ */
+function normalizeTokens(text: string): string {
+  return text
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_./:]+/g, " ")
+    .toLowerCase();
 }
 
+/** Classify a screen into a business goal by keyword, or null if none match. */
+function classifyGoal(screen: string): string | null {
+  const name = normalizeTokens(shortName(screen));
+  return GOAL_RULES.find((r) => r.pattern.test(name))?.goal ?? null;
+}
+
+/** Turn the population's behavioural segments into inferred personas. */
 function inferPersonas(study: PopulationStudy): InferredPersona[] {
   const bySegment = new Map<string, OperatorRun[]>();
   for (const op of study.operators) {
@@ -120,6 +145,7 @@ function inferPersonas(study: PopulationStudy): InferredPersona[] {
   });
 }
 
+/** Classify visited screens into business goals, ranked by traffic share. */
 function inferBusinessGoals(study: PopulationStudy): BusinessGoal[] {
   const traffic = new Map<string, { visits: number; screens: Set<string> }>();
   let total = 0;
@@ -158,6 +184,7 @@ function transitionCounts(study: PopulationStudy): Map<string, Map<string, numbe
   return edges;
 }
 
+/** Reconstruct the dominant path by greedily following the busiest transitions. */
 function dominantWorkflow(study: PopulationStudy, edges: Map<string, Map<string, number>>): Workflow | null {
   const starts = new Map<string, number>();
   for (const op of study.operators) {
@@ -189,6 +216,7 @@ function dominantWorkflow(study: PopulationStudy, edges: Map<string, Map<string,
   };
 }
 
+/** The single most-traveled screen→screen transition, as a 2-step workflow. */
 function topTransitionWorkflow(edges: Map<string, Map<string, number>>): Workflow | null {
   let best: { from: string; to: string; count: number } | null = null;
   for (const [from, outs] of edges) {
@@ -204,6 +232,7 @@ function topTransitionWorkflow(edges: Map<string, Map<string, number>>): Workflo
   };
 }
 
+/** Score each screen by reach × engagement, flagging critical-path membership. */
 function inferFeatureImportance(study: PopulationStudy, criticalPath: ReadonlySet<string>): FeatureImportance[] {
   const maxVisits = Math.max(1, ...study.navigationHeatmap.map((e) => e.visits));
   return study.navigationHeatmap
@@ -218,6 +247,7 @@ function inferFeatureImportance(study: PopulationStudy, criticalPath: ReadonlySe
     .slice(0, 10);
 }
 
+/** Rank screens by friction (abandonment + revisiting), with reasons. */
 function inferFrictionPages(study: PopulationStudy): FrictionPage[] {
   const maxRevisit = Math.max(
     1,
@@ -238,6 +268,7 @@ function inferFrictionPages(study: PopulationStudy): FrictionPage[] {
     .slice(0, 6);
 }
 
+/** Where abandonment concentrates, with the most likely cause per screen. */
 function inferDropoffCauses(study: PopulationStudy): DropoffCause[] {
   const byScreen = new Map<string, number>();
   for (const op of study.operators) {
@@ -278,6 +309,7 @@ export function inferProductIntelligence(study: PopulationStudy): ProductIntelli
 
   return {
     url: study.url,
+    label: study.label ?? study.url,
     size: study.size,
     personas: inferPersonas(study),
     businessGoals: inferBusinessGoals(study),

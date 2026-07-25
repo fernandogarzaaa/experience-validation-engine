@@ -31,7 +31,11 @@ export interface PredictedStruggle {
 }
 
 export interface UXPrediction {
+  /** The study's target URL (identity — unchanged by display labels). */
   readonly url: string;
+  /** Human-facing target name for report headers. Optional — renderers fall
+   * back to `url`, so pre-existing consumers/constructors are unaffected. */
+  readonly label?: string;
   readonly size: number;
   readonly predictions: readonly UXPredictionItem[];
   readonly struggleForecasts: readonly PredictedStruggle[];
@@ -52,6 +56,7 @@ export function wilsonInterval(successes: number, n: number, z = 1.96): { low: n
   return { low: clamp01((center - margin) / denom), high: clamp01((center + margin) / denom) };
 }
 
+/** Build an observed-proportion prediction with a 95% Wilson interval. */
 function proportion(
   metric: string,
   successes: number,
@@ -70,6 +75,7 @@ function proportion(
   };
 }
 
+/** Short, human-facing screen name (last path segment). */
 function shortName(screen: string): string {
   const cleaned = screen.replace(/[#?].*$/, "").replace(/\/+$/, "");
   return cleaned.split(/[/:]/).filter(Boolean).at(-1) ?? screen;
@@ -162,6 +168,7 @@ export function predictUX(study: PopulationStudy): UXPrediction {
 
   return {
     url: study.url,
+    label: study.label ?? study.url,
     size: n,
     predictions,
     struggleForecasts,

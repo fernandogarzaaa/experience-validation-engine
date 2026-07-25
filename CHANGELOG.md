@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Quality — improvements surfaced by dogfooding
+
+Fixes found by running EVE's own Phase-3 analysis on a model of EVE's (non-
+e-commerce) console:
+
+- **Broader classifiers** — the business-goal classifier (`src/product/`) and
+  the app-map screen-purpose classifier (`src/appmap/`) now recognize
+  tool/console vocabulary (reporting, tasks/runs, help/docs, configuration),
+  not just web-commerce funnels. "Documentation" screens are no longer
+  mislabeled as an editor.
+- **Goal-less step reporting** — the Interaction Designer no longer flags a
+  "too-long happy path" for open-ended studies, where step counts just reflect
+  the step budget rather than path length; it reports exploration depth
+  neutrally instead.
+- **Report labels** — `simulatePopulation` accepts an optional `label` (and
+  `PopulationStudy`, `ProductIntelligence`, and `UXPrediction` carry it), so
+  reports show a meaningful target name instead of the literal `mock:` url when
+  an `adapterFactory` supplies the app. `url` keeps its identity meaning and
+  `label` is the (optional) display name; renderers fall back to `url`, so
+  existing behavior and existing constructors are unaffected.
+- **Token normalization** — screen identifiers are normalized (camelCase split,
+  separators to spaces) before keyword matching, so `newStudy` and
+  `search-results` classify correctly and a hostname can no longer hijack a
+  match.
+
+9 new tests (`tests/dogfooding.test.ts`); 199 total.
+
 ## 0.3.0 — The autonomous UX research platform
 
 Turns EVE from a cognitive-simulation engine into an **autonomous UX research

@@ -86,6 +86,11 @@ export interface AggregatedFinding {
 
 export interface PopulationStudy {
   readonly url: string;
+  /** Human-facing target name for reports. Useful when an `adapterFactory`
+   * supplies an app that isn't the literal `url`. Optional — consumers fall
+   * back to `url`, so pre-existing constructors are unaffected.
+   * `simulatePopulation` always populates it. */
+  readonly label?: string;
   readonly size: number;
   readonly goal: string | null;
   readonly successRate: number;
@@ -107,6 +112,9 @@ export interface PopulationStudy {
 export interface PopulationOptions {
   /** Target URL, or `mock:`/`mock:<screen>` for the offline demo app. */
   readonly url: string;
+  /** Human-facing name for reports (defaults to `url`). Set this when an
+   * `adapterFactory` drives an app that isn't the literal `url`. */
+  readonly label?: string;
   /** Number of operators to simulate (default 25). */
   readonly size?: number;
   /** Persona names to sample from (default: the whole built-in library). */
@@ -149,6 +157,7 @@ interface FindingRecord {
 const MAX_HEATMAP_ROWS = 20;
 const MAX_TOP_FINDINGS = 15;
 
+/** Sort key for finding severities (critical first). */
 function severityRank(severity: string): number {
   switch (severity) {
     case "critical":
@@ -187,6 +196,7 @@ export function sampleOperators(options: PopulationOptions): OperatorSpec[] {
   return specs;
 }
 
+/** The operator's end-state emotion vector (zeros if no timeline). */
 function finalEmotions(result: SessionResult): EmotionVector {
   const last = result.emotionTimeline.at(-1);
   if (last) return { ...last.values };
@@ -276,6 +286,7 @@ function accumulateFindings(result: SessionResult, into: Map<string, FindingReco
   }
 }
 
+/** Aggregate per-screen visits, reach, and drop-offs across the population. */
 function buildHeatmap(operators: readonly OperatorRun[]): HeatmapEntry[] {
   const visits = new Map<string, number>();
   const operatorsOn = new Map<string, number>();
@@ -365,6 +376,7 @@ export async function simulatePopulation(options: PopulationOptions): Promise<Po
 
   return {
     url: options.url,
+    label: options.label ?? options.url,
     size,
     goal: options.goal ?? null,
     successRate: size > 0 ? Math.round((completed / size) * 1000) / 1000 : 0,

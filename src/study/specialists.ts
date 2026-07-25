@@ -205,9 +205,10 @@ export function interactionDesigner(study: PopulationStudy): SpecialistReport {
   const recommendations: Recommendation[] = [];
 
   const steps = study.stepsToComplete;
-  if (steps.count > 0) {
+  if (steps.count > 0 && study.goal) {
+    // Goal-directed: a long path to a known goal is real friction.
     observations.push({
-      statement: `Completers took a median of ${steps.median} steps (up to ${steps.max}).`,
+      statement: `Completers reached the goal in a median of ${steps.median} steps (up to ${steps.max}).`,
       evidence: `Steps-to-complete distribution over ${steps.count} successful operators.`,
       severity: steps.median > 20 ? "major" : "minor",
     });
@@ -218,6 +219,15 @@ export function interactionDesigner(study: PopulationStudy): SpecialistReport {
         priority: 65,
       });
     }
+  } else if (steps.count > 0) {
+    // Open-ended (no goal): "completed" just means "didn't abandon", so step
+    // counts reflect exploration depth (and cluster at the budget), not path
+    // length — report it neutrally rather than as friction.
+    observations.push({
+      statement: `Open-ended sessions explored a median of ${steps.median} steps.`,
+      evidence: `No goal was set, so this reflects exploration depth, not path length.`,
+      severity: "info",
+    });
   }
 
   const churny = [...study.navigationHeatmap]
