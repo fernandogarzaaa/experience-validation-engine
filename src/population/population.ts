@@ -86,9 +86,11 @@ export interface AggregatedFinding {
 
 export interface PopulationStudy {
   readonly url: string;
-  /** Human-facing target name for reports (defaults to `url`). Useful when an
-   * `adapterFactory` supplies an app that isn't the literal `url`. */
-  readonly label: string;
+  /** Human-facing target name for reports. Useful when an `adapterFactory`
+   * supplies an app that isn't the literal `url`. Optional — consumers fall
+   * back to `url`, so pre-existing constructors are unaffected.
+   * `simulatePopulation` always populates it. */
+  readonly label?: string;
   readonly size: number;
   readonly goal: string | null;
   readonly successRate: number;

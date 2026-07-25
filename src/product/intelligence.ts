@@ -61,8 +61,9 @@ export interface DropoffCause {
 export interface ProductIntelligence {
   /** The study's target URL (identity — unchanged by display labels). */
   readonly url: string;
-  /** Human-facing target name for report headers (defaults to `url`). */
-  readonly label: string;
+  /** Human-facing target name for report headers. Optional — renderers fall
+   * back to `url`, so pre-existing consumers/constructors are unaffected. */
+  readonly label?: string;
   readonly size: number;
   readonly personas: readonly InferredPersona[];
   readonly businessGoals: readonly BusinessGoal[];
@@ -308,7 +309,7 @@ export function inferProductIntelligence(study: PopulationStudy): ProductIntelli
 
   return {
     url: study.url,
-    label: study.label,
+    label: study.label ?? study.url,
     size: study.size,
     personas: inferPersonas(study),
     businessGoals: inferBusinessGoals(study),

@@ -9,7 +9,7 @@ const pct = (v: number): string => `${Math.round(v * 100)}%`;
 /** Render UX predictions as Markdown. */
 export function renderUXPredictionMarkdown(prediction: UXPrediction): string {
   const lines: string[] = [
-    `# Predictive UX — ${prediction.label}`,
+    `# Predictive UX — ${prediction.label ?? prediction.url}`,
     "",
     `Extrapolated from ${prediction.size} simulated users. Generated ${prediction.generatedAt}.`,
     "",

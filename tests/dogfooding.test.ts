@@ -11,7 +11,7 @@ import { EveSession, type SessionResult } from "../src/engine/session.js";
 import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
 import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
 import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../src/product/index.js";
-import { predictUX } from "../src/predict/index.js";
+import { predictUX, renderUXPredictionMarkdown } from "../src/predict/index.js";
 import { renderStudyMarkdown } from "../src/research/index.js";
 import { buildApplicationMap } from "../src/appmap/index.js";
 import { moderateStudy } from "../src/study/index.js";
@@ -166,6 +166,45 @@ describe("dogfooding fixes", () => {
     expect(classifyGoalForTest("mock://console/newStudy")).toBe("Configuration & setup");
     expect(classifyGoalForTest("mock://console/search-results")).toBe("Discovery");
     expect(classifyGoalForTest("mock://console/running")).toBe("Task execution");
+  });
+
+  it("#1 classifies a 'search results' screen as discovery, not reporting", async () => {
+    const searchApp: MockAppSpec = {
+      name: "Finder",
+      start: "home",
+      screens: [
+        { id: "home", title: "Finder", elements: [{ role: "button", text: "Search", goto: "search-results" }] },
+        {
+          id: "search-results",
+          title: "Search results",
+          elements: [{ role: "link", text: "Back", goto: "home" }],
+        },
+      ],
+    };
+    const session = await new EveSession({
+      adapter: new MockAdapter(searchApp),
+      startUrl: "mock:",
+      persona: "curious-explorer",
+      seed: 4,
+      maxSteps: 15,
+    }).run();
+    const map = buildApplicationMap([session]);
+    expect(map.screens.find((s) => s.id.endsWith("search-results"))?.purpose).toBe(
+      "Search / discovery",
+    );
+  }, 60_000);
+
+  it("#3 renders the url when no label is present (optional-label fallback)", () => {
+    // Consumers may construct these types without a label; renderers fall back.
+    expect(
+      renderProductIntelligenceMarkdown({
+        ...inferProductIntelligence(study),
+        label: undefined,
+      }).split("\n")[0],
+    ).toBe("# Product intelligence — mock:");
+    expect(
+      renderUXPredictionMarkdown({ ...predictUX(study), label: undefined }).split("\n")[0],
+    ).toBe("# Predictive UX — mock:");
   });
 
   it("#1 classifies a standalone 'Run' screen as a task (not just 'running')", async () => {

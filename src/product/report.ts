@@ -9,7 +9,7 @@ const pct = (v: number): string => `${Math.round(v * 100)}%`;
 /** Render product intelligence as a Markdown product report. */
 export function renderProductIntelligenceMarkdown(intel: ProductIntelligence): string {
   const lines: string[] = [
-    `# Product intelligence — ${intel.label}`,
+    `# Product intelligence — ${intel.label ?? intel.url}`,
     "",
     `Inferred from the behaviour of ${intel.size} simulated users. Generated ${intel.generatedAt}.`,
     "",

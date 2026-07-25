@@ -20,14 +20,14 @@ e-commerce) console:
   `PopulationStudy`, `ProductIntelligence`, and `UXPrediction` carry it), so
   reports show a meaningful target name instead of the literal `mock:` url when
   an `adapterFactory` supplies the app. `url` keeps its identity meaning and
-  `label` is the display name; both default to the url, so existing behavior is
-  unchanged.
+  `label` is the (optional) display name; renderers fall back to `url`, so
+  existing behavior and existing constructors are unaffected.
 - **Token normalization** — screen identifiers are normalized (camelCase split,
   separators to spaces) before keyword matching, so `newStudy` and
   `search-results` classify correctly and a hostname can no longer hijack a
   match.
 
-7 new tests (`tests/dogfooding.test.ts`); 197 total.
+9 new tests (`tests/dogfooding.test.ts`); 199 total.
 
 ## 0.3.0 — The autonomous UX research platform
 
