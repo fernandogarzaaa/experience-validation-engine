@@ -18,6 +18,11 @@ export class AccessibilityPlugin implements EvePlugin {
     if (this.reportedScreens.has(screenKey)) return;
     this.reportedScreens.add(screenKey);
 
+    // Pixel geometry and visual styling are meaningless on a textual surface;
+    // skip rather than fail, so text surfaces are not scored as failing a
+    // visual audit.
+    if (!ctx.capabilities.spatial) return;
+
     // Images with no textual alternative.
     const unlabeledImages = percept.elements.filter(
       (el) => el.role === "image" && !el.text.trim() && el.box.width > 32 && el.box.height > 32,
