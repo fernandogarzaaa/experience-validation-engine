@@ -5,6 +5,7 @@ import type {
   PredictionOutcome,
 } from "../core/types.js";
 import type { Persona } from "../personas/persona.js";
+import type { SurfaceCapabilities } from "../surface/capabilities.js";
 
 /**
  * Plugin system.
@@ -20,6 +21,8 @@ import type { Persona } from "../personas/persona.js";
 export interface PluginContext {
   readonly persona: Persona;
   readonly startUrl: string;
+  /** Which perceptual dimensions the current surface actually has. */
+  readonly capabilities: SurfaceCapabilities;
   /** Report a finding into the session. Deduplicated by (title, url). */
   report(finding: Omit<Finding, "id" | "timestamp">): void;
 }

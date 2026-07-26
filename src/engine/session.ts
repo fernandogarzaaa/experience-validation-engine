@@ -255,6 +255,7 @@ export class EveSession {
     const pluginCtx: PluginContext = {
       persona: this.persona,
       startUrl,
+      capabilities: adapter.capabilities,
       report: (f) => this.addFinding({ ...f, timestamp: this.simClock }),
     };
 

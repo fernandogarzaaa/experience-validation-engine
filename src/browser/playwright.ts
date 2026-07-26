@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * Playwright adapter. Playwright is an optional peer dependency, loaded
@@ -34,6 +35,7 @@ type PlaywrightBrowser = {
 
 export class PlaywrightAdapter implements BrowserAdapter {
   readonly name = "playwright";
+  readonly capabilities = VISUAL_SURFACE;
   private browser: PlaywrightBrowser | null = null;
   private page: PlaywrightPage | null = null;
   private pendingNativeDialogs: string[] = [];

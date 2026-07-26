@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * Selenium WebDriver adapter. `selenium-webdriver` is an optional peer
@@ -35,6 +36,7 @@ type SeleniumActions = {
 
 export class SeleniumAdapter implements BrowserAdapter {
   readonly name = "selenium";
+  readonly capabilities = VISUAL_SURFACE;
   private driver: SeleniumDriver | null = null;
   private origin: unknown = null;
   private keyMap: Record<string, string> = {};
