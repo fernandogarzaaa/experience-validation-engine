@@ -48,4 +48,14 @@ describe("CliAdapter", () => {
       adapter.open("cli:definitely-not-a-real-binary-xyz", VIEWPORT),
     ).rejects.toThrow();
   });
+
+  it("settles on an interactive process without waiting for it to exit", async () => {
+    const adapter = new CliAdapter();
+    await adapter.open("cli:node tests/fixtures/interactive-cli.mjs", VIEWPORT);
+    const snapshot = await adapter.snapshot();
+    const text = snapshot.elements.map((el) => el.text).join(" ");
+    expect(text).toContain("partial line");
+    expect(text).toContain("Waiting for input:");
+    await adapter.close();
+  });
 });

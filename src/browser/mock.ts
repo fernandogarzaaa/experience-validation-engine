@@ -173,7 +173,8 @@ export const DEMO_APP: MockAppSpec = {
 
 export class MockAdapter implements BrowserAdapter {
   readonly name = "mock";
-  readonly capabilities = VISUAL_SURFACE;
+  /** Visual/spatial like a real browser, but never produces a screenshot. */
+  readonly capabilities = { ...VISUAL_SURFACE, canScreenshot: false } as const;
   private readonly app: MockAppSpec;
   private currentId: string;
   private history: string[] = [];

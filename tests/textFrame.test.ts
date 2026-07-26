@@ -52,4 +52,29 @@ describe("layoutTextFrame", () => {
     expect(out.elements[0].clippedByViewport).toBe(false);
     expect(out.elements[20].clippedByViewport).toBe(true);
   });
+
+  it("keeps surrounding text on a line that also contains an affordance", () => {
+    const out = layoutTextFrame({
+      lines: ["Run `restart-proxy` to start it."],
+      affordances: [{ line: 0, column: 5, text: "restart-proxy", role: "button", command: "restart-proxy" }],
+      windowRows: 24,
+      scrollLine: 0,
+    });
+    const text = out.elements.map((el) => el.text).join(" ");
+    expect(text).toContain("Run");
+    expect(text).toContain("to start it.");
+    expect(text).toContain("restart-proxy");
+  });
+
+  it("positions elements relative to the current scroll offset", () => {
+    const out = layoutTextFrame({
+      lines: ["a", "b", "c"],
+      affordances: [],
+      windowRows: 2,
+      scrollLine: 1,
+    });
+    const visible = out.elements.find((el) => el.text === "b");
+    expect(visible!.box.y).toBe(0);
+    expect(visible!.clippedByViewport).toBe(false);
+  });
 });

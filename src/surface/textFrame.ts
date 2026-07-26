@@ -46,50 +46,68 @@ export function layoutTextFrame(frame: TextFrame): LaidOutFrame {
   const elements: VisibleElement[] = [];
   let id = 0;
 
-  const affordanceLines = new Set(frame.affordances.map((a) => a.line));
   const lastVisibleLine = frame.scrollLine + frame.windowRows;
+  const affordancesByLine = new Map<number, TextAffordance[]>();
+  for (const affordance of frame.affordances) {
+    const onLine = affordancesByLine.get(affordance.line) ?? [];
+    onLine.push(affordance);
+    affordancesByLine.set(affordance.line, onLine);
+  }
 
-  frame.lines.forEach((line, index) => {
-    if (!line.trim()) return;
-    // An affordance renders its own element; skip the plain-text duplicate.
-    if (affordanceLines.has(index)) return;
+  const pushText = (line: number, column: number, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
     elements.push({
       id: id++,
       role: "text",
-      text: line.trim(),
+      text: trimmed,
       box: {
-        x: 0,
-        y: index * LINE_HEIGHT,
-        width: line.trim().length * CELL_WIDTH,
+        x: column * CELL_WIDTH,
+        y: (line - frame.scrollLine) * LINE_HEIGHT,
+        width: trimmed.length * CELL_WIDTH,
         height: LINE_HEIGHT,
       },
       interactive: false,
       disabled: false,
       editable: false,
       focused: false,
-      clippedByViewport: index < frame.scrollLine || index >= lastVisibleLine,
+      clippedByViewport: line < frame.scrollLine || line >= lastVisibleLine,
     });
-  });
+  };
 
-  for (const affordance of frame.affordances) {
-    elements.push({
-      id: id++,
-      role: affordance.role,
-      text: affordance.text,
-      box: {
-        x: affordance.column * CELL_WIDTH,
-        y: affordance.line * LINE_HEIGHT,
-        width: affordance.text.length * CELL_WIDTH,
-        height: LINE_HEIGHT,
-      },
-      interactive: true,
-      disabled: false,
-      editable: affordance.role === "textbox",
-      focused: false,
-      clippedByViewport:
-        affordance.line < frame.scrollLine || affordance.line >= lastVisibleLine,
-    });
-  }
+  frame.lines.forEach((line, index) => {
+    if (!line.trim()) return;
+    const onLine = (affordancesByLine.get(index) ?? []).slice().sort((a, b) => a.column - b.column);
+    if (onLine.length === 0) {
+      pushText(index, 0, line);
+      return;
+    }
+    // Render text around each affordance rather than dropping the whole
+    // line — an affordance is part of a sentence, not the entire sentence.
+    let cursor = 0;
+    for (const affordance of onLine) {
+      pushText(index, cursor, line.slice(cursor, affordance.column));
+      elements.push({
+        id: id++,
+        role: affordance.role,
+        text: affordance.text,
+        box: {
+          x: affordance.column * CELL_WIDTH,
+          y: (affordance.line - frame.scrollLine) * LINE_HEIGHT,
+          width: affordance.text.length * CELL_WIDTH,
+          height: LINE_HEIGHT,
+        },
+        interactive: true,
+        disabled: false,
+        editable: affordance.role === "textbox",
+        focused: false,
+        clippedByViewport:
+          affordance.line < frame.scrollLine || affordance.line >= lastVisibleLine,
+      });
+      cursor = affordance.column + affordance.text.length;
+    }
+    pushText(index, cursor, line.slice(cursor));
+  });
 
   return {
     elements,

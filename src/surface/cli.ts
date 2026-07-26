@@ -7,6 +7,21 @@ import { detectAffordances, stripAnsi } from "./affordances.js";
 
 const DEFAULT_WINDOW_ROWS = 24;
 const SETTLE_MS = 50;
+/** How long to wait with no new output before treating the process as
+ * settled (e.g. an interactive prompt awaiting input) rather than waiting
+ * indefinitely for it to exit. */
+const INTERACTIVE_SETTLE_MS = 300;
+
+/** Minimal shell-like tokenizer: honors single/double-quoted arguments. */
+function tokenizeCommand(command: string): string[] {
+  const tokens: string[] = [];
+  const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(command))) {
+    tokens.push(match[1] ?? match[2] ?? match[3] ?? "");
+  }
+  return tokens;
+}
 
 export interface CliAdapterOptions {
   cwd?: string;
@@ -43,7 +58,8 @@ export class CliAdapter implements BrowserAdapter {
 
   private run(command: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const [bin, ...args] = command.split(/\s+/);
+      this.child?.kill();
+      const [bin, ...args] = tokenizeCommand(command);
       this.exited = false;
       this.lines = [];
 
@@ -57,31 +73,51 @@ export class CliAdapter implements BrowserAdapter {
       this.child = child;
 
       let settled = false;
+      let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
       const finish = (fn: () => void) => {
         if (settled) return;
         settled = true;
+        if (inactivityTimer) clearTimeout(inactivityTimer);
         fn();
       };
-
-      const absorb = (chunk: Buffer) => {
-        for (const line of stripAnsi(chunk.toString("utf8")).split(/\r?\n/)) {
-          this.lines.push(line);
-        }
+      // No new output for a while means either the process exited (handled
+      // separately via 'close') or it is waiting on input, e.g. an
+      // interactive prompt. Either way the operator can now perceive it.
+      const resetInactivityTimer = () => {
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+          this.affordances = detectAffordances(this.lines);
+          finish(resolve);
+        }, INTERACTIVE_SETTLE_MS);
       };
-      child.stdout.on("data", absorb);
-      child.stderr.on("data", absorb);
+
+      const stdoutRef = { text: "" };
+      const stderrRef = { text: "" };
+      const absorb = (ref: { text: string }, chunk: Buffer) => {
+        ref.text += stripAnsi(chunk.toString("utf8"));
+        const parts = ref.text.split(/\r?\n/);
+        ref.text = parts.pop() ?? "";
+        for (const line of parts) this.lines.push(line);
+        resetInactivityTimer();
+      };
+      child.stdout.on("data", (chunk: Buffer) => absorb(stdoutRef, chunk));
+      child.stderr.on("data", (chunk: Buffer) => absorb(stderrRef, chunk));
 
       // A missing binary surfaces as an 'error' event, never as 'close'.
       child.on("error", (error) => finish(() => reject(error)));
 
       child.on("close", (code) => {
         this.exited = true;
+        if (stdoutRef.text) this.lines.push(stdoutRef.text);
+        if (stderrRef.text) this.lines.push(stderrRef.text);
         if (code !== 0 && code !== null) {
           this.lines.push(`[process exited with code ${code}]`);
         }
         this.affordances = detectAffordances(this.lines);
         setTimeout(() => finish(resolve), SETTLE_MS);
       });
+
+      resetInactivityTimer();
     });
   }
 
@@ -114,7 +150,9 @@ export class CliAdapter implements BrowserAdapter {
   }
 
   async clickAt(point: Point): Promise<void> {
-    const line = Math.floor(point.y / LINE_HEIGHT);
+    // box.y is viewport-relative (per the adapter contract), so translate
+    // back to an absolute line index using the current scroll offset.
+    const line = Math.floor(point.y / LINE_HEIGHT) + this.scrollLine;
     const target = this.affordances.find((a) => a.line === line);
     if (target?.command) await this.run(target.command);
   }
@@ -133,7 +171,8 @@ export class CliAdapter implements BrowserAdapter {
 
   async scrollBy(deltaY: number): Promise<void> {
     const next = this.scrollLine + Math.round(deltaY / LINE_HEIGHT);
-    this.scrollLine = Math.max(0, Math.min(next, Math.max(0, this.lines.length - 1)));
+    const maxScroll = Math.max(0, this.lines.length - this.windowRows);
+    this.scrollLine = Math.max(0, Math.min(next, maxScroll));
   }
 
   async goBack(): Promise<void> {

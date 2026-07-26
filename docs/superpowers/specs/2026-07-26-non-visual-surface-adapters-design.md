@@ -149,7 +149,7 @@ visual audit.
 
 ## Data flow
 
-```
+```text
 process/tool  →  CliAdapter  →  text frame  →  textFrame layout  →  Percept
                                                                        ↓
                               (unchanged) cognition → emotion → findings → report
