@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/fernandogarzaaa/experience-validation-engine/discussions
+    about: How do I run EVE against X? Which persona should I use? Ask here.
+  - name: Integration setup (Claude, Codex, Cursor, Windsurf, VS Code)
+    url: https://github.com/fernandogarzaaa/experience-validation-engine/blob/main/docs/integrations.md
+    about: Per-platform MCP setup is documented here.
+  - name: Security vulnerability
+    url: https://github.com/fernandogarzaaa/experience-validation-engine/security/advisories/new
+    about: Report privately. Please do not open a public issue.

@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
+import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
 /**
@@ -70,7 +71,11 @@ export class PlaywrightAdapter implements BrowserAdapter {
   }
 
   async snapshot(): Promise<RawSnapshot> {
-    const snap = await this.requirePage().evaluate<RawSnapshot>(PERCEPTION_SCRIPT);
+    const page = this.requirePage();
+    const snap = await perceiveAcrossNavigation(
+      () => page.evaluate<RawSnapshot>(PERCEPTION_SCRIPT),
+      (ms) => page.waitForTimeout(ms),
+    );
     if (this.pendingNativeDialogs.length > 0) {
       snap.dialogs = [
         ...snap.dialogs,
@@ -95,10 +100,12 @@ export class PlaywrightAdapter implements BrowserAdapter {
 
   async clickAt(point: Point): Promise<void> {
     await this.requirePage().mouse.click(point.x, point.y);
+    await this.settle();
   }
 
   async doubleClickAt(point: Point): Promise<void> {
     await this.requirePage().mouse.dblclick(point.x, point.y);
+    await this.settle();
   }
 
   async typeText(text: string, perCharIntervalMs: number): Promise<void> {
@@ -107,20 +114,25 @@ export class PlaywrightAdapter implements BrowserAdapter {
 
   async pressKey(key: string): Promise<void> {
     await this.requirePage().keyboard.press(key);
+    await this.settle();
   }
 
   async scrollBy(deltaY: number): Promise<void> {
     await this.requirePage().mouse.wheel(0, deltaY);
+    // A wheel event resolves once dispatched, not once the page has scrolled.
+    await this.settle();
   }
 
   async goBack(): Promise<void> {
     await this.requirePage()
       .goBack({ timeout: 15_000 })
       .catch(() => {});
+    await this.settle();
   }
 
   async navigate(url: string): Promise<void> {
     await this.requirePage().goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await this.settle();
   }
 
   async close(): Promise<void> {
@@ -132,6 +144,20 @@ export class PlaywrightAdapter implements BrowserAdapter {
   private requirePage(): PlaywrightPage {
     if (!this.page) throw new Error("PlaywrightAdapter: call open() first");
     return this.page;
+  }
+
+  /**
+   * Give an action that may navigate a moment to commit.
+   *
+   * A driver click resolves once the input event is dispatched, which is
+   * before any resulting navigation starts. Perceiving immediately would
+   * capture the *old* page and report it as the outcome of the click. This
+   * pause lets the new document begin loading, so `document.readyState`
+   * turns the percept's loading indicator on and the observer waits it out
+   * the way a human waits for a page to appear.
+   */
+  private async settle(): Promise<void> {
+    if (this.options.settleMs > 0) await this.requirePage().waitForTimeout(this.options.settleMs);
   }
 }
 

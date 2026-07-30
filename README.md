@@ -207,9 +207,11 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [Plugin Guide](docs/plugin-guide.md) | Writing judgment plugins |
 | [Configuration](docs/configuration.md) | YAML reference and semantics |
 | [API Reference](docs/api-reference.md) | Public surface |
+| [API Stability](docs/api-stability.md) | What you can build on: stable, provisional, and experimental tiers |
 | [Examples](docs/examples.md) | Runnable examples and CI recipes |
 | [Roadmap](ROADMAP.md) | Where this is going |
 | [Contributing](CONTRIBUTING.md) | How to help |
+| [Security](SECURITY.md) | Reporting a vulnerability; what EVE executes |
 
 Agent skills: EVE ships ready-to-use skills for
 [Claude Code](.claude/skills/eve/SKILL.md) and

@@ -1,0 +1,69 @@
+name: Feature request
+description: Propose a new capability, persona, plugin, or scoring dimension.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What can't you evaluate today?
+      description: >
+        Describe the UX question you are trying to answer, not the
+        implementation. Proposals grounded in a real evaluation gap age better
+        than proposals grounded in a feature list.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What should EVE do differently, and what would it output?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Persona / trait model
+        - Cognition (attention, decisions, expectation, memory)
+        - Emotion
+        - Vision / perception
+        - Scoring and findings
+        - Reporting
+        - Plugins
+        - Browser or surface adapters
+        - MCP server
+        - Population, study, or product intelligence
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: ground-rules
+    attributes:
+      label: Ground rules
+      description: >
+        These are the project's non-negotiables (see CONTRIBUTING.md). A
+        proposal that needs one of them relaxed is not necessarily rejected,
+        but it does need to say so explicitly.
+      options:
+        - label: >
+            This does not give cognition privileged information — no DOM
+            internals, network data, console output or source structure. If it
+            does, I have explained why it belongs behind an opt-in plugin.
+        - label: >
+            This preserves determinism: the same (appState, persona, seed)
+            still produces the same run.
+        - label: >
+            Any new finding carries the observation that triggered it, and any
+            new score carries evidence.
+
+  - type: textarea
+    id: research
+    attributes:
+      label: Grounding (optional)
+      description: >
+        HCI or cognitive-science backing, if the proposal models human
+        behaviour. See docs/research.md for how existing systems are grounded.

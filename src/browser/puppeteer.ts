@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
+import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
 /**
@@ -63,7 +64,11 @@ export class PuppeteerAdapter implements BrowserAdapter {
   }
 
   async snapshot(): Promise<RawSnapshot> {
-    const snap = await this.requirePage().evaluate<RawSnapshot>(PERCEPTION_SCRIPT);
+    const page = this.requirePage();
+    const snap = await perceiveAcrossNavigation(
+      () => page.evaluate<RawSnapshot>(PERCEPTION_SCRIPT),
+      sleep,
+    );
     if (this.pendingNativeDialogs.length > 0) {
       snap.dialogs = [
         ...snap.dialogs,
@@ -89,10 +94,12 @@ export class PuppeteerAdapter implements BrowserAdapter {
 
   async clickAt(point: Point): Promise<void> {
     await this.requirePage().mouse.click(point.x, point.y);
+    await this.settle();
   }
 
   async doubleClickAt(point: Point): Promise<void> {
     await this.requirePage().mouse.click(point.x, point.y, { clickCount: 2 });
+    await this.settle();
   }
 
   async typeText(text: string, perCharIntervalMs: number): Promise<void> {
@@ -101,20 +108,25 @@ export class PuppeteerAdapter implements BrowserAdapter {
 
   async pressKey(key: string): Promise<void> {
     await this.requirePage().keyboard.press(key);
+    await this.settle();
   }
 
   async scrollBy(deltaY: number): Promise<void> {
     await this.requirePage().mouse.wheel({ deltaY });
+    // A wheel event resolves once dispatched, not once the page has scrolled.
+    await this.settle();
   }
 
   async goBack(): Promise<void> {
     await this.requirePage()
       .goBack({ timeout: 15_000 })
       .catch(() => {});
+    await this.settle();
   }
 
   async navigate(url: string): Promise<void> {
     await this.requirePage().goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await this.settle();
   }
 
   async close(): Promise<void> {
@@ -126,6 +138,15 @@ export class PuppeteerAdapter implements BrowserAdapter {
   private requirePage(): PuppeteerPage {
     if (!this.page) throw new Error("PuppeteerAdapter: call open() first");
     return this.page;
+  }
+
+  /**
+   * Give an action that may navigate a moment to commit. See the identical
+   * note on `PlaywrightAdapter.settle` — the two adapters must behave the
+   * same or the cognition engine could tell them apart.
+   */
+  private async settle(): Promise<void> {
+    if (this.options.settleMs > 0) await sleep(this.options.settleMs);
   }
 }
 

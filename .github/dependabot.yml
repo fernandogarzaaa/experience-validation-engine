@@ -1,0 +1,44 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # One PR for the dev toolchain rather than five. These only affect CI,
+      # so they are safe to review together.
+      dev-tooling:
+        dependency-type: development
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Playwright, Puppeteer and Selenium are optional peers pinned by the
+      # consumer, not by EVE. Bumping the floor here would narrow what
+      # installs cleanly for no benefit.
+      - dependency-name: playwright
+      - dependency-name: puppeteer
+      - dependency-name: selenium-webdriver
+      - dependency-name: "@anthropic-ai/sdk"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    labels:
+      - dependencies
+    commit-message:
+      prefix: ci
