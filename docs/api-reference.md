@@ -5,6 +5,12 @@ All symbols are exported from the package root
 this page lists the load-bearing surface — see the `.d.ts` files for full
 signatures.
 
+Not every symbol here carries the same guarantee. Phase-1 core is stable,
+Phase-2 systems are provisional, and Phase-3 analysis shapes are still
+moving. [docs/api-stability.md](api-stability.md) says which is which and
+what a version bump promises. Anything not exported from the package root
+is internal.
+
 ## Engine
 
 ### `new EveSession(options: SessionOptions)`

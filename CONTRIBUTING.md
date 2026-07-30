@@ -20,16 +20,32 @@ Thanks for helping build AI that experiences software like a human.
 
 ```bash
 npm install
+npm run lint         # Biome: lint, format, import order
 npm run typecheck    # strict TypeScript, zero errors expected
 npm test             # vitest, fully offline (mock adapter)
+npm run coverage     # same suite + coverage thresholds
 npx tsx examples/basic-run.ts
 ```
 
-- Node ≥ 18.17. No linter beyond `tsc --noEmit` — the compiler options are
-  strict (`noUncheckedIndexedAccess`, etc.) and treated as the style gate.
+- Node ≥ 18.17. Style and correctness are gated by two tools: `tsc` with
+  strict options (`noUncheckedIndexedAccess`, etc.) and Biome
+  (`biome.jsonc`). `npm run lint:fix` applies the safe fixes.
 - Tests must not require a browser or network. Engine behavior is tested
-  against `MockAdapter`; adapter-specific code is exercised manually and
-  kept thin for exactly that reason.
+  against `MockAdapter`, which keeps the suite fast and deterministic.
+- The one exception lives outside `npm test`: `npm run test:browser` drives
+  real Chromium against a loopback fixture site to verify the adapter
+  contract. Adapters are typed against hand-written duck types for the
+  driver's `Page`, so nothing else — not `tsc`, not `MockAdapter` — can
+  catch upstream API drift. Run it if you touch `src/browser/` or the
+  perception script:
+
+  ```bash
+  npx playwright install chromium
+  npm run test:browser
+  ```
+
+- Coverage thresholds are a ratchet against regression, not a target. If a
+  change lowers them, that needs saying out loud in the PR.
 
 ## Good first contributions
 

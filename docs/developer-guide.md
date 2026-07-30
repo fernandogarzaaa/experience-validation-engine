@@ -237,8 +237,50 @@ policies and plugins without a browser — see `src/browser/mock.ts` and
 git clone https://github.com/fernandogarzaaa/experience-validation-engine
 cd experience-validation-engine
 npm install
+npm run lint        # Biome: lint, format, import order
 npm run typecheck   # strict TS, no emit
 npm test            # vitest, fully offline
+npm run coverage    # same suite + coverage, enforces thresholds
 npm run build       # emit dist/
 npx tsx examples/basic-run.ts
 ```
+
+`npm run lint:fix` applies the safe fixes, and `npm run format` formats
+without linting. Biome's configuration lives in `biome.jsonc`.
+
+### Real-browser tests
+
+`npm test` never touches a browser or the network — that constraint is what
+makes it fast enough to gate CI on. The adapter contract is verified
+separately:
+
+```bash
+npx playwright install chromium
+npm run test:browser
+```
+
+This drives Chromium against a loopback fixture site and checks the whole
+`BrowserAdapter` contract: perception, clicking, typing, scrolling, history,
+native dialogs, screenshots, and a full session end to end. It exists because
+the adapters are typed against hand-written duck types for the driver's
+`Page`, so `tsc` cannot detect upstream API drift — and neither can
+`MockAdapter`, which has no asynchronous navigation. Run it whenever you touch
+`src/browser/` or the perception script.
+
+### Coverage
+
+Thresholds are set just below the measured baseline and act as a ratchet
+against regression, not as a target. The report is written to `coverage/`;
+CI uploads it as an artifact on every run.
+
+### Docker
+
+```bash
+docker build -t eve .
+docker run --rm eve run mock: --persona first-time-user
+docker run --rm -v "$PWD/out:/work/.eve-output" eve run https://example.com
+```
+
+The image is built on Playwright's, so real-browser runs work without
+installing anything locally. The MCP server speaks stdio and works over
+`docker run -i --entrypoint eve-mcp eve`.
