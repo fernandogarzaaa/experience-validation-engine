@@ -27,7 +27,7 @@ npm run coverage     # same suite + coverage thresholds
 npx tsx examples/basic-run.ts
 ```
 
-- Node ≥ 18.17. Style and correctness are gated by two tools: `tsc` with
+- Node ≥ 20. Style and correctness are gated by two tools: `tsc` with
   strict options (`noUncheckedIndexedAccess`, etc.) and Biome
   (`biome.jsonc`). `npm run lint:fix` applies the safe fixes.
 - Tests must not require a browser or network. Engine behavior is tested

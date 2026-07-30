@@ -8,7 +8,7 @@ npm install experience-validation-engine
 npm install playwright && npx playwright install chromium
 ```
 
-Requirements: Node.js ≥ 18.17.
+Requirements: Node.js ≥ 20.
 
 ## Quick start (offline, 30 seconds)
 
