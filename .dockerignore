@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.eve-output
+.git
+.github
+docs
+examples
+tests
+*.log
+*.tsbuildinfo
+.eve-memory.json
+*.eve-memory.json
+.DS_Store

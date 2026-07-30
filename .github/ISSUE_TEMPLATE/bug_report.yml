@@ -1,0 +1,80 @@
+name: Bug report
+description: Something EVE does is wrong, crashes, or contradicts the docs.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        EVE is deterministic by design: `(appState, persona, seed)` should fully
+        determine a run. That makes most bugs exactly reproducible — the fields
+        below are what turn a report into a failing test.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did EVE do, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >
+        The exact CLI command, config, or code. A minimal `MockAppSpec` that
+        reproduces a cognition bug is the most useful thing you can attach —
+        it becomes a regression test directly.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: EVE version
+      placeholder: "0.3.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter
+      options:
+        - mock
+        - playwright
+        - puppeteer
+        - selenium
+        - cli
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: persona
+    attributes:
+      label: Persona
+      placeholder: "first-time-user"
+
+  - type: input
+    id: seed
+    attributes:
+      label: Seed
+      description: Without this a behavioural report usually cannot be reproduced.
+      placeholder: "42"
+
+  - type: textarea
+    id: journal
+    attributes:
+      label: Session journal
+      description: >
+        For behavioural issues, paste the Session Journal section of `report.md`.
+        Reviewers judge realism from the journal, not just from scores.
+      render: markdown
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version and OS
+      placeholder: "Node 20.11 on macOS 14"
