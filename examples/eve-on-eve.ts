@@ -19,14 +19,17 @@
  *   npx tsx examples/eve-on-eve.ts
  */
 
-import { EveSession, type SessionResult } from "../src/engine/session.js";
-import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
-import { simulatePopulation } from "../src/population/index.js";
-import { moderateStudy, renderModeratedStudyMarkdown } from "../src/study/index.js";
-import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../src/product/index.js";
 import { buildApplicationMap, renderApplicationMapMarkdown } from "../src/appmap/index.js";
-import { predictUX, renderUXPredictionMarkdown } from "../src/predict/index.js";
+import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
+import { EveSession, type SessionResult } from "../src/engine/session.js";
 import { analyzeMultimodal, renderMultimodalMarkdown } from "../src/multimodal/index.js";
+import { simulatePopulation } from "../src/population/index.js";
+import { predictUX, renderUXPredictionMarkdown } from "../src/predict/index.js";
+import {
+  inferProductIntelligence,
+  renderProductIntelligenceMarkdown,
+} from "../src/product/index.js";
+import { moderateStudy, renderModeratedStudyMarkdown } from "../src/study/index.js";
 
 /** A model of EVE's console surface, with deliberate (authored) friction. */
 const EVE_CONSOLE: MockAppSpec = {
@@ -146,7 +149,11 @@ for (const [i, persona] of ["curious-explorer", "power-user", "first-time-user"]
 
 process.stdout.write(`\n${rule}\nEVE-on-EVE — the EVE Console, experienced by EVE\n${rule}\n\n`);
 process.stdout.write(renderModeratedStudyMarkdown(moderateStudy(study)));
-process.stdout.write(`\n${rule}\n\n` + renderProductIntelligenceMarkdown(inferProductIntelligence(study)));
-process.stdout.write(`\n${rule}\n\n` + renderUXPredictionMarkdown(predictUX(study)));
-process.stdout.write(`\n${rule}\n\n` + renderApplicationMapMarkdown(buildApplicationMap(explorers)));
-process.stdout.write(`\n${rule}\n\n` + renderMultimodalMarkdown(analyzeMultimodal(explorers[0]!)));
+process.stdout.write(
+  `\n${rule}\n\n${renderProductIntelligenceMarkdown(inferProductIntelligence(study))}`,
+);
+process.stdout.write(`\n${rule}\n\n${renderUXPredictionMarkdown(predictUX(study))}`);
+process.stdout.write(
+  `\n${rule}\n\n${renderApplicationMapMarkdown(buildApplicationMap(explorers))}`,
+);
+process.stdout.write(`\n${rule}\n\n${renderMultimodalMarkdown(analyzeMultimodal(explorers[0]!))}`);

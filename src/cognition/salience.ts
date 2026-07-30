@@ -1,7 +1,7 @@
 import type { Percept, VisibleElement } from "../core/types.js";
-import { tokenize } from "./mentalModel.js";
 import { screenSignature } from "../memory/memory.js";
 import type { CognitiveContext } from "./cognition.js";
+import { tokenize } from "./mentalModel.js";
 
 /**
  * Salience: which visible element pulls the operator's attention.
@@ -22,7 +22,8 @@ export interface SalienceScore {
   readonly risk: number;
 }
 
-const DESTRUCTIVE_RE = /\b(delete|remove|discard|reset|erase|clear all|deactivate|cancel account|unsubscribe)\b/i;
+const DESTRUCTIVE_RE =
+  /\b(delete|remove|discard|reset|erase|clear all|deactivate|cancel account|unsubscribe)\b/i;
 const COMMITTING_RE = /\b(submit|pay|purchase|buy|confirm|send|publish|order)\b/i;
 
 export function riskOf(element: VisibleElement): number {
@@ -45,7 +46,13 @@ export function prominenceOf(element: VisibleElement, percept: Percept): number 
         (percept.viewport.width || 1),
     );
   const roleBoost =
-    element.role === "button" ? 0.3 : element.role === "link" ? 0.15 : element.role === "textbox" ? 0.2 : 0;
+    element.role === "button"
+      ? 0.3
+      : element.role === "link"
+        ? 0.15
+        : element.role === "textbox"
+          ? 0.2
+          : 0;
   return Math.min(1, sizeScore * 0.4 + aboveFold * 0.3 + centrality * 0.15 + roleBoost);
 }
 

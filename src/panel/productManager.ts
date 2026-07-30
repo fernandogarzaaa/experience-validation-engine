@@ -1,7 +1,7 @@
-import type { ExecutiveReport } from "./moderator.js";
+import type { FindingSeverity } from "../core/types.js";
 import type { ExperienceForecast } from "../forecasting/forecast.js";
 import type { DesignCritique } from "./designCritic.js";
-import type { FindingSeverity } from "../core/types.js";
+import type { ExecutiveReport } from "./moderator.js";
 
 /**
  * Product Manager AI.
@@ -69,7 +69,9 @@ export function buildProductPlan(input: PMInput): ProductPlan {
     const confidence = issue.agreement >= 0.5 ? 0.9 : 0.6;
     const effort = effortWeight(issue.category);
     const priorityScore = Number(((reach * impact * confidence) / effort).toFixed(2));
-    const lift = forecast?.recommendedChanges.find((c) => c.change.toLowerCase().includes(issue.category))?.estimatedLift ?? impact * 0.1;
+    const lift =
+      forecast?.recommendedChanges.find((c) => c.change.toLowerCase().includes(issue.category))
+        ?.estimatedLift ?? impact * 0.1;
 
     epics.push({
       id: nextEpic(),
@@ -97,7 +99,7 @@ export function buildProductPlan(input: PMInput): ProductPlan {
     for (const change of forecast.recommendedChanges.slice(0, 3)) {
       epics.push({
         id: nextEpic(),
-        title: change.change.length > 70 ? change.change.slice(0, 67) + "…" : change.change,
+        title: change.change.length > 70 ? `${change.change.slice(0, 67)}…` : change.change,
         problem: change.rationale,
         businessImpact: `Estimated +${Math.round(change.estimatedLift * 100)}% task completion if addressed.`,
         priorityScore: Number((change.estimatedLift * 5).toFixed(2)),
@@ -129,7 +131,8 @@ export function buildProductPlan(input: PMInput): ProductPlan {
         id: nextEpic(),
         title: "Address expert design-review findings",
         problem: `Heuristic inspection flagged ${structural.length} structural issue(s) (${[...new Set(structural.map((s) => s.heuristic))].join(", ")}).`,
-        businessImpact: "Reduces baseline friction for all users before they hit any specific task.",
+        businessImpact:
+          "Reduces baseline friction for all users before they hit any specific task.",
         priorityScore: 1.5,
         estimatedCompletionLift: 0.08,
         stories: structural.slice(0, 5).map((item) => ({
@@ -159,12 +162,29 @@ export function buildProductPlan(input: PMInput): ProductPlan {
 
 function buildRoadmap(epics: readonly Epic[]): RoadmapPhase[] {
   const now = epics.filter((e) => e.priorityScore >= 0.6).map((e) => e.id);
-  const next = epics.filter((e) => e.priorityScore >= 0.25 && e.priorityScore < 0.6).map((e) => e.id);
+  const next = epics
+    .filter((e) => e.priorityScore >= 0.25 && e.priorityScore < 0.6)
+    .map((e) => e.id);
   const later = epics.filter((e) => e.priorityScore < 0.25).map((e) => e.id);
   const phases: RoadmapPhase[] = [];
-  if (now.length) phases.push({ phase: "Now", focus: "Highest-confidence, highest-impact fixes multiple user types hit", epics: now });
-  if (next.length) phases.push({ phase: "Next", focus: "Meaningful friction affecting some personas or forecast risk", epics: next });
-  if (later.length) phases.push({ phase: "Later", focus: "Polish and lower-confidence opportunities", epics: later });
+  if (now.length)
+    phases.push({
+      phase: "Now",
+      focus: "Highest-confidence, highest-impact fixes multiple user types hit",
+      epics: now,
+    });
+  if (next.length)
+    phases.push({
+      phase: "Next",
+      focus: "Meaningful friction affecting some personas or forecast risk",
+      epics: next,
+    });
+  if (later.length)
+    phases.push({
+      phase: "Later",
+      focus: "Polish and lower-confidence opportunities",
+      epics: later,
+    });
   return phases;
 }
 
@@ -181,7 +201,8 @@ function effortWeight(category: string): number {
 }
 
 function businessImpact(severity: FindingSeverity, agreement: number, lift: number): string {
-  const audience = agreement >= 0.75 ? "most users" : agreement >= 0.5 ? "many users" : "a segment of users";
+  const audience =
+    agreement >= 0.75 ? "most users" : agreement >= 0.5 ? "many users" : "a segment of users";
   const consequence =
     severity === "critical"
       ? "directly causes task abandonment"
@@ -216,7 +237,10 @@ function acceptanceFor(category: string, url: string): string[] {
     case "navigation":
       return ["A clear path to the target exists without backtracking", ...base];
     case "error-recovery":
-      return ["Errors state the cause in plain language and offer one obvious recovery action", ...base];
+      return [
+        "Errors state the cause in plain language and offer one obvious recovery action",
+        ...base,
+      ];
     case "accessibility":
       return ["Meets WCAG 2.1 AA for the affected component", ...base];
     default:

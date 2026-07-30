@@ -5,7 +5,7 @@
  *
  *   npx tsx examples/compare-personas.ts
  */
-import { EveSession, MockAdapter, DEMO_APP } from "../src/index.js";
+import { DEMO_APP, EveSession, MockAdapter } from "../src/index.js";
 
 const personas = ["power-user", "first-time-user", "elderly-user", "impatient-user"];
 const rows: Array<{ persona: string; overall: number; findings: number; end: string }> = [];

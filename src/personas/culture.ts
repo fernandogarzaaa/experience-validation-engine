@@ -126,7 +126,8 @@ export function listCultures(): readonly CultureProfile[] {
 
 export function getCulture(locale: string): CultureProfile {
   const c = CULTURES[locale];
-  if (!c) throw new Error(`Unknown culture "${locale}". Known: ${Object.keys(CULTURES).join(", ")}`);
+  if (!c)
+    throw new Error(`Unknown culture "${locale}". Known: ${Object.keys(CULTURES).join(", ")}`);
   return c;
 }
 

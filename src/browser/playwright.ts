@@ -1,7 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
-import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * Playwright adapter. Playwright is an optional peer dependency, loaded
@@ -23,7 +23,14 @@ type PlaywrightPage = {
     press(key: string): Promise<void>;
   };
   goBack(opts?: { timeout?: number }): Promise<unknown>;
-  on(event: "dialog", handler: (dialog: { message(): string; dismiss(): Promise<void>; accept(): Promise<void> }) => void): void;
+  on(
+    event: "dialog",
+    handler: (dialog: {
+      message(): string;
+      dismiss(): Promise<void>;
+      accept(): Promise<void>;
+    }) => void,
+  ): void;
   setViewportSize(size: Viewport): Promise<void>;
   waitForTimeout(ms: number): Promise<void>;
 };
@@ -107,7 +114,9 @@ export class PlaywrightAdapter implements BrowserAdapter {
   }
 
   async goBack(): Promise<void> {
-    await this.requirePage().goBack({ timeout: 15_000 }).catch(() => {});
+    await this.requirePage()
+      .goBack({ timeout: 15_000 })
+      .catch(() => {});
   }
 
   async navigate(url: string): Promise<void> {
@@ -126,7 +135,9 @@ export class PlaywrightAdapter implements BrowserAdapter {
   }
 }
 
-async function importPlaywright(): Promise<{ chromium: { launch(opts: { headless: boolean }): Promise<unknown> } }> {
+async function importPlaywright(): Promise<{
+  chromium: { launch(opts: { headless: boolean }): Promise<unknown> };
+}> {
   try {
     // Variable specifier: optional peer — must not be resolved at compile time.
     const spec = "playwright";

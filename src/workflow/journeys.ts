@@ -1,7 +1,6 @@
 import type { LoopIteration } from "../core/types.js";
-import type { WorkflowGraph, WorkflowNode } from "./graph.js";
-import { detectWorkflow } from "./detector.js";
 import type { WorkflowKind } from "./catalog.js";
+import type { WorkflowGraph, WorkflowNode } from "./graph.js";
 
 /**
  * User-journey discovery.
@@ -70,18 +69,24 @@ export function discoverJourney(
     const friction: string[] = [];
     const o = it.outcome;
     if (o?.errorPerceived) friction.push("a visible error appeared");
-    if (o && o.prediction.expectsChange && !o.screenChanged) friction.push("the action produced no visible response");
+    if (o?.prediction.expectsChange && !o.screenChanged)
+      friction.push("the action produced no visible response");
     if (o && o.surprise > 0.6) friction.push("the result was surprising");
     if (it.action.kind === "back") friction.push("the operator backtracked");
-    if (o && o.perceivedLatencyMs > 3000) friction.push(`a ${(o.perceivedLatencyMs / 1000).toFixed(1)}s wait`);
+    if (o && o.perceivedLatencyMs > 3000)
+      friction.push(`a ${(o.perceivedLatencyMs / 1000).toFixed(1)}s wait`);
 
     const forwardProgress =
-      it.url !== lastUrl && it.action.kind !== "back" && it.action.kind !== "read" && it.action.kind !== "wait";
+      it.url !== lastUrl &&
+      it.action.kind !== "back" &&
+      it.action.kind !== "read" &&
+      it.action.kind !== "wait";
     if (!forwardProgress && (it.action.kind === "back" || friction.length > 0)) wastedSteps += 1;
 
-    const frustration = typeof (it.emotion as Record<string, number>).frustration === "number"
-      ? (it.emotion as Record<string, number>).frustration!
-      : 0;
+    const frustration =
+      typeof (it.emotion as Record<string, number>).frustration === "number"
+        ? (it.emotion as Record<string, number>).frustration!
+        : 0;
 
     steps.push({
       step: it.step,
@@ -108,7 +113,10 @@ export function discoverJourney(
     graph.allNodes().some((n) => TERMINAL_KINDS.has(n.kind) && n.visits > 0);
 
   const frictionPoints = aggregateFriction(steps);
-  const durationMs = steps.length > 0 ? (iterations[iterations.length - 1]?.timestamp ?? 0) - (iterations[0]?.timestamp ?? 0) : 0;
+  const durationMs =
+    steps.length > 0
+      ? (iterations[iterations.length - 1]?.timestamp ?? 0) - (iterations[0]?.timestamp ?? 0)
+      : 0;
 
   return {
     goal,
@@ -132,7 +140,11 @@ function aggregateFriction(steps: readonly JourneyStep[]): DiscoveredJourney["fr
     byTitle.set(s.title, entry);
   }
   return [...byTitle.entries()]
-    .map(([title, v]) => ({ title, reasons: [...v.reasons], frustration: Number(v.frustration.toFixed(2)) }))
+    .map(([title, v]) => ({
+      title,
+      reasons: [...v.reasons],
+      frustration: Number(v.frustration.toFixed(2)),
+    }))
     .sort((a, b) => b.frustration - a.frustration || b.reasons.length - a.reasons.length);
 }
 
@@ -142,9 +154,13 @@ function aggregateFriction(steps: readonly JourneyStep[]): DiscoveredJourney["fr
  * goal was given ("the operator appears to be signing up and paying").
  */
 export function inferJourneyIntent(journey: DiscoveredJourney): string {
-  const kinds = [...new Set(journey.steps.map((s) => s.workflowKind).filter((k) => k !== "unknown"))];
+  const kinds = [
+    ...new Set(journey.steps.map((s) => s.workflowKind).filter((k) => k !== "unknown")),
+  ];
   if (kinds.length === 0) return "The operator explored without a recognizable journey.";
   const readable = kinds.map((k) => k.replace(/-/g, " "));
-  const terminalNote = journey.reachedTerminal ? " and reached a completion state" : " but did not complete it";
+  const terminalNote = journey.reachedTerminal
+    ? " and reached a completion state"
+    : " but did not complete it";
   return `The operator moved through: ${readable.join(" → ")}${terminalNote}.`;
 }

@@ -1,32 +1,32 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { beforeAll, describe, expect, it } from "vitest";
 
+import { BAD_APP, EXCELLENT_APP } from "../src/benchmarks/index.js";
+import { MockAdapter } from "../src/browser/index.js";
+import type { EmotionVector } from "../src/emotion/emotionalState.js";
+import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
+import { runUsabilityStudy } from "../src/mcp/tools.js";
 import {
-  simulatePopulation,
-  sampleOperators,
-  classifySegment,
-  segmentPopulation,
-  summarize,
-  histogram,
-  quantile,
-  mean,
-  stdDev,
-  pearson,
   type PopulationStudy,
+  classifySegment,
+  histogram,
+  mean,
+  pearson,
+  quantile,
+  sampleOperators,
+  segmentPopulation,
+  simulatePopulation,
+  stdDev,
+  summarize,
 } from "../src/population/index.js";
 import {
-  renderStudyJson,
   renderOperatorCsv,
+  renderStudyJson,
   renderStudyMarkdown,
   writeStudyDataset,
 } from "../src/research/index.js";
-import { runUsabilityStudy } from "../src/mcp/tools.js";
-import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
-import { EXCELLENT_APP, BAD_APP } from "../src/benchmarks/index.js";
-import { MockAdapter } from "../src/browser/index.js";
-import type { EmotionVector } from "../src/emotion/emotionalState.js";
 
 const STUDY_OPTS = { url: "mock:", size: 12, seed: 7, concurrency: 6, maxSteps: 25 } as const;
 
@@ -85,22 +85,52 @@ describe("stats primitives", () => {
 describe("segmentation", () => {
   it("classifies representative operators", () => {
     expect(
-      classifySegment({ completed: false, abandoned: true, steps: 3, overall: 20, emotions: emotions({}) }),
+      classifySegment({
+        completed: false,
+        abandoned: true,
+        steps: 3,
+        overall: 20,
+        emotions: emotions({}),
+      }),
     ).toBe("early-abandoners");
     expect(
-      classifySegment({ completed: false, abandoned: true, steps: 30, overall: 30, emotions: emotions({ frustration: 0.8 }) }),
+      classifySegment({
+        completed: false,
+        abandoned: true,
+        steps: 30,
+        overall: 30,
+        emotions: emotions({ frustration: 0.8 }),
+      }),
     ).toBe("frustrated-quitters");
     expect(
-      classifySegment({ completed: true, abandoned: false, steps: 5, overall: 90, emotions: emotions({ confidence: 0.8, frustration: 0.05 }) }),
+      classifySegment({
+        completed: true,
+        abandoned: false,
+        steps: 5,
+        overall: 90,
+        emotions: emotions({ confidence: 0.8, frustration: 0.05 }),
+      }),
     ).toBe("confident-completers");
     expect(
-      classifySegment({ completed: true, abandoned: false, steps: 40, overall: 60, emotions: emotions({ frustration: 0.7 }) }),
+      classifySegment({
+        completed: true,
+        abandoned: false,
+        steps: 40,
+        overall: 60,
+        emotions: emotions({ frustration: 0.7 }),
+      }),
     ).toBe("persistent-strugglers");
   });
 
   it("partitions the whole population (sizes sum to N)", () => {
     const ops = [
-      { completed: true, abandoned: false, steps: 5, overall: 90, emotions: emotions({ confidence: 0.8 }) },
+      {
+        completed: true,
+        abandoned: false,
+        steps: 5,
+        overall: 90,
+        emotions: emotions({ confidence: 0.8 }),
+      },
       { completed: false, abandoned: true, steps: 2, overall: 10, emotions: emotions({}) },
     ];
     const segs = segmentPopulation(ops);
@@ -113,7 +143,9 @@ describe("sampleOperators", () => {
     const specs = sampleOperators({ url: "mock:", size: 4, personas: ["a", "b"], seed: 3 });
     expect(specs.map((s) => s.persona)).toEqual(["a", "b", "a", "b"]);
     expect(specs.map((s) => s.seed)).toEqual(["3#0", "3#1", "3#2", "3#3"]);
-    expect(specs).toEqual(sampleOperators({ url: "mock:", size: 4, personas: ["a", "b"], seed: 3 }));
+    expect(specs).toEqual(
+      sampleOperators({ url: "mock:", size: 4, personas: ["a", "b"], seed: 3 }),
+    );
   });
 
   it("mixes professions and cultures round-robin when provided", () => {
@@ -226,7 +258,13 @@ describe("population construct validity (EVE Bench)", () => {
 
 describe("mcp eve_run_usability_study", () => {
   it("runs via the MCP tool and returns a bounded structured payload", async () => {
-    const input = RunUsabilityStudySchema.parse({ url: "mock:", size: 8, seed: 1, concurrency: 4, max_steps: 25 });
+    const input = RunUsabilityStudySchema.parse({
+      url: "mock:",
+      size: 8,
+      seed: 1,
+      concurrency: 4,
+      max_steps: 25,
+    });
     const out = await runUsabilityStudy(input);
     expect(out.markdown).toContain("EVE usability study");
     expect(out.structured.operatorCount).toBe(8);

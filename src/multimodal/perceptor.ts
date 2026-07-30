@@ -5,11 +5,12 @@
  */
 
 import type { Percept, VisibleElement } from "../core/types.js";
-import { frameDiffRatio, decodePng } from "../vision/index.js";
+import { decodePng, frameDiffRatio } from "../vision/index.js";
 import type { MultimodalCue, MultimodalCues, MultimodalPerceptor } from "./types.js";
 
 const CHART_PATTERN = /chart|graph|plot|trend|analytics|sparkline|histogram|\bpie\b|\bbar\b/i;
-const TOAST_PATTERN = /saved|success|error|copied|sent|added|deleted|updated|removed|failed|welcome/i;
+const TOAST_PATTERN =
+  /saved|success|error|copied|sent|added|deleted|updated|removed|failed|welcome/i;
 const INTERACTIVE_ROLES = new Set(["button", "link", "tab", "menuitem"]);
 
 /** An interactive control with no readable text is an icon-only affordance. */
@@ -26,7 +27,11 @@ export class HeuristicMultimodalPerceptor implements MultimodalPerceptor {
     for (const el of percept.elements) {
       const text = el.text.trim();
       if (el.role === "image") {
-        cues.push({ kind: "media", label: text || "(unlabeled image)", accessible: text.length > 0 });
+        cues.push({
+          kind: "media",
+          label: text || "(unlabeled image)",
+          accessible: text.length > 0,
+        });
         if (text) cues.push({ kind: "text-in-image", label: text, accessible: true });
         if (CHART_PATTERN.test(text)) {
           cues.push({ kind: "chart", label: text, accessible: text.length > 0 });
@@ -58,7 +63,11 @@ export class HeuristicMultimodalPerceptor implements MultimodalPerceptor {
       try {
         const diff = frameDiffRatio(decodePng(previous.screenshot), decodePng(percept.screenshot));
         if (diff > 0.02 && diff < 0.5) {
-          cues.push({ kind: "animation", label: `frame change ${Math.round(diff * 100)}%`, accessible: true });
+          cues.push({
+            kind: "animation",
+            label: `frame change ${Math.round(diff * 100)}%`,
+            accessible: true,
+          });
         }
       } catch {
         // Undecodable screenshots — skip motion detection for this frame.

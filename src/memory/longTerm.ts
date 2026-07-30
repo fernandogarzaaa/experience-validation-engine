@@ -1,6 +1,6 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { LearnedFact, ScreenNode, ScreenEdge } from "./memory.js";
+import type { LearnedFact, ScreenEdge, ScreenNode } from "./memory.js";
 
 /**
  * Long-term, cross-session memory.
@@ -125,7 +125,8 @@ export class FileMemoryStore implements PersistentMemory {
     try {
       const text = await readFile(this.path, "utf8");
       const parsed = JSON.parse(text) as MemoryStore;
-      if (parsed.version !== 2 || typeof parsed.applications !== "object") return { ...EMPTY_STORE };
+      if (parsed.version !== 2 || typeof parsed.applications !== "object")
+        return { ...EMPTY_STORE };
       return parsed;
     } catch {
       return { ...EMPTY_STORE };
@@ -170,7 +171,11 @@ export function emptyApplicationMemory(appId: string, appName: string): Applicat
  * forgetting curve with rehearsal (Anderson & Schooler's rational-analysis
  * base-level activation is the same exponential family).
  */
-export function applyForgetting(memory: ApplicationMemory, currentSession: number, retention: number): void {
+export function applyForgetting(
+  memory: ApplicationMemory,
+  currentSession: number,
+  retention: number,
+): void {
   const lambda = 0.5 * (1 - retention * 0.8); // higher retention → flatter curve
   const decay = (lastSession: number): number => {
     const delta = Math.max(0, currentSession - lastSession);

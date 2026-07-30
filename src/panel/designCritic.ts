@@ -1,6 +1,6 @@
-import type { Percept, Finding, VisibleElement } from "../core/types.js";
-import { checkGeometry } from "../vision/analysis.js";
+import type { Finding, Percept, VisibleElement } from "../core/types.js";
 import { DEFAULT_ACCESSIBILITY } from "../personas/persona.js";
+import { checkGeometry } from "../vision/analysis.js";
 import { detectWorkflow } from "../workflow/detector.js";
 
 /**
@@ -55,7 +55,8 @@ export interface DesignCritique {
 }
 
 const GENERIC_CTA = /^(click here|submit|ok|go|button|link|read more|learn more)$/i;
-const JARGON = /\b(oauth|webhook|payload|schema|api key|endpoint|token|null|undefined|500|404|cta|utm)\b/i;
+const JARGON =
+  /\b(oauth|webhook|payload|schema|api key|endpoint|token|null|undefined|500|404|cta|utm)\b/i;
 
 /**
  * Critique a set of captured screens. `behavioralFindings` (from the
@@ -84,9 +85,11 @@ export function critiqueDesign(
         heuristic: "visibility-of-status",
         severity: "minor",
         title: "Bare loading state",
-        detail: "A loading indicator with almost no surrounding content leaves users unsure what is happening.",
+        detail:
+          "A loading indicator with almost no surrounding content leaves users unsure what is happening.",
         location: where,
-        recommendation: "Show skeleton content or a message describing what is loading and roughly how long.",
+        recommendation:
+          "Show skeleton content or a message describing what is loading and roughly how long.",
       });
     }
 
@@ -98,9 +101,13 @@ export function critiqueDesign(
         heuristic: "consistency-standards",
         severity: "minor",
         title: `${generic.length} vague call-to-action label(s)`,
-        detail: `Buttons like "${generic.map((g) => g.text.trim()).slice(0, 3).join('", "')}" don't say what they do.`,
+        detail: `Buttons like "${generic
+          .map((g) => g.text.trim())
+          .slice(0, 3)
+          .join('", "')}" don't say what they do.`,
         location: where,
-        recommendation: 'Use action + object labels ("Create account", "Download invoice") instead of generic verbs.',
+        recommendation:
+          'Use action + object labels ("Create account", "Download invoice") instead of generic verbs.',
       });
     }
 
@@ -113,19 +120,23 @@ export function critiqueDesign(
         title: "Technical jargon in user-facing copy",
         detail: `Terms likely unfamiliar to end users appear on screen (e.g. "${jargonEls[0]!.text.trim().slice(0, 40)}").`,
         location: where,
-        recommendation: "Replace implementation terms with the user's vocabulary, or explain them inline.",
+        recommendation:
+          "Replace implementation terms with the user's vocabulary, or explain them inline.",
       });
     }
 
     // --- Typography: too-small or too-many sizes ---
-    const fontSizes = screen.elements.map((e) => e.fontSize).filter((s): s is number => typeof s === "number");
+    const fontSizes = screen.elements
+      .map((e) => e.fontSize)
+      .filter((s): s is number => typeof s === "number");
     const distinctSizes = new Set(fontSizes.map((s) => Math.round(s)));
     if (distinctSizes.size > 8) {
       push({
         heuristic: "typography",
         severity: "minor",
         title: `Typographic scale sprawl (${distinctSizes.size} distinct sizes)`,
-        detail: "Many different font sizes on one screen weaken hierarchy and read as inconsistent.",
+        detail:
+          "Many different font sizes on one screen weaken hierarchy and read as inconsistent.",
         location: where,
         recommendation: "Adopt a constrained type scale (≈5–6 steps) and map roles to steps.",
       });
@@ -152,7 +163,8 @@ export function critiqueDesign(
         heuristic: "forms",
         severity: "major",
         title: `${unlabeled.length} form field(s) without a visible label`,
-        detail: "Placeholder-only or unlabeled fields fail recognition and disappear once typing starts.",
+        detail:
+          "Placeholder-only or unlabeled fields fail recognition and disappear once typing starts.",
         location: where,
         recommendation: "Give every field a persistent visible label.",
       });
@@ -175,7 +187,8 @@ export function critiqueDesign(
         heuristic: "aesthetic-minimalist",
         severity: "minor",
         title: `Dense screen: ${interactive.length} interactive elements`,
-        detail: "Too many competing actions raises decision load (Hick–Hyman) and dilutes the primary task.",
+        detail:
+          "Too many competing actions raises decision load (Hick–Hyman) and dilutes the primary task.",
         location: where,
         recommendation: "Establish a single primary action per screen and demote the rest.",
       });
@@ -183,12 +196,16 @@ export function critiqueDesign(
 
     // --- Recognition not recall / navigation: no way back ---
     const kind = detectWorkflow(screen).kind;
-    if ((kind === "edit" || kind === "create" || kind === "settings") && !hasBack(screen.elements)) {
+    if (
+      (kind === "edit" || kind === "create" || kind === "settings") &&
+      !hasBack(screen.elements)
+    ) {
       push({
         heuristic: "user-control",
         severity: "minor",
         title: "No visible way to cancel or go back",
-        detail: "Editing/creating screens without an escape hatch trap users (violates user control & freedom).",
+        detail:
+          "Editing/creating screens without an escape hatch trap users (violates user control & freedom).",
         location: where,
         recommendation: "Always offer a visible Cancel/Back that abandons without side effects.",
       });
@@ -202,9 +219,11 @@ export function critiqueDesign(
           heuristic: "onboarding",
           severity: "minor",
           title: "Rich dashboard may overwhelm first-time users",
-          detail: "A dense landing surface with no progressive disclosure raises first-run cognitive load.",
+          detail:
+            "A dense landing surface with no progressive disclosure raises first-run cognitive load.",
           location: where,
-          recommendation: "Introduce empty states, a guided first task, or progressive disclosure for new users.",
+          recommendation:
+            "Introduce empty states, a guided first task, or progressive disclosure for new users.",
         });
       }
     }
@@ -245,7 +264,9 @@ function hasSubmit(els: readonly VisibleElement[]): boolean {
   return els.some(
     (e) =>
       e.role === "button" &&
-      /\b(submit|save|create|send|continue|next|log ?in|sign ?up|search|apply|confirm|done|pay|add)\b/i.test(e.text),
+      /\b(submit|save|create|send|continue|next|log ?in|sign ?up|search|apply|confirm|done|pay|add)\b/i.test(
+        e.text,
+      ),
   );
 }
 

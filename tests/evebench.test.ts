@@ -1,8 +1,13 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { runEveBench, EVEBENCH_CASES, renderEveBenchMarkdown, type EveBenchReport } from "../src/evebench/index.js";
-import { runEveBenchTool } from "../src/mcp/tools.js";
+import {
+  EVEBENCH_CASES,
+  type EveBenchReport,
+  renderEveBenchMarkdown,
+  runEveBench,
+} from "../src/evebench/index.js";
 import { EveBenchSchema } from "../src/mcp/schemas.js";
+import { runEveBenchTool } from "../src/mcp/tools.js";
 
 describe("EVE Bench", () => {
   let report: EveBenchReport;

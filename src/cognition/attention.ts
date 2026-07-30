@@ -1,8 +1,8 @@
-import type { Percept, Point, VisibleElement } from "../core/types.js";
 import type { Rng } from "../core/random.js";
+import type { Percept, Point, VisibleElement } from "../core/types.js";
 import type { Persona } from "../personas/persona.js";
+import { contrastRatio, parseHexColor, relativeLuminance } from "../vision/pixels.js";
 import { goalRelevanceOf } from "./salience.js";
-import { parseHexColor, relativeLuminance, contrastRatio } from "../vision/pixels.js";
 
 /**
  * Selective attention model.
@@ -45,7 +45,7 @@ export interface AttentionSnapshot {
   readonly goalFocus: number;
 }
 
-const WARNING_COLOR_RE = /^#(?:[c-f][0-9a-f][0-6][0-9a-f]{3}|f{2}[0-9a-f]{4})$/i;
+const _WARNING_COLOR_RE = /^#(?:[c-f][0-9a-f][0-6][0-9a-f]{3}|f{2}[0-9a-f]{4})$/i;
 
 function isWarningColor(hex: string | undefined): boolean {
   if (!hex) return false;
@@ -85,20 +85,14 @@ function changedSince(el: VisibleElement, prev: Percept | null): boolean {
   if (!prev) return false;
   const match = prev.elements.find(
     (p) =>
-      Math.abs(p.box.x - el.box.x) < 6 &&
-      Math.abs(p.box.y - el.box.y) < 6 &&
-      p.role === el.role,
+      Math.abs(p.box.x - el.box.x) < 6 && Math.abs(p.box.y - el.box.y) < 6 && p.role === el.role,
   );
   if (!match) return true; // appeared
   return match.text.trim() !== el.text.trim();
 }
 
 /** F-pattern scanning prior: earlier (top, reading-direction-start) = higher. */
-function scanPrior(
-  el: VisibleElement,
-  percept: Percept,
-  readingDirection: "ltr" | "rtl",
-): number {
+function scanPrior(el: VisibleElement, percept: Percept, readingDirection: "ltr" | "rtl"): number {
   const vw = percept.viewport.width || 1;
   const vh = percept.viewport.height || 1;
   const yNorm = Math.max(0, Math.min(1, el.box.y / vh));

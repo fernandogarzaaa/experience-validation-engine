@@ -23,4 +23,4 @@ const study = await simulatePopulation({
 });
 
 const prediction = predictUX(study);
-process.stdout.write(renderUXPredictionMarkdown(prediction) + "\n");
+process.stdout.write(`${renderUXPredictionMarkdown(prediction)}\n`);

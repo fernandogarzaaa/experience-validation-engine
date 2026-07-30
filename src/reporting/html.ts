@@ -80,7 +80,8 @@ export function renderHtml(report: ExperienceReport): string {
     ${result.scores
       .filter((s) => s.dimension !== "overall")
       .map(
-        (s) => `<div class="score-card"><div>${escapeHtml(labelOf(s.dimension))}</div><b>${s.value}</b><div class="bar"><i style="width:${s.value}%;background:${scoreColor(s.value)}"></i></div><div class="ev">${escapeHtml(s.evidence[0] ?? "")}</div></div>`,
+        (s) =>
+          `<div class="score-card"><div>${escapeHtml(labelOf(s.dimension))}</div><b>${s.value}</b><div class="bar"><i style="width:${s.value}%;background:${scoreColor(s.value)}"></i></div><div class="ev">${escapeHtml(s.evidence[0] ?? "")}</div></div>`,
       )
       .join("\n    ")}
   </div>
@@ -163,7 +164,7 @@ function emotionSvg(timeline: readonly EmotionSample[]): string {
   const width = 940;
   const height = 220;
   const pad = 30;
-  if (timeline.length < 2) return `<p><i>Not enough data for a timeline.</i></p>`;
+  if (timeline.length < 2) return "<p><i>Not enough data for a timeline.</i></p>";
   const series: Array<{ key: keyof EmotionSample["values"]; color: string }> = [
     { key: "confidence", color: "#12b76a" },
     { key: "frustration", color: "#d92d20" },
@@ -175,7 +176,9 @@ function emotionSvg(timeline: readonly EmotionSample[]): string {
   const y = (v: number) => height - pad - v * (height - pad * 2);
   const polylines = series
     .map(({ key, color }) => {
-      const points = timeline.map((s, i) => `${x(i).toFixed(1)},${y(s.values[key]).toFixed(1)}`).join(" ");
+      const points = timeline
+        .map((s, i) => `${x(i).toFixed(1)},${y(s.values[key]).toFixed(1)}`)
+        .join(" ");
       return `<polyline fill="none" stroke="${color}" stroke-width="2" points="${points}"/>`;
     })
     .join("\n  ");

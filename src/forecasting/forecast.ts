@@ -1,5 +1,5 @@
-import type { SessionResult } from "../engine/session.js";
 import type { Finding } from "../core/types.js";
+import type { SessionResult } from "../engine/session.js";
 
 /**
  * Experience forecasting.
@@ -79,7 +79,10 @@ export function forecastExperience(sessions: readonly SessionResult[]): Experien
   }
 
   const byScreen = new Map<string, ScreenStats>();
-  const workflowAbandon = new Map<string, { entries: number; abandonedOn: number; reason: string }>();
+  const workflowAbandon = new Map<
+    string,
+    { entries: number; abandonedOn: number; reason: string }
+  >();
 
   for (const session of sessions) {
     const titleByUrl = new Map<string, string>();
@@ -120,9 +123,12 @@ export function forecastExperience(sessions: readonly SessionResult[]): Experien
     // Abandonment attribution to the workflow of the last screen.
     if (session.abandoned) {
       const last = session.iterations[session.iterations.length - 1];
-      const kind =
-        session.workflowNodes.find((n) => n.url === last?.url)?.kind ?? "unknown";
-      const entry = workflowAbandon.get(kind) ?? { entries: 0, abandonedOn: 0, reason: session.abandonReason ?? "" };
+      const kind = session.workflowNodes.find((n) => n.url === last?.url)?.kind ?? "unknown";
+      const entry = workflowAbandon.get(kind) ?? {
+        entries: 0,
+        abandonedOn: 0,
+        reason: session.abandonReason ?? "",
+      };
       entry.abandonedOn += 1;
       entry.reason = session.abandonReason ?? entry.reason;
       workflowAbandon.set(kind, entry);
@@ -139,9 +145,12 @@ export function forecastExperience(sessions: readonly SessionResult[]): Experien
   const confidenceDrains: ConfidenceForecast[] = [];
 
   for (const stats of byScreen.values()) {
-    const frictionEvents = stats.surprises + stats.deadClicks * 1.5 + stats.errors * 2 + stats.latencySpikes;
+    const frictionEvents =
+      stats.surprises + stats.deadClicks * 1.5 + stats.errors * 2 + stats.latencySpikes;
     const personaBreadth = stats.personas.size / n; // hit across the population
-    const probability = clamp01((frictionEvents / Math.max(1, stats.visits)) * 0.6 + personaBreadth * 0.4);
+    const probability = clamp01(
+      (frictionEvents / Math.max(1, stats.visits)) * 0.6 + personaBreadth * 0.4,
+    );
     if (probability > 0.25) {
       const signals: string[] = [];
       if (stats.errors > 0) signals.push(`${stats.errors} error(s)`);
@@ -157,7 +166,11 @@ export function forecastExperience(sessions: readonly SessionResult[]): Experien
     }
     if (stats.confidenceDropCount > 0) {
       const drop = stats.confidenceDropSum / stats.confidenceDropCount;
-      if (drop > 0.05) confidenceDrains.push({ location: stats.location, confidenceDrop: Number(drop.toFixed(3)) });
+      if (drop > 0.05)
+        confidenceDrains.push({
+          location: stats.location,
+          confidenceDrop: Number(drop.toFixed(3)),
+        });
     }
   }
   struggles.sort((a, b) => b.struggleProbability - a.struggleProbability);
@@ -201,24 +214,35 @@ function recommendChanges(
   const deadClickScreens = struggles.filter((s) => s.signals.some((g) => g.includes("dead click")));
   if (deadClickScreens.length > 0) {
     out.push({
-      change: `Add immediate visible feedback to controls on: ${deadClickScreens.slice(0, 3).map((s) => s.location).join(", ")}`,
+      change: `Add immediate visible feedback to controls on: ${deadClickScreens
+        .slice(0, 3)
+        .map((s) => s.location)
+        .join(", ")}`,
       estimatedLift: Math.min(0.3, deadClickScreens.length * 0.08),
-      rationale: "Dead clicks (no visible response) are the strongest single predictor of confidence loss and re-clicking here.",
+      rationale:
+        "Dead clicks (no visible response) are the strongest single predictor of confidence loss and re-clicking here.",
     });
   }
   const errorScreens = struggles.filter((s) => s.signals.some((g) => g.includes("error")));
   if (errorScreens.length > 0) {
     out.push({
-      change: `Improve error prevention and recovery on: ${errorScreens.slice(0, 3).map((s) => s.location).join(", ")}`,
+      change: `Improve error prevention and recovery on: ${errorScreens
+        .slice(0, 3)
+        .map((s) => s.location)
+        .join(", ")}`,
       estimatedLift: Math.min(0.35, errorScreens.length * 0.1),
       rationale: "Perceived errors both block completion and durably damage trust across personas.",
     });
   }
   if (drains.length > 0) {
     out.push({
-      change: `Clarify next steps / reduce ambiguity on: ${drains.slice(0, 2).map((d) => d.location).join(", ")}`,
+      change: `Clarify next steps / reduce ambiguity on: ${drains
+        .slice(0, 2)
+        .map((d) => d.location)
+        .join(", ")}`,
       estimatedLift: 0.12,
-      rationale: "These screens drain confidence even without hard errors — usually an information-scent or hierarchy problem.",
+      rationale:
+        "These screens drain confidence even without hard errors — usually an information-scent or hierarchy problem.",
     });
   }
   const criticalCount = allFindings.filter((f) => f.severity === "critical").length;
@@ -226,7 +250,8 @@ function recommendChanges(
     out.push({
       change: `Resolve the ${criticalCount} critical finding(s) surfaced during simulation`,
       estimatedLift: 0.2,
-      rationale: "Critical findings correspond to abandonment or hard blockers in the observed runs.",
+      rationale:
+        "Critical findings correspond to abandonment or hard blockers in the observed runs.",
     });
   }
   return out.sort((a, b) => b.estimatedLift - a.estimatedLift);

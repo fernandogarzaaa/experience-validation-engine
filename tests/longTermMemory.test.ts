@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
+import { UtilityCognition } from "../src/cognition/utilityCognition.js";
+import { EveSession } from "../src/engine/session.js";
+import { computeLearningMetrics, forgettingCurve } from "../src/memory/learning.js";
 import {
   InMemoryStore,
-  emptyApplicationMemory,
-  applyForgetting,
   appIdForUrl,
+  applyForgetting,
+  emptyApplicationMemory,
 } from "../src/memory/longTerm.js";
-import { computeLearningMetrics, forgettingCurve } from "../src/memory/learning.js";
-import { EveSession } from "../src/engine/session.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
-import { UtilityCognition } from "../src/cognition/utilityCognition.js";
 
 describe("long-term memory store", () => {
   it("derives stable app ids from URLs", () => {
@@ -19,18 +19,38 @@ describe("long-term memory store", () => {
   it("round-trips application memory", async () => {
     const store = new InMemoryStore();
     const mem = emptyApplicationMemory("app-1", "App One");
-    mem.screens["s1"] = { signature: "s1", url: "u", title: "t", affordances: { save: 0.8 }, totalVisits: 1, lastSeenSession: 1 };
+    mem.screens.s1 = {
+      signature: "s1",
+      url: "u",
+      title: "t",
+      affordances: { save: 0.8 },
+      totalVisits: 1,
+      lastSeenSession: 1,
+    };
     await store.save(mem);
     const loaded = await store.load("app-1");
-    expect(loaded?.screens["s1"]?.affordances["save"]).toBe(0.8);
+    expect(loaded?.screens.s1?.affordances.save).toBe(0.8);
   });
 
   it("forgets across sessions per the retention trait", () => {
     const mem = emptyApplicationMemory("a", "A");
-    mem.screens["s"] = { signature: "s", url: "u", title: "t", affordances: { btn: 0.9 }, totalVisits: 1, lastSeenSession: 1 };
-    mem.facts["shortcut:x"] = { kind: "shortcut", statement: "x", confidence: 0.9, reinforcements: 1, lastSeenSession: 1 };
+    mem.screens.s = {
+      signature: "s",
+      url: "u",
+      title: "t",
+      affordances: { btn: 0.9 },
+      totalVisits: 1,
+      lastSeenSession: 1,
+    };
+    mem.facts["shortcut:x"] = {
+      kind: "shortcut",
+      statement: "x",
+      confidence: 0.9,
+      reinforcements: 1,
+      lastSeenSession: 1,
+    };
     applyForgetting(mem, 6, 0.3); // 5 sessions elapsed, low retention
-    const remaining = mem.screens["s"]?.affordances["btn"] ?? 0;
+    const remaining = mem.screens.s?.affordances.btn ?? 0;
     expect(remaining).toBeLessThan(0.9);
   });
 

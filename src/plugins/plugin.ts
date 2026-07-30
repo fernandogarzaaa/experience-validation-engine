@@ -1,9 +1,4 @@
-import type {
-  Finding,
-  LoopIteration,
-  Percept,
-  PredictionOutcome,
-} from "../core/types.js";
+import type { Finding, LoopIteration, Percept, PredictionOutcome } from "../core/types.js";
 import type { Persona } from "../personas/persona.js";
 import type { SurfaceCapabilities } from "../surface/capabilities.js";
 
@@ -41,10 +36,7 @@ export interface EvePlugin {
     step: number,
   ): void | Promise<void>;
   /** Called once when the loop finishes, with the full iteration record. */
-  onSessionEnd?(
-    ctx: PluginContext,
-    iterations: readonly LoopIteration[],
-  ): void | Promise<void>;
+  onSessionEnd?(ctx: PluginContext, iterations: readonly LoopIteration[]): void | Promise<void>;
 }
 
 export class PluginManager {

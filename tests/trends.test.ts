@@ -1,17 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
+import { AVERAGE_APP, BAD_APP, EXCELLENT_APP } from "../src/benchmarks/index.js";
+import { MockAdapter } from "../src/browser/index.js";
+import { CompareBuildsSchema } from "../src/mcp/schemas.js";
+import { compareBuilds } from "../src/mcp/tools.js";
 import { simulatePopulation } from "../src/population/index.js";
 import {
+  type BuildSnapshot,
+  type TrendMetricKey,
   analyzeTrends,
   metricsFromStudy,
   renderTrendReportMarkdown,
-  type BuildSnapshot,
-  type TrendMetricKey,
 } from "../src/trends/index.js";
-import { compareBuilds } from "../src/mcp/tools.js";
-import { CompareBuildsSchema } from "../src/mcp/schemas.js";
-import { EXCELLENT_APP, AVERAGE_APP, BAD_APP } from "../src/benchmarks/index.js";
-import { MockAdapter } from "../src/browser/index.js";
 
 function snap(label: string, m: Record<TrendMetricKey, number>): BuildSnapshot {
   return { label, metrics: m };
@@ -89,9 +89,21 @@ describe("trend analysis over real builds (construct validity)", () => {
       concurrency: 8,
       goal: "create an account and get to the main screen",
     } as const;
-    const bad = await simulatePopulation({ ...common, goalSuccessSignals: ["has been created"], adapterFactory: () => new MockAdapter(BAD_APP) });
-    const avg = await simulatePopulation({ ...common, goalSuccessSignals: ["your dashboard"], adapterFactory: () => new MockAdapter(AVERAGE_APP) });
-    const good = await simulatePopulation({ ...common, goalSuccessSignals: ["all set"], adapterFactory: () => new MockAdapter(EXCELLENT_APP) });
+    const bad = await simulatePopulation({
+      ...common,
+      goalSuccessSignals: ["has been created"],
+      adapterFactory: () => new MockAdapter(BAD_APP),
+    });
+    const avg = await simulatePopulation({
+      ...common,
+      goalSuccessSignals: ["your dashboard"],
+      adapterFactory: () => new MockAdapter(AVERAGE_APP),
+    });
+    const good = await simulatePopulation({
+      ...common,
+      goalSuccessSignals: ["all set"],
+      adapterFactory: () => new MockAdapter(EXCELLENT_APP),
+    });
 
     const report = analyzeTrends([
       { label: "bad", study: bad },
@@ -107,7 +119,10 @@ describe("trend analysis over real builds (construct validity)", () => {
 describe("mcp eve_compare_builds", () => {
   it("compares two mock builds via the MCP tool", async () => {
     const input = CompareBuildsSchema.parse({
-      builds: [{ url: "mock:", label: "v1" }, { url: "mock:", label: "v2" }],
+      builds: [
+        { url: "mock:", label: "v1" },
+        { url: "mock:", label: "v2" },
+      ],
       size: 6,
       seed: 3,
       max_steps: 20,

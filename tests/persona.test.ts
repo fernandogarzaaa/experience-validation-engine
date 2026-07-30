@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  abandonmentThreshold,
+  clickScatterPx,
   definePersona,
   getPersona,
   listPersonas,
   readingTimeMs,
-  clickScatterPx,
-  workingMemoryCapacity,
-  abandonmentThreshold,
   typingIntervalMs,
+  workingMemoryCapacity,
 } from "../src/personas/index.js";
 
 describe("persona library", () => {
@@ -33,7 +33,9 @@ describe("persona library", () => {
 
   it("validates trait ranges", () => {
     expect(() => definePersona({ name: "bad", traits: { patience: 1.5 } })).toThrow(/out of range/);
-    expect(() => definePersona({ name: "bad", traits: { readingSpeedWpm: 5 } })).toThrow(/readingSpeedWpm/);
+    expect(() => definePersona({ name: "bad", traits: { readingSpeedWpm: 5 } })).toThrow(
+      /readingSpeedWpm/,
+    );
   });
 });
 

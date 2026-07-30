@@ -11,9 +11,9 @@
  *   npx tsx examples/application-map.ts
  */
 
-import { EveSession, type SessionResult } from "../src/engine/session.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
 import { buildApplicationMap, renderApplicationMapMarkdown } from "../src/appmap/index.js";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
+import { EveSession, type SessionResult } from "../src/engine/session.js";
 
 const explorers = ["curious-explorer", "power-user", "first-time-user"];
 const results: SessionResult[] = [];
@@ -30,7 +30,7 @@ for (const [i, persona] of explorers.entries()) {
 }
 
 const map = buildApplicationMap(results);
-process.stdout.write(renderApplicationMapMarkdown(map) + "\n");
+process.stdout.write(`${renderApplicationMapMarkdown(map)}\n`);
 process.stdout.write(
   `\nDiscovered ${map.coverage.screens} screens and ${map.coverage.transitions} transitions ` +
     `from ${explorers.length} explorers — no predefined workflows.\n`,

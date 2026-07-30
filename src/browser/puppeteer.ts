@@ -1,7 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
-import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * Puppeteer adapter. Puppeteer is an optional peer dependency, loaded
@@ -23,7 +23,10 @@ type PuppeteerPage = {
     press(key: string): Promise<void>;
   };
   goBack(opts?: { timeout?: number }): Promise<unknown>;
-  on(event: "dialog", handler: (dialog: { message(): string; accept(): Promise<void> }) => void): void;
+  on(
+    event: "dialog",
+    handler: (dialog: { message(): string; accept(): Promise<void> }) => void,
+  ): void;
   setViewport(size: Viewport): Promise<void>;
 };
 
@@ -46,7 +49,9 @@ export class PuppeteerAdapter implements BrowserAdapter {
 
   async open(url: string, viewport: Viewport): Promise<void> {
     const puppeteer = await importPuppeteer();
-    this.browser = (await puppeteer.launch({ headless: this.options.headless })) as PuppeteerBrowser;
+    this.browser = (await puppeteer.launch({
+      headless: this.options.headless,
+    })) as PuppeteerBrowser;
     this.page = await this.browser.newPage();
     await this.page.setViewport(viewport);
     this.page.on("dialog", (dialog) => {
@@ -103,7 +108,9 @@ export class PuppeteerAdapter implements BrowserAdapter {
   }
 
   async goBack(): Promise<void> {
-    await this.requirePage().goBack({ timeout: 15_000 }).catch(() => {});
+    await this.requirePage()
+      .goBack({ timeout: 15_000 })
+      .catch(() => {});
   }
 
   async navigate(url: string): Promise<void> {
@@ -126,7 +133,9 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function importPuppeteer(): Promise<{ launch(opts: { headless: boolean }): Promise<unknown> }> {
+async function importPuppeteer(): Promise<{
+  launch(opts: { headless: boolean }): Promise<unknown>;
+}> {
   try {
     // Variable specifier: optional peer — must not be resolved at compile time.
     const spec = "puppeteer";

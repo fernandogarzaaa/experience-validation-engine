@@ -32,7 +32,15 @@ function executiveSummary(result: SessionResult, overall: number): string {
   const critical = result.findings.filter((f) => f.severity === "critical").length;
   const major = result.findings.filter((f) => f.severity === "major").length;
   const grade =
-    overall >= 85 ? "excellent" : overall >= 70 ? "good" : overall >= 55 ? "mixed" : overall >= 40 ? "poor" : "failing";
+    overall >= 85
+      ? "excellent"
+      : overall >= 70
+        ? "good"
+        : overall >= 55
+          ? "mixed"
+          : overall >= 40
+            ? "poor"
+            : "failing";
   const outcome = result.abandoned
     ? `The operator ultimately gave up: ${result.abandonReason ?? "frustration exceeded tolerance"}.`
     : result.goalAchieved
@@ -68,7 +76,8 @@ function quickWins(findings: readonly Finding[]): string[] {
 
 function longTermImprovements(result: SessionResult): string[] {
   const items: string[] = [];
-  const scoreOf = (d: Score["dimension"]) => result.scores.find((s) => s.dimension === d)?.value ?? 100;
+  const scoreOf = (d: Score["dimension"]) =>
+    result.scores.find((s) => s.dimension === d)?.value ?? 100;
 
   if (scoreOf("learnability") < 60) {
     items.push(
@@ -101,7 +110,9 @@ function longTermImprovements(result: SessionResult): string[] {
     );
   }
   if (items.length === 0) {
-    items.push("Sustain quality with regression guardrails: add EVE runs to CI so experience quality is tracked like correctness.");
+    items.push(
+      "Sustain quality with regression guardrails: add EVE runs to CI so experience quality is tracked like correctness.",
+    );
   }
   return items;
 }

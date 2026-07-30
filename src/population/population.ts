@@ -11,22 +11,22 @@
  * seed. Fully offline against the `mock:` app.
  */
 
-import { createAdapter, type AdapterName, type BrowserAdapter } from "../browser/index.js";
+import { type AdapterName, type BrowserAdapter, createAdapter } from "../browser/index.js";
+import type { DecisionPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
-import type { DecisionPolicy } from "../cognition/cognition.js";
-import { EveSession, type SessionResult } from "../engine/session.js";
 import { EMOTION_KEYS, type EmotionVector } from "../emotion/emotionalState.js";
+import { EveSession, type SessionResult } from "../engine/session.js";
 import {
-  getPersona,
-  listPersonas,
-  getProfession,
+  type Persona,
   applyProfession,
   getCulture,
-  type Persona,
+  getPersona,
+  getProfession,
+  listPersonas,
 } from "../personas/index.js";
-import { summarize, histogram, type Distribution, type Histogram } from "./stats.js";
-import { classifySegment, segmentPopulation, type Segment } from "./segments.js";
+import { type Segment, classifySegment, segmentPopulation } from "./segments.js";
+import { type Distribution, type Histogram, histogram, summarize } from "./stats.js";
 
 /** One operator sampled into the population. */
 export interface OperatorSpec {
@@ -258,7 +258,13 @@ async function runOperator(
     findings: result.findings.length,
     criticalFindings: result.findings.filter((f) => f.severity === "critical").length,
     emotions,
-    segment: classifySegment({ completed, abandoned: result.abandoned, steps: result.usage.steps, overall, emotions }),
+    segment: classifySegment({
+      completed,
+      abandoned: result.abandoned,
+      steps: result.usage.steps,
+      overall,
+      emotions,
+    }),
     path,
     dropoffScreen: result.abandoned ? (path.at(-1) ?? null) : null,
   };
@@ -324,7 +330,9 @@ export async function simulatePopulation(options: PopulationOptions): Promise<Po
   const browser: AdapterName = options.adapterFactory
     ? "mock" // ignored — the factory supplies adapters
     : (options.browser ?? (isMock ? "mock" : "playwright"));
-  const policy: DecisionPolicy = options.utility ? new UtilityCognition() : new HeuristicCognition();
+  const policy: DecisionPolicy = options.utility
+    ? new UtilityCognition()
+    : new HeuristicCognition();
 
   const specs = sampleOperators(options);
   const runs = new Array<OperatorRun>(specs.length);
@@ -344,16 +352,15 @@ export async function simulatePopulation(options: PopulationOptions): Promise<Po
       options.onProgress?.(done, specs.length);
     }
   };
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, specs.length) }, () => worker()),
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, specs.length) }, () => worker()));
 
   const size = runs.length;
   const completed = runs.filter((r) => r.completed).length;
   const abandoned = runs.filter((r) => r.abandoned).length;
 
   const endReasonBreakdown: Record<string, number> = {};
-  for (const r of runs) endReasonBreakdown[r.endReason] = (endReasonBreakdown[r.endReason] ?? 0) + 1;
+  for (const r of runs)
+    endReasonBreakdown[r.endReason] = (endReasonBreakdown[r.endReason] ?? 0) + 1;
 
   const stepsCompleted = runs.filter((r) => r.completed).map((r) => r.steps);
 

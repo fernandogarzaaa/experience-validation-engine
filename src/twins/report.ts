@@ -10,9 +10,7 @@ export function renderTwinMarkdown(twin: TwinProfile): string {
   const lines: string[] = [
     `# Digital twin — ${twin.name}`,
     "",
-    `Base persona: \`${twin.basePersona}\`` +
-      (twin.profession ? ` · profession: \`${twin.profession}\`` : "") +
-      (twin.culture ? ` · culture: \`${twin.culture}\`` : ""),
+    `Base persona: \`${twin.basePersona}\`${twin.profession ? ` · profession: \`${twin.profession}\`` : ""}${twin.culture ? ` · culture: \`${twin.culture}\`` : ""}`,
     "",
     "## Evolution",
     `- **Sessions:** ${e.sessions}`,

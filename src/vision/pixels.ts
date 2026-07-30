@@ -30,7 +30,7 @@ export function pixelAt(img: DecodedImage, x: number, y: number): [number, numbe
 export function relativeLuminance(r: number, g: number, b: number): number {
   const lin = (c: number): number => {
     const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   };
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 }
@@ -44,18 +44,14 @@ export function contrastRatio(l1: number, l2: number): number {
 export function parseHexColor(hex: string): [number, number, number] | null {
   const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
-  const v = parseInt(m[1]!, 16);
+  const v = Number.parseInt(m[1]!, 16);
   return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff];
 }
 
 /**
  * Sample luminances within a box (subsampled grid). Returns sorted values.
  */
-export function sampleLuminances(
-  img: DecodedImage,
-  box: BoundingBox,
-  gridSize = 12,
-): number[] {
+export function sampleLuminances(img: DecodedImage, box: BoundingBox, gridSize = 12): number[] {
   const values: number[] = [];
   const x0 = Math.max(0, box.x);
   const y0 = Math.max(0, box.y);

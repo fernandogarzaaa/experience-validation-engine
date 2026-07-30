@@ -48,45 +48,39 @@ const RULES: readonly SegmentRule[] = [
   {
     key: "early-abandoners",
     name: "Early abandoners",
-    description:
-      "Left almost immediately — the landing experience failed to earn a second click.",
+    description: "Left almost immediately — the landing experience failed to earn a second click.",
     test: (o) => o.abandoned && o.steps <= EARLY_STEPS,
   },
   {
     key: "frustrated-quitters",
     name: "Frustrated quitters",
-    description:
-      "Tried for a while, hit friction, and churned with high frustration.",
+    description: "Tried for a while, hit friction, and churned with high frustration.",
     test: (o) => o.abandoned,
   },
   {
     key: "confused-wanderers",
     name: "Confused wanderers",
-    description:
-      "Never abandoned but never succeeded — kept searching without a clear path.",
-    test: (o) => !o.completed && (o.emotions.confusion >= HIGH || o.emotions.confidence < CONFIDENT),
+    description: "Never abandoned but never succeeded — kept searching without a clear path.",
+    test: (o) =>
+      !o.completed && (o.emotions.confusion >= HIGH || o.emotions.confidence < CONFIDENT),
   },
   {
     key: "explorers",
     name: "Explorers",
-    description:
-      "Roamed the product with sustained curiosity rather than driving to a goal.",
+    description: "Roamed the product with sustained curiosity rather than driving to a goal.",
     test: (o) => !o.completed,
   },
   {
     key: "persistent-strugglers",
     name: "Persistent strugglers",
-    description:
-      "Got there in the end, but it cost them — high effort and frustration en route.",
+    description: "Got there in the end, but it cost them — high effort and frustration en route.",
     test: (o) => o.completed && (o.emotions.frustration >= HIGH || o.steps > 20),
   },
   {
     key: "confident-completers",
     name: "Confident completers",
-    description:
-      "Sailed through — completed efficiently with high confidence and low frustration.",
-    test: (o) =>
-      o.completed && o.emotions.confidence >= CONFIDENT && o.emotions.frustration < HIGH,
+    description: "Sailed through — completed efficiently with high confidence and low frustration.",
+    test: (o) => o.completed && o.emotions.confidence >= CONFIDENT && o.emotions.frustration < HIGH,
   },
   {
     key: "steady-completers",

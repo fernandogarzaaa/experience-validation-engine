@@ -16,49 +16,49 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import {
-  RunSessionSchema,
-  RunUsabilityStudySchema,
-  CompareBuildsSchema,
+  type ApplicationMapInput,
   ApplicationMapSchema,
-  TwinSessionSchema,
-  CalibrateSchema,
-  MultimodalScanSchema,
-  EveBenchSchema,
-  ListSchema,
+  type BenchmarkInput,
   BenchmarkSchema,
+  type CalibrateInput,
+  CalibrateSchema,
+  type CompareBuildsInput,
+  CompareBuildsSchema,
+  type EveBenchInput,
+  EveBenchSchema,
+  type GetReportInput,
   GetReportSchema,
+  type ListInput,
+  ListSchema,
+  type MultimodalScanInput,
+  MultimodalScanSchema,
   ResponseFormat,
   type RunSessionInput,
+  RunSessionSchema,
   type RunUsabilityStudyInput,
-  type CompareBuildsInput,
-  type ApplicationMapInput,
+  RunUsabilityStudySchema,
   type TwinSessionInput,
-  type CalibrateInput,
-  type MultimodalScanInput,
-  type EveBenchInput,
-  type ListInput,
-  type BenchmarkInput,
-  type GetReportInput,
+  TwinSessionSchema,
 } from "./schemas.js";
 import {
-  runSession,
-  runUsabilityStudy,
-  runUserStudy,
-  runProductReport,
-  compareBuilds,
-  runApplicationMap,
-  runPredictUX,
-  runTwinSessionTool,
-  runCalibrate,
-  runMultimodalScan,
-  runEveBenchTool,
-  listPersonasTool,
-  listProfessionsTool,
-  listCulturesTool,
-  runBenchmark,
-  getReport,
   ToolInputError,
   type ToolOutput,
+  compareBuilds,
+  getReport,
+  listCulturesTool,
+  listPersonasTool,
+  listProfessionsTool,
+  runApplicationMap,
+  runBenchmark,
+  runCalibrate,
+  runEveBenchTool,
+  runMultimodalScan,
+  runPredictUX,
+  runProductReport,
+  runSession,
+  runTwinSessionTool,
+  runUsabilityStudy,
+  runUserStudy,
 } from "./tools.js";
 
 const require = createRequire(import.meta.url);
@@ -74,9 +74,7 @@ const READ_ONLY = {
 /** Render a tool output in the requested format as an MCP tool result. */
 function respond(output: ToolOutput, format: ResponseFormat) {
   const text =
-    format === ResponseFormat.JSON
-      ? JSON.stringify(output.structured, null, 2)
-      : output.markdown;
+    format === ResponseFormat.JSON ? JSON.stringify(output.structured, null, 2) : output.markdown;
   return { content: [{ type: "text" as const, text }] };
 }
 

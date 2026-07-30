@@ -7,9 +7,9 @@
  * alignment, and learnability.
  */
 
-import { EveSession } from "../engine/session.js";
-import { MockAdapter, type MockAppSpec } from "../browser/index.js";
 import { BENCHMARK_APPS, type BenchmarkTier } from "../benchmarks/index.js";
+import { MockAdapter, type MockAppSpec } from "../browser/index.js";
+import { EveSession } from "../engine/session.js";
 import { InMemoryStore } from "../memory/index.js";
 
 const TERMINAL_SIGNAL: Record<BenchmarkTier, string> = {
@@ -73,9 +73,15 @@ export interface EveBenchOptions {
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 const round = (v: number, p = 3): number => Math.round(v * 10 ** p) / 10 ** p;
-const mean = (xs: readonly number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+const mean = (xs: readonly number[]): number =>
+  xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 
-async function scoreCase(bench: BenchmarkCase, panel: readonly string[], seed: number | string, maxSteps: number): Promise<CaseScore> {
+async function scoreCase(
+  bench: BenchmarkCase,
+  panel: readonly string[],
+  seed: number | string,
+  maxSteps: number,
+): Promise<CaseScore> {
   const successes: number[] = [];
   const overalls: number[] = [];
   const frustrations: number[] = [];
@@ -110,12 +116,24 @@ async function scoreCase(bench: BenchmarkCase, panel: readonly string[], seed: n
   const store = new InMemoryStore();
   const learnPersona = panel[panel.length - 1] ?? "power-user";
   const run1 = await new EveSession({
-    adapter: new MockAdapter(bench.app), startUrl: "mock:home", persona: learnPersona,
-    goal: bench.goal, goalSuccessSignals: [bench.successSignal], seed: `${seed}-learn`, maxSteps, longTermMemory: store,
+    adapter: new MockAdapter(bench.app),
+    startUrl: "mock:home",
+    persona: learnPersona,
+    goal: bench.goal,
+    goalSuccessSignals: [bench.successSignal],
+    seed: `${seed}-learn`,
+    maxSteps,
+    longTermMemory: store,
   }).run();
   const run2 = await new EveSession({
-    adapter: new MockAdapter(bench.app), startUrl: "mock:home", persona: learnPersona,
-    goal: bench.goal, goalSuccessSignals: [bench.successSignal], seed: `${seed}-learn`, maxSteps, longTermMemory: store,
+    adapter: new MockAdapter(bench.app),
+    startUrl: "mock:home",
+    persona: learnPersona,
+    goal: bench.goal,
+    goalSuccessSignals: [bench.successSignal],
+    seed: `${seed}-learn`,
+    maxSteps,
+    longTermMemory: store,
   }).run();
   const learnability = run1.usage.steps > 0 ? clamp01(1 - run2.usage.steps / run1.usage.steps) : 0;
 
@@ -174,9 +192,7 @@ export async function runEveBench(options: EveBenchOptions = {}): Promise<EveBen
     cases: scores,
     overall,
     ordered,
-    summary:
-      `EVE Bench overall ${overall}/100 across ${scores.length} cases. ` +
-      (ordered ? "Construct validity holds (excellent > average > bad)." : "⚠️ Construct validity FAILED — the instrument is miscalibrated."),
+    summary: `EVE Bench overall ${overall}/100 across ${scores.length} cases. ${ordered ? "Construct validity holds (excellent > average > bad)." : "⚠️ Construct validity FAILED — the instrument is miscalibrated."}`,
     generatedAt: new Date().toISOString(),
   };
 }

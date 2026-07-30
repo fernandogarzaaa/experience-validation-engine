@@ -43,8 +43,7 @@ export function renderProductIntelligenceMarkdown(intel: ProductIntelligence): s
   lines.push("", "## Feature importance");
   for (const f of intel.featureImportance) {
     lines.push(
-      `- **${f.feature}** — importance ${f.importance}/100 (reach ${pct(f.reach)}, ${f.visits} visits)` +
-        (f.onCriticalPath ? " · on the critical path" : ""),
+      `- **${f.feature}** — importance ${f.importance}/100 (reach ${pct(f.reach)}, ${f.visits} visits)${f.onCriticalPath ? " · on the critical path" : ""}`,
     );
   }
 

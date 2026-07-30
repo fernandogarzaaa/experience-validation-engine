@@ -11,8 +11,7 @@ export function renderCalibrationMarkdown(report: CalibrationReport): string {
   const lines: string[] = [
     "# Human validation — calibration report",
     "",
-    (report.task ? `Task: _${report.task}_. ` : "") +
-      `EVE (n=${report.eveSampleSize}) vs humans (n=${report.humanSampleSize}). Generated ${report.generatedAt}.`,
+    `${report.task ? `Task: _${report.task}_. ` : ""}EVE (n=${report.eveSampleSize}) vs humans (n=${report.humanSampleSize}). Generated ${report.generatedAt}.`,
     "",
     `## Similarity score: ${report.similarityScore}/100`,
     "",

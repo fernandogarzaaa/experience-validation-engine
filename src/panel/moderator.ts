@@ -1,7 +1,7 @@
-import type { SessionResult } from "../engine/session.js";
 import type { Finding, FindingSeverity } from "../core/types.js";
-import type { DesignCritique } from "./designCritic.js";
+import type { SessionResult } from "../engine/session.js";
 import type { ExperienceForecast } from "../forecasting/forecast.js";
+import type { DesignCritique } from "./designCritic.js";
 
 /**
  * Moderator AI.
@@ -81,7 +81,11 @@ export function moderatePanel(input: PanelInput): ExecutiveReport {
       const key = normalizeFindingKey(f);
       if (perPersonaSeen.has(key)) continue;
       perPersonaSeen.add(key);
-      const cluster = clusters.get(key) ?? { finding: f, personas: new Set(), descriptions: new Set() };
+      const cluster = clusters.get(key) ?? {
+        finding: f,
+        personas: new Set(),
+        descriptions: new Set(),
+      };
       cluster.personas.add(session.personaName);
       cluster.descriptions.add(f.description);
       // Keep the most severe representative.
@@ -102,8 +106,7 @@ export function moderatePanel(input: PanelInput): ExecutiveReport {
       representativeDescription: c.finding.description,
     }))
     .sort(
-      (a, b) =>
-        severityRank(a.severity) - severityRank(b.severity) || b.agreement - a.agreement,
+      (a, b) => severityRank(a.severity) - severityRank(b.severity) || b.agreement - a.agreement,
     );
 
   const consensus = consensusIssues.filter((i) => i.agreement >= 0.5 || personaCount === 1);
@@ -173,7 +176,9 @@ function findDisagreements(
 
   // Singleton issues: only one persona hit it (potential edge case or
   // persona-specific barrier).
-  const singletons = issues.filter((i) => i.personas.length === 1 && personaCount > 2 && i.severity !== "minor");
+  const singletons = issues.filter(
+    (i) => i.personas.length === 1 && personaCount > 2 && i.severity !== "minor",
+  );
   for (const s of singletons.slice(0, 3)) {
     out.push({
       topic: `Only "${s.personas[0]}" hit: ${s.title}`,
@@ -200,14 +205,18 @@ function buildPriorities(
   critique: DesignCritique | undefined,
 ): string[] {
   const priorities: string[] = [];
-  for (const issue of consensus.filter((i) => i.severity === "critical" || i.severity === "major").slice(0, 4)) {
+  for (const issue of consensus
+    .filter((i) => i.severity === "critical" || i.severity === "major")
+    .slice(0, 4)) {
     priorities.push(
       `Fix "${issue.title}" (${issue.severity}, ${Math.round(issue.agreement * 100)}% of personas) at ${issue.url}`,
     );
   }
   if (forecast) {
     for (const change of forecast.recommendedChanges.slice(0, 2)) {
-      priorities.push(`${change.change} (est. +${Math.round(change.estimatedLift * 100)}% completion)`);
+      priorities.push(
+        `${change.change} (est. +${Math.round(change.estimatedLift * 100)}% completion)`,
+      );
     }
   }
   if (critique) {
@@ -228,16 +237,16 @@ function buildExecutiveSummary(args: {
 }): string {
   const { personaCount, meanOverallScore, completionRate, abandonmentRate, consensus } = args;
   const grade =
-    meanOverallScore >= 80 ? "strong" : meanOverallScore >= 65 ? "acceptable" : meanOverallScore >= 50 ? "weak" : "poor";
+    meanOverallScore >= 80
+      ? "strong"
+      : meanOverallScore >= 65
+        ? "acceptable"
+        : meanOverallScore >= 50
+          ? "weak"
+          : "poor";
   const criticalConsensus = consensus.filter((i) => i.severity === "critical").length;
   const majorConsensus = consensus.filter((i) => i.severity === "major").length;
-  return (
-    `A panel of ${personaCount} distinct persona(s) evaluated the product. The overall experience is ${grade} ` +
-    `(mean ${meanOverallScore}/100). ${Math.round(completionRate * 100)}% completed their goal; ` +
-    `${Math.round(abandonmentRate * 100)}% abandoned. The panel reached consensus on ${consensus.length} issue(s), ` +
-    `including ${criticalConsensus} critical and ${majorConsensus} major problem(s) that multiple user types independently hit — ` +
-    `these are the highest-confidence targets for improvement.`
-  );
+  return `A panel of ${personaCount} distinct persona(s) evaluated the product. The overall experience is ${grade} (mean ${meanOverallScore}/100). ${Math.round(completionRate * 100)}% completed their goal; ${Math.round(abandonmentRate * 100)}% abandoned. The panel reached consensus on ${consensus.length} issue(s), including ${criticalConsensus} critical and ${majorConsensus} major problem(s) that multiple user types independently hit — these are the highest-confidence targets for improvement.`;
 }
 
 function severityRank(severity: FindingSeverity): number {

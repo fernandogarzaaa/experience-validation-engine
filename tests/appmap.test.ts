@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { EveSession, type SessionResult } from "../src/engine/session.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
 import {
+  type ApplicationMap,
   buildApplicationMap,
   renderApplicationMapMarkdown,
   renderApplicationMapMermaid,
-  type ApplicationMap,
 } from "../src/appmap/index.js";
-import { runApplicationMap } from "../src/mcp/tools.js";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
+import { EveSession, type SessionResult } from "../src/engine/session.js";
 import { ApplicationMapSchema } from "../src/mcp/schemas.js";
+import { runApplicationMap } from "../src/mcp/tools.js";
 
 async function explore(): Promise<SessionResult[]> {
   const results: SessionResult[] = [];
@@ -79,7 +79,12 @@ describe("application map", () => {
 
 describe("mcp eve_application_map", () => {
   it("explores and maps the mock app via the MCP tool", async () => {
-    const input = ApplicationMapSchema.parse({ url: "mock:", explorers: 2, seed: 1, max_steps: 30 });
+    const input = ApplicationMapSchema.parse({
+      url: "mock:",
+      explorers: 2,
+      seed: 1,
+      max_steps: 30,
+    });
     const out = await runApplicationMap(input);
     expect(out.markdown).toContain("Application map");
     expect((out.structured.screens as unknown[]).length).toBeGreaterThan(1);

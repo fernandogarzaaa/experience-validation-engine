@@ -1,5 +1,5 @@
-import type { Percept, PredictionOutcome } from "../core/types.js";
 import { clamp01 } from "../core/random.js";
+import type { Percept, PredictionOutcome } from "../core/types.js";
 
 /**
  * Trust model.
@@ -91,7 +91,7 @@ export class TrustModel {
   observeSecurityCues(percept: Percept): void {
     const url = percept.url.toLowerCase();
     const secure = url.startsWith("https://") || url.startsWith("mock://");
-    if (!secure && (url.startsWith("http://"))) this.nudge("securityPerception", -0.5);
+    if (!secure && url.startsWith("http://")) this.nudge("securityPerception", -0.5);
     const text = percept.elements.map((e) => e.text.toLowerCase()).join(" ");
     if (/\b(secure|encrypted|privacy|verified|ssl|protected)\b/.test(text)) {
       this.nudge("securityPerception", 0.3);

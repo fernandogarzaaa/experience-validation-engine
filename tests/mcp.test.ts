@@ -1,24 +1,24 @@
-import { describe, it, expect } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 import {
-  runSession,
-  listPersonasTool,
-  listProfessionsTool,
-  listCulturesTool,
-  runBenchmark,
-  getReport,
-  ToolInputError,
-} from "../src/mcp/tools.js";
-import {
-  RunSessionSchema,
-  ListSchema,
   BenchmarkSchema,
   GetReportSchema,
+  ListSchema,
+  RunSessionSchema,
 } from "../src/mcp/schemas.js";
 import { createServer } from "../src/mcp/server.js";
+import {
+  ToolInputError,
+  getReport,
+  listCulturesTool,
+  listPersonasTool,
+  listProfessionsTool,
+  runBenchmark,
+  runSession,
+} from "../src/mcp/tools.js";
 
 /** Apply Zod defaults the way the MCP SDK does before a handler runs. */
 function runInput(overrides: Record<string, unknown>) {
@@ -89,9 +89,9 @@ describe("mcp eve_run_session", () => {
   });
 
   it("gives an actionable error for an unknown profession", async () => {
-    await expect(
-      runSession(runInput({ profession: "astronaut-wizard" })),
-    ).rejects.toThrow(/Unknown profession/);
+    await expect(runSession(runInput({ profession: "astronaut-wizard" }))).rejects.toThrow(
+      /Unknown profession/,
+    );
   });
 });
 

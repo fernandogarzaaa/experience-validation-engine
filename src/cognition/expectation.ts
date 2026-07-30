@@ -1,7 +1,7 @@
-import type { Percept, Prediction, VisibleElement } from "../core/types.js";
 import { clamp01 } from "../core/random.js";
+import type { Percept, Prediction, VisibleElement } from "../core/types.js";
 import { screenSignature } from "../memory/memory.js";
-import { visibleText, tokenize } from "./mentalModel.js";
+import { tokenize, visibleText } from "./mentalModel.js";
 
 /**
  * Expectation engine.
@@ -66,8 +66,12 @@ export function buildExpectation(
     target?.role === "link" ||
     target?.role === "tab" ||
     target?.role === "menuitem" ||
-    /\b(next|continue|log ?in|sign ?in|sign ?up|submit|go|open|view|settings|dashboard)\b/i.test(label);
-  const committing = /\b(save|submit|pay|create|send|confirm|delete|remove|publish|order)\b/i.test(label);
+    /\b(next|continue|log ?in|sign ?in|sign ?up|submit|go|open|view|settings|dashboard)\b/i.test(
+      label,
+    );
+  const committing = /\b(save|submit|pay|create|send|confirm|delete|remove|publish|order)\b/i.test(
+    label,
+  );
 
   let destination: RichExpectation["destination"] = "same";
   if (actionKind === "back") destination = "back";
@@ -163,8 +167,7 @@ export function scoreExpectation(
     if (d === "feedback") return expectation.expectsFeedback;
     return true;
   });
-  const matchScore =
-    active.reduce((s, d) => s + dimScores[d], 0) / Math.max(1, active.length);
+  const matchScore = active.reduce((s, d) => s + dimScores[d], 0) / Math.max(1, active.length);
   const violationSeverity =
     violations.length === 0 ? 0 : 1 - Math.min(...violations.map((d) => dimScores[d]));
 

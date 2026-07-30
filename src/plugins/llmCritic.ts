@@ -1,6 +1,6 @@
+import { visibleText } from "../cognition/mentalModel.js";
 import type { Percept } from "../core/types.js";
 import type { EvePlugin, PluginContext } from "./plugin.js";
-import { visibleText } from "../cognition/mentalModel.js";
 
 /**
  * LLM Critic plugin (optional): a design-review pass powered by the
@@ -88,24 +88,26 @@ export class LlmCriticPlugin implements EvePlugin {
     content.push({
       type: "text",
       text: [
-        `You are a principal UX designer reviewing one screen of a product.`,
+        "You are a principal UX designer reviewing one screen of a product.",
         `URL: ${percept.url}`,
         `Title: ${percept.title}`,
         `Visible text (extracted): ${visibleText(percept).slice(0, 3000)}`,
-        ``,
-        `List concrete UX/design issues visible on this screen. Be specific and actionable; skip generic advice. Return an empty list if the screen is genuinely fine.`,
+        "",
+        "List concrete UX/design issues visible on this screen. Be specific and actionable; skip generic advice. Return an empty list if the screen is genuinely fine.",
       ].join("\n"),
     });
 
     try {
-      const response = await (client as {
-        messages: {
-          create: (params: Record<string, unknown>) => Promise<{
-            stop_reason?: string;
-            content: Array<{ type: string; text?: string }>;
-          }>;
-        };
-      }).messages.create({
+      const response = await (
+        client as {
+          messages: {
+            create: (params: Record<string, unknown>) => Promise<{
+              stop_reason?: string;
+              content: Array<{ type: string; text?: string }>;
+            }>;
+          };
+        }
+      ).messages.create({
         model: this.model,
         max_tokens: 2048,
         output_config: { format: { type: "json_schema", schema: CRITIQUE_SCHEMA } },

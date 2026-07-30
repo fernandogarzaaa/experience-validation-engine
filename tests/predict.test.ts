@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
-import {
-  predictUX,
-  wilsonInterval,
-  renderUXPredictionMarkdown,
-  type UXPrediction,
-} from "../src/predict/index.js";
-import { runPredictUX } from "../src/mcp/tools.js";
 import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
+import { runPredictUX } from "../src/mcp/tools.js";
+import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
+import {
+  type UXPrediction,
+  predictUX,
+  renderUXPredictionMarkdown,
+  wilsonInterval,
+} from "../src/predict/index.js";
 
 describe("wilsonInterval", () => {
   it("brackets the point estimate and stays in [0,1]", () => {
@@ -37,7 +37,13 @@ describe("predictUX", () => {
   let study: PopulationStudy;
   let prediction: UXPrediction;
   beforeAll(async () => {
-    study = await simulatePopulation({ url: "mock:", size: 16, seed: 7, maxSteps: 25, concurrency: 8 });
+    study = await simulatePopulation({
+      url: "mock:",
+      size: 16,
+      seed: 7,
+      maxSteps: 25,
+      concurrency: 8,
+    });
     prediction = predictUX(study);
   }, 120_000);
 
@@ -78,7 +84,13 @@ describe("predictUX", () => {
 
 describe("mcp eve_predict_ux", () => {
   it("predicts via the MCP tool", async () => {
-    const input = RunUsabilityStudySchema.parse({ url: "mock:", size: 8, seed: 1, concurrency: 4, max_steps: 25 });
+    const input = RunUsabilityStudySchema.parse({
+      url: "mock:",
+      size: 8,
+      seed: 1,
+      concurrency: 4,
+      max_steps: 25,
+    });
     const out = await runPredictUX(input);
     expect(out.markdown).toContain("Predictive UX");
     expect((out.structured.predictions as unknown[]).length).toBeGreaterThan(1);

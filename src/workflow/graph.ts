@@ -1,7 +1,7 @@
 import type { Percept } from "../core/types.js";
 import { screenSignature } from "../memory/memory.js";
-import { detectWorkflow } from "./detector.js";
 import type { WorkflowKind } from "./catalog.js";
+import { detectWorkflow } from "./detector.js";
 
 /**
  * The discovered workflow map of the product: which workflow-classified
@@ -41,7 +41,12 @@ export class WorkflowGraph {
   private readonly transitions = new Map<string, WorkflowTransition>();
   private lastSignature: string | null = null;
 
-  observe(percept: Percept, step: number, arrivedVia: string | null, errorPerceived: boolean): WorkflowNode {
+  observe(
+    percept: Percept,
+    step: number,
+    arrivedVia: string | null,
+    errorPerceived: boolean,
+  ): WorkflowNode {
     const signature = screenSignature(percept);
     let node = this.nodes.get(signature);
     const match = detectWorkflow(percept);
@@ -70,7 +75,13 @@ export class WorkflowGraph {
       const key = `${this.lastSignature}=>${signature}`;
       const existing = this.transitions.get(key);
       if (existing) existing.count += 1;
-      else this.transitions.set(key, { from: this.lastSignature, to: signature, via: arrivedVia, count: 1 });
+      else
+        this.transitions.set(key, {
+          from: this.lastSignature,
+          to: signature,
+          via: arrivedVia,
+          count: 1,
+        });
     }
     this.lastSignature = signature;
     return node;

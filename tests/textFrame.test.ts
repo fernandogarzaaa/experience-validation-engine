@@ -25,7 +25,9 @@ describe("layoutTextFrame", () => {
   it("marks affordances interactive and positions them by column", () => {
     const out = layoutTextFrame({
       lines: ["try: npm install"],
-      affordances: [{ line: 0, column: 5, text: "npm install", role: "button", command: "npm install" }],
+      affordances: [
+        { line: 0, column: 5, text: "npm install", role: "button", command: "npm install" },
+      ],
       windowRows: 24,
       scrollLine: 0,
     });
@@ -56,7 +58,9 @@ describe("layoutTextFrame", () => {
   it("keeps surrounding text on a line that also contains an affordance", () => {
     const out = layoutTextFrame({
       lines: ["Run `restart-proxy` to start it."],
-      affordances: [{ line: 0, column: 5, text: "restart-proxy", role: "button", command: "restart-proxy" }],
+      affordances: [
+        { line: 0, column: 5, text: "restart-proxy", role: "button", command: "restart-proxy" },
+      ],
       windowRows: 24,
       scrollLine: 0,
     });

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
 import { EveSession } from "../src/engine/index.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
 import { AccessibilityPlugin, PerformancePlugin } from "../src/plugins/index.js";
-import { buildReport, renderHtml, renderMarkdown, renderJson } from "../src/reporting/index.js";
+import { buildReport, renderHtml, renderJson, renderMarkdown } from "../src/reporting/index.js";
 
 describe("end-to-end simulation on the mock app", () => {
   it("runs a full session and produces scores, findings and a timeline", async () => {

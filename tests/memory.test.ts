@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { OperatorMemory, screenSignature } from "../src/memory/index.js";
-import { getPersona } from "../src/personas/index.js";
 import { createRng } from "../src/core/random.js";
 import type { Percept } from "../src/core/types.js";
+import { OperatorMemory, screenSignature } from "../src/memory/index.js";
+import { getPersona } from "../src/personas/index.js";
 
 function percept(url: string, heading: string): Percept {
   return {

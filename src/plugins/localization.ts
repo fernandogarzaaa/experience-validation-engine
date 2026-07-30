@@ -1,7 +1,7 @@
 import type { Percept } from "../core/types.js";
-import type { EvePlugin, PluginContext } from "./plugin.js";
 import { cultureOf } from "../personas/culture.js";
 import type { CultureProfile } from "../personas/culture.js";
+import type { EvePlugin, PluginContext } from "./plugin.js";
 
 /**
  * Localization plugin.
@@ -46,7 +46,8 @@ export class LocalizationPlugin implements EvePlugin {
         description: `A ${culture.name} user reads prices in ${culture.currency}; seeing ${foreign.join("/")} forces mental conversion and lowers trust in pricing.`,
         evidence: [`Locale: ${culture.locale}`],
         url: percept.url,
-        recommendation: "Localize currency to the user's locale, or make the currency explicit and switchable.",
+        recommendation:
+          "Localize currency to the user's locale, or make the currency explicit and switchable.",
       });
     }
 
@@ -62,7 +63,8 @@ export class LocalizationPlugin implements EvePlugin {
           description: `A ${culture.name} user reads dates as ${culture.dateFormat}; the displayed order risks being misread (e.g. day vs month).`,
           evidence: [`Locale: ${culture.locale}`],
           url: percept.url,
-          recommendation: "Format dates per locale, or use an unambiguous format (e.g. 2026 Jul 21).",
+          recommendation:
+            "Format dates per locale, or use an unambiguous format (e.g. 2026 Jul 21).",
         });
       }
     }
@@ -82,9 +84,13 @@ export class LocalizationPlugin implements EvePlugin {
           category: "accessibility",
           title: "Layout is left-to-right for a right-to-left reader",
           description: `A ${culture.name} user scans from the right; a left-anchored layout inverts their natural reading path and controls land where they don't look first.`,
-          evidence: [`Locale: ${culture.locale}`, `${leftAnchored} left-anchored vs ${rightAnchored} right-anchored controls`],
+          evidence: [
+            `Locale: ${culture.locale}`,
+            `${leftAnchored} left-anchored vs ${rightAnchored} right-anchored controls`,
+          ],
           url: percept.url,
-          recommendation: "Mirror the layout (dir=\"rtl\") so primary content and navigation start from the right.",
+          recommendation:
+            'Mirror the layout (dir="rtl") so primary content and navigation start from the right.',
         });
       }
     }

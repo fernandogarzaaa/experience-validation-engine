@@ -4,11 +4,11 @@
  * the outcome.
  */
 
-import { EveSession, type SessionResult } from "../engine/session.js";
 import type { BrowserAdapter } from "../browser/index.js";
-import { InMemoryStore, type ApplicationMemory } from "../memory/index.js";
-import { getPersona, applyProfession, getProfession, type Persona } from "../personas/index.js";
-import type { TwinProfile, TwinEvolution, TwinSessionOutcome } from "./types.js";
+import { EveSession, type SessionResult } from "../engine/session.js";
+import { type ApplicationMemory, InMemoryStore } from "../memory/index.js";
+import { type Persona, applyProfession, getPersona, getProfession } from "../personas/index.js";
+import type { TwinEvolution, TwinProfile, TwinSessionOutcome } from "./types.js";
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 const round = (v: number, p = 3): number => Math.round(v * 10 ** p) / 10 ** p;
@@ -60,10 +60,7 @@ export function twinPersona(twin: TwinProfile): Persona {
 }
 
 /** Evolve a twin's profile from a session outcome (pure). */
-export function evolveTwin(
-  evolution: TwinEvolution,
-  outcome: TwinSessionOutcome,
-): TwinEvolution {
+export function evolveTwin(evolution: TwinEvolution, outcome: TwinSessionOutcome): TwinEvolution {
   const sessions = evolution.sessions + 1;
   const scoreHistory = [...evolution.scoreHistory, outcome.overall];
   const trustHistory = [...evolution.trustHistory, round(outcome.finalTrust)];
@@ -137,10 +134,17 @@ export async function runTwinSession(
   const overall = result.scores.find((s) => s.dimension === "overall")?.value ?? 0;
   const completed = config.goal ? result.goalAchieved : !result.abandoned;
   const finalTrust = result.emotionTimeline.at(-1)?.values.trust ?? 0.5;
-  const outcome: TwinSessionOutcome = { url: config.url, overall, completed, finalTrust, steps: result.usage.steps };
+  const outcome: TwinSessionOutcome = {
+    url: config.url,
+    overall,
+    completed,
+    finalTrust,
+    steps: result.usage.steps,
+  };
 
   const memories: Record<string, ApplicationMemory> = {};
-  for (const memory of Object.values(store.snapshot().applications)) memories[memory.appId] = memory;
+  for (const memory of Object.values(store.snapshot().applications))
+    memories[memory.appId] = memory;
 
   const twinUpdated: TwinProfile = {
     ...twin,

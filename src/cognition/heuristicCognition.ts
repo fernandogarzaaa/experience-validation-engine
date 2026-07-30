@@ -1,11 +1,15 @@
-import type { Action, VisibleElement } from "../core/types.js";
 import { clamp01 } from "../core/random.js";
-import { readingTimeMs, abandonmentThreshold } from "../personas/persona.js";
+import type { Action, VisibleElement } from "../core/types.js";
 import { screenSignature } from "../memory/memory.js";
+import { abandonmentThreshold, readingTimeMs } from "../personas/persona.js";
+import {
+  type ExplorationStrategy,
+  type StrategyWeights,
+  strategyWeights,
+} from "../planning/strategies.js";
 import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
 import { predictInteraction, tokenize } from "./mentalModel.js";
 import { choiceLoad, readingLoad, scoreAffordances } from "./salience.js";
-import { strategyWeights, type ExplorationStrategy, type StrategyWeights } from "../planning/strategies.js";
 
 /**
  * The default, fully-offline decision policy.
@@ -76,9 +80,7 @@ export class HeuristicCognition implements DecisionPolicy {
 
     // 4. First encounter with a screen: read it before touching anything.
     const readKey = `read:${sig}`;
-    const alreadyRead = memory
-      .currentThoughts()
-      .some((t) => t.content === readKey);
+    const alreadyRead = memory.currentThoughts().some((t) => t.content === readKey);
     if (!alreadyRead && memory.isNovelScreen(percept)) {
       memory.hold(readKey, ctx.step);
       const words = percept.elements.reduce(
@@ -99,9 +101,7 @@ export class HeuristicCognition implements DecisionPolicy {
       };
     }
 
-    const goalKeywords = [
-      ...new Set([...goals.current.keywords, ...goals.root.keywords]),
-    ];
+    const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
 
     // 5a. Strong goal match wins over habit: if something on screen plainly
     // matches what I'm trying to do ("Forgot password?" while trying to
@@ -269,9 +269,7 @@ export class HeuristicCognition implements DecisionPolicy {
   }
 
   protected baseConfidence(ctx: CognitiveContext): number {
-    return clamp01(
-      0.3 + ctx.persona.traits.techLiteracy * 0.4 + ctx.emotion.confidence * 0.3,
-    );
+    return clamp01(0.3 + ctx.persona.traits.techLiteracy * 0.4 + ctx.emotion.confidence * 0.3);
   }
 
   private handleDialog(ctx: CognitiveContext): Decision | null {
@@ -331,9 +329,12 @@ export class HeuristicCognition implements DecisionPolicy {
     const buttons = percept.elements.filter(
       (el) => el.role === "button" && el.interactive && !el.disabled && el.text.trim(),
     );
-    const untried = buttons.filter((el) => !node.triedAffordances.has(el.text.trim().toLowerCase()));
+    const untried = buttons.filter(
+      (el) => !node.triedAffordances.has(el.text.trim().toLowerCase()),
+    );
     const submit =
-      untried.find((el) => submitRe.test(el.text)) ?? (untried.length === 1 ? untried[0] : undefined);
+      untried.find((el) => submitRe.test(el.text)) ??
+      (untried.length === 1 ? untried[0] : undefined);
     if (!submit) return null;
     memory.markTried(sig, submit.text);
     return {
@@ -344,10 +345,7 @@ export class HeuristicCognition implements DecisionPolicy {
     };
   }
 
-  private handleFormField(
-    ctx: CognitiveContext,
-    goalKeywords: readonly string[],
-  ): Decision | null {
+  private handleFormField(ctx: CognitiveContext, goalKeywords: readonly string[]): Decision | null {
     const { percept, persona, memory } = ctx;
     const sig = screenSignature(percept);
     const node = memory.knownScreens().find((s) => s.signature === sig);
@@ -366,10 +364,9 @@ export class HeuristicCognition implements DecisionPolicy {
     const buttons = percept.elements.filter((e) => e.role === "button" && e.interactive);
     const formCentric = emptyFields.length >= 1 && buttons.length <= 4;
     const relevant =
-      goalKeywords.some((kw) =>
-        emptyFields.some((f) => tokenize(f.text).includes(kw)),
-      ) || /\b(login|log in|sign|search|register|form|create|checkout|submit)\b/i.test(
-        goalKeywords.join(" ") + " " + percept.title,
+      goalKeywords.some((kw) => emptyFields.some((f) => tokenize(f.text).includes(kw))) ||
+      /\b(login|log in|sign|search|register|form|create|checkout|submit)\b/i.test(
+        `${goalKeywords.join(" ")} ${percept.title}`,
       );
     if (!formCentric && !relevant) return null;
 

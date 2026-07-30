@@ -44,9 +44,7 @@ describe("CliAdapter", () => {
 
   it("rejects when the binary does not exist", async () => {
     const adapter = new CliAdapter();
-    await expect(
-      adapter.open("cli:definitely-not-a-real-binary-xyz", VIEWPORT),
-    ).rejects.toThrow();
+    await expect(adapter.open("cli:definitely-not-a-real-binary-xyz", VIEWPORT)).rejects.toThrow();
   });
 
   it("settles on an interactive process without waiting for it to exit", async () => {

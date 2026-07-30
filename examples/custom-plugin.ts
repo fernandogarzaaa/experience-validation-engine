@@ -5,12 +5,12 @@
  *   npx tsx examples/custom-plugin.ts
  */
 import {
-  EveSession,
-  MockAdapter,
   DEMO_APP,
   type EvePlugin,
-  type PluginContext,
+  EveSession,
+  MockAdapter,
   type Percept,
+  type PluginContext,
 } from "../src/index.js";
 
 const JARGON = /\b(oauth|webhook|regex|payload|schema|token|sdk)\b/i;

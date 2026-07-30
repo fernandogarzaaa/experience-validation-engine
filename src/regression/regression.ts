@@ -1,5 +1,5 @@
-import type { SessionResult } from "../engine/session.js";
 import type { EmotionSample } from "../emotion/emotionalState.js";
+import type { SessionResult } from "../engine/session.js";
 
 /**
  * Experience regression: temporal and behavioral.
@@ -166,16 +166,40 @@ export function compareExperience(
 
   // Completion/abandonment transitions are always significant.
   if (base.completed && !cand.completed) {
-    deltas.push({ metric: "completed", baseline: 1, candidate: 0, delta: -1, regression: true, severity: "critical" });
+    deltas.push({
+      metric: "completed",
+      baseline: 1,
+      candidate: 0,
+      delta: -1,
+      regression: true,
+      severity: "critical",
+    });
   }
   if (!base.abandoned && cand.abandoned) {
-    deltas.push({ metric: "abandoned", baseline: 0, candidate: 1, delta: 1, regression: true, severity: "critical" });
+    deltas.push({
+      metric: "abandoned",
+      baseline: 0,
+      candidate: 1,
+      delta: 1,
+      regression: true,
+      severity: "critical",
+    });
   }
 
-  const regressions = deltas.filter((d) => d.regression).sort((a, b) => rank(a.severity) - rank(b.severity));
-  const improvements = deltas.filter((d) => !d.regression && Math.abs(d.delta) > epsilonFor(d.metric) && d.severity === "none" && isImprovement(d));
+  const regressions = deltas
+    .filter((d) => d.regression)
+    .sort((a, b) => rank(a.severity) - rank(b.severity));
+  const improvements = deltas.filter(
+    (d) =>
+      !d.regression &&
+      Math.abs(d.delta) > epsilonFor(d.metric) &&
+      d.severity === "none" &&
+      isImprovement(d),
+  );
 
-  const verdict: RegressionReport["verdict"] = regressions.some((r) => r.severity === "critical" || r.severity === "major")
+  const verdict: RegressionReport["verdict"] = regressions.some(
+    (r) => r.severity === "critical" || r.severity === "major",
+  )
     ? "regressed"
     : regressions.length > improvements.length
       ? "regressed"
@@ -216,7 +240,10 @@ function epsilonFor(metric: keyof ExperienceMetrics): number {
   }
 }
 
-function severityFor(metric: keyof ExperienceMetrics, relative: number): "critical" | "major" | "minor" {
+function severityFor(
+  metric: keyof ExperienceMetrics,
+  relative: number,
+): "critical" | "major" | "minor" {
   if (metric === "overallScore" && relative > 0.25) return "critical";
   if (relative > 0.5) return "major";
   if (relative > 0.25) return "major";

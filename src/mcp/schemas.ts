@@ -199,8 +199,7 @@ export const RunUsabilityStudySchema = z
       .string()
       .optional()
       .describe(
-        "If set, write the full research dataset (study.json, operators.csv, " +
-          "study.md) here.",
+        "If set, write the full research dataset (study.json, operators.csv, " + "study.md) here.",
       ),
     response_format: z
       .nativeEnum(ResponseFormat)
@@ -213,7 +212,13 @@ export const RunUsabilityStudySchema = z
 export const EveBenchSchema = z
   .object({
     seed: z.union([z.number(), z.string()]).optional().describe("Base seed for reproducibility."),
-    max_steps: z.number().int().min(1).max(500).default(40).describe("Max steps per benchmark session."),
+    max_steps: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .default(40)
+      .describe("Max steps per benchmark session."),
     response_format: z
       .nativeEnum(ResponseFormat)
       .default(ResponseFormat.MARKDOWN)
@@ -228,7 +233,10 @@ export const MultimodalScanSchema = z
     persona: z.string().default("curious-explorer").describe("Persona used to explore the app."),
     seed: z.union([z.number(), z.string()]).optional().describe("Seed for reproducibility."),
     max_steps: z.number().int().min(1).max(500).default(50).describe("Max exploration steps."),
-    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    browser: z
+      .nativeEnum(BrowserBackend)
+      .optional()
+      .describe("Browser backend (default inferred)."),
     response_format: z
       .nativeEnum(ResponseFormat)
       .default(ResponseFormat.MARKDOWN)
@@ -275,13 +283,19 @@ export const TwinSessionSchema = z
       .describe("Base persona (required only when creating the twin, e.g. power-user)."),
     profession: z.string().optional().describe("Optional professional overlay (creation only)."),
     culture: z.string().optional().describe("Optional cultural profile / locale (creation only)."),
-    url: z.string().min(1).describe("The app to use this session, or `mock:` for the offline demo."),
+    url: z
+      .string()
+      .min(1)
+      .describe("The app to use this session, or `mock:` for the offline demo."),
     goal: z.string().optional().describe("The task the twin attempts this session."),
     goal_success_signals: z.array(z.string()).default([]).describe("Success signals for the goal."),
     seed: z.union([z.number(), z.string()]).optional().describe("Seed for this session."),
     max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps this session."),
     cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
-    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    browser: z
+      .nativeEnum(BrowserBackend)
+      .optional()
+      .describe("Browser backend (default inferred)."),
     response_format: z
       .nativeEnum(ResponseFormat)
       .default(ResponseFormat.MARKDOWN)
@@ -312,7 +326,10 @@ export const ApplicationMapSchema = z
       .max(500)
       .default(50)
       .describe("Max exploration steps per operator."),
-    browser: z.nativeEnum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
+    browser: z
+      .nativeEnum(BrowserBackend)
+      .optional()
+      .describe("Browser backend (default inferred)."),
     output_dir: z.string().optional().describe("If set, write application-map.md here."),
     response_format: z
       .nativeEnum(ResponseFormat)
@@ -328,20 +345,40 @@ export const CompareBuildsSchema = z
       .array(
         z.object({
           url: z.string().min(1).describe("The build's URL, or `mock:` for the offline app."),
-          label: z.string().optional().describe("A label for this build (e.g. a version or commit)."),
+          label: z
+            .string()
+            .optional()
+            .describe("A label for this build (e.g. a version or commit)."),
         }),
       )
       .min(2)
       .max(10)
-      .describe("Ordered builds, oldest first (2–10). Each is studied with the same population config."),
+      .describe(
+        "Ordered builds, oldest first (2–10). Each is studied with the same population config.",
+      ),
     size: z.number().int().min(2).max(200).default(20).describe("Operators per build."),
-    goal: z.string().optional().describe("The task every operator attempts (applied to all builds)."),
-    goal_success_signals: z.array(z.string()).default([]).describe("Success signals (applied to all builds)."),
-    seed: z.union([z.number(), z.string()]).optional().describe("Base seed (shared across builds)."),
+    goal: z
+      .string()
+      .optional()
+      .describe("The task every operator attempts (applied to all builds)."),
+    goal_success_signals: z
+      .array(z.string())
+      .default([])
+      .describe("Success signals (applied to all builds)."),
+    seed: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe("Base seed (shared across builds)."),
     max_steps: z.number().int().min(1).max(500).default(40).describe("Max steps per operator."),
     cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
     utility: z.boolean().default(false).describe("Use utility-based decisions."),
-    concurrency: z.number().int().min(1).max(16).default(4).describe("Operators run concurrently per build."),
+    concurrency: z
+      .number()
+      .int()
+      .min(1)
+      .max(16)
+      .default(4)
+      .describe("Operators run concurrently per build."),
     response_format: z
       .nativeEnum(ResponseFormat)
       .default(ResponseFormat.MARKDOWN)
@@ -380,8 +417,7 @@ export const GetReportSchema = z
       .string()
       .default(".eve-output")
       .describe(
-        "The directory a prior eve_run_session wrote to (same value as its " +
-          "output_dir).",
+        "The directory a prior eve_run_session wrote to (same value as its " + "output_dir).",
       ),
     format: z
       .enum(["markdown", "json"])

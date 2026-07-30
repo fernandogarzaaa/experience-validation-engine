@@ -9,7 +9,7 @@
  * a sample. Modeled rates (support contacts) carry an explicit heuristic band.
  */
 
-import type { PopulationStudy, OperatorRun } from "../population/population.js";
+import type { OperatorRun, PopulationStudy } from "../population/population.js";
 
 export type PredictionBasis = "observed-proportion" | "modeled";
 
@@ -46,7 +46,11 @@ const round = (v: number, p = 3): number => Math.round(v * 10 ** p) / 10 ** p;
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 /** Wilson score interval for a binomial proportion (z = 1.96 → 95%). */
-export function wilsonInterval(successes: number, n: number, z = 1.96): { low: number; high: number } {
+export function wilsonInterval(
+  successes: number,
+  n: number,
+  z = 1.96,
+): { low: number; high: number } {
   if (n === 0) return { low: 0, high: 0 };
   const p = successes / n;
   const z2 = z * z;
@@ -57,12 +61,7 @@ export function wilsonInterval(successes: number, n: number, z = 1.96): { low: n
 }
 
 /** Build an observed-proportion prediction with a 95% Wilson interval. */
-function proportion(
-  metric: string,
-  successes: number,
-  n: number,
-  note: string,
-): UXPredictionItem {
+function proportion(metric: string, successes: number, n: number, note: string): UXPredictionItem {
   const ci = wilsonInterval(successes, n);
   return {
     metric,
@@ -81,8 +80,10 @@ function shortName(screen: string): string {
   return cleaned.split(/[/:]/).filter(Boolean).at(-1) ?? screen;
 }
 
-const isFirstTimer = (op: OperatorRun): boolean => /first-?time|new-?user|onboard/i.test(op.persona);
-const isAccessibility = (op: OperatorRun): boolean => /accessib|elderly|low-?vision|screen-?reader/i.test(op.persona);
+const isFirstTimer = (op: OperatorRun): boolean =>
+  /first-?time|new-?user|onboard/i.test(op.persona);
+const isAccessibility = (op: OperatorRun): boolean =>
+  /accessib|elderly|low-?vision|screen-?reader/i.test(op.persona);
 const isConfused = (op: OperatorRun): boolean =>
   op.segment === "confused-wanderers" || op.emotions.confusion >= 0.5;
 
@@ -105,16 +106,28 @@ export function predictUX(study: PopulationStudy): UXPrediction {
   if (firstTimers.length) {
     const failures = firstTimers.filter((o) => !o.completed).length;
     predictions.push(
-      proportion("Onboarding failure rate", failures, firstTimers.length, "First-time users predicted to fail to activate"),
+      proportion(
+        "Onboarding failure rate",
+        failures,
+        firstTimers.length,
+        "First-time users predicted to fail to activate",
+      ),
     );
   }
 
   const a11yOps = ops.filter(isAccessibility);
-  const a11yFindings = study.topFindings.filter((f) => f.category === "accessibility" || f.category === "visual");
+  const a11yFindings = study.topFindings.filter(
+    (f) => f.category === "accessibility" || f.category === "visual",
+  );
   if (a11yOps.length) {
     const failures = a11yOps.filter((o) => !o.completed).length;
     predictions.push(
-      proportion("Accessibility-barrier rate", failures, a11yOps.length, "Accessibility-sensitive users predicted to hit a barrier"),
+      proportion(
+        "Accessibility-barrier rate",
+        failures,
+        a11yOps.length,
+        "Accessibility-sensitive users predicted to hit a barrier",
+      ),
     );
   } else if (a11yFindings.length) {
     const worst = a11yFindings.reduce((m, f) => Math.max(m, f.prevalence), 0);
@@ -134,8 +147,7 @@ export function predictUX(study: PopulationStudy): UXPrediction {
   const brokenPrevalence = study.topFindings
     .filter((f) => f.category === "error-recovery" || /no visible response/i.test(f.title))
     .reduce((m, f) => Math.max(m, f.prevalence), 0);
-  const perUser =
-    0.3 * study.frustration.mean + 0.5 * study.dropoffRate + 0.2 * brokenPrevalence;
+  const perUser = 0.3 * study.frustration.mean + 0.5 * study.dropoffRate + 0.2 * brokenPrevalence;
   const per100 = perUser * 100;
   predictions.push({
     metric: "Support contacts",
@@ -160,7 +172,11 @@ export function predictUX(study: PopulationStudy): UXPrediction {
       const reasons: string[] = [];
       if (e.dropoffs) reasons.push(`${e.dropoffs} drop-off(s)`);
       if (revisit >= 3) reasons.push(`${round(revisit, 1)}× revisits/user`);
-      return { screen: shortName(e.screen), predictedConfusion, reason: reasons.join(", ") || "high traffic" };
+      return {
+        screen: shortName(e.screen),
+        predictedConfusion,
+        reason: reasons.join(", ") || "high traffic",
+      };
     })
     .filter((s) => s.predictedConfusion > 0)
     .sort((a, b) => b.predictedConfusion - a.predictedConfusion)

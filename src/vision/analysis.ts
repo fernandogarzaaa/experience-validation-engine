@@ -1,6 +1,7 @@
 import type { Percept, VisibleElement } from "../core/types.js";
 import type { AccessibilityProfile } from "../personas/persona.js";
 import {
+  type DecodedImage,
   contrastRatio,
   decodePng,
   frameDiffRatio,
@@ -8,7 +9,6 @@ import {
   parseHexColor,
   relativeLuminance,
   sampleLuminances,
-  type DecodedImage,
 } from "./pixels.js";
 
 /**
@@ -47,9 +47,7 @@ export function checkGeometry(
   const issues: VisualIssue[] = [];
   const { viewport } = percept;
 
-  const meaningful = percept.elements.filter(
-    (el) => el.box.width > 0 && el.box.height > 0,
-  );
+  const meaningful = percept.elements.filter((el) => el.box.width > 0 && el.box.height > 0);
 
   // Horizontal overflow / viewport clipping.
   for (const el of meaningful) {
@@ -232,7 +230,8 @@ export function checkPixels(percept: Percept): VisualIssue[] {
   if (percept.elements.length > 3 && luminanceVariance(img) < 0.0004) {
     issues.push({
       kind: "blank-screen",
-      detail: "The rendered screen is visually blank/uniform even though content should be present.",
+      detail:
+        "The rendered screen is visually blank/uniform even though content should be present.",
       severityHint: "critical",
     });
   }
@@ -295,8 +294,14 @@ function area(el: VisibleElement): number {
 }
 
 function overlapArea(a: VisibleElement, b: VisibleElement): number {
-  const x = Math.max(0, Math.min(a.box.x + a.box.width, b.box.x + b.box.width) - Math.max(a.box.x, b.box.x));
-  const y = Math.max(0, Math.min(a.box.y + a.box.height, b.box.y + b.box.height) - Math.max(a.box.y, b.box.y));
+  const x = Math.max(
+    0,
+    Math.min(a.box.x + a.box.width, b.box.x + b.box.width) - Math.max(a.box.x, b.box.x),
+  );
+  const y = Math.max(
+    0,
+    Math.min(a.box.y + a.box.height, b.box.y + b.box.height) - Math.max(a.box.y, b.box.y),
+  );
   return x * y;
 }
 

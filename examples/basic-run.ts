@@ -7,7 +7,7 @@
  * In your own project, import from "experience-validation-engine" instead
  * of the relative path.
  */
-import { EveSession, MockAdapter, DEMO_APP, writeReports } from "../src/index.js";
+import { DEMO_APP, EveSession, MockAdapter, writeReports } from "../src/index.js";
 import { AccessibilityPlugin, PerformancePlugin } from "../src/index.js";
 
 const session = new EveSession({

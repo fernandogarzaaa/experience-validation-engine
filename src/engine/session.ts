@@ -1,12 +1,17 @@
-import { EventBus } from "../core/events.js";
+import type { BrowserAdapter } from "../browser/adapter.js";
+import { hesitationMs, planClick, planTyping } from "../browser/humanizer.js";
+import type { Decision, DecisionPolicy } from "../cognition/cognition.js";
+import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import {
-  createRng,
-  seedFromString,
-  clamp01,
-  type Rng,
-} from "../core/random.js";
+  comparePrediction,
+  errorSnippets,
+  inferAppTheory,
+  visibleText,
+} from "../cognition/mentalModel.js";
+import { readingLoad, riskOf } from "../cognition/salience.js";
+import { EventBus } from "../core/events.js";
+import { type Rng, clamp01, createRng, seedFromString } from "../core/random.js";
 import type {
-  Action,
   Finding,
   LoopIteration,
   Percept,
@@ -16,42 +21,43 @@ import type {
   Viewport,
 } from "../core/types.js";
 import { describeAction } from "../core/types.js";
-import type { BrowserAdapter } from "../browser/adapter.js";
-import { planClick, planTyping, hesitationMs } from "../browser/humanizer.js";
-import { Observer } from "../observation/perception.js";
-import type { Persona } from "../personas/persona.js";
-import { getPersona } from "../personas/library.js";
-import { EmotionalState, type EmotionSample } from "../emotion/emotionalState.js";
 import { appraise, decayRate } from "../emotion/appraisal.js";
-import { OperatorMemory, screenSignature } from "../memory/memory.js";
-import { GoalStack, createGoal } from "../planning/goals.js";
-import type { DecisionPolicy, Decision } from "../cognition/cognition.js";
-import { HeuristicCognition } from "../cognition/heuristicCognition.js";
+import { type EmotionSample, EmotionalState } from "../emotion/emotionalState.js";
+import { type LearningMetrics, computeLearningMetrics } from "../memory/learning.js";
 import {
-  comparePrediction,
-  errorSnippets,
-  inferAppTheory,
-  visibleText,
-} from "../cognition/mentalModel.js";
-import { riskOf, readingLoad } from "../cognition/salience.js";
+  type ApplicationMemory,
+  type PersistentMemory,
+  type SessionMemoryRecord,
+  appIdForUrl,
+  applyForgetting,
+  emptyApplicationMemory,
+} from "../memory/longTerm.js";
+import { OperatorMemory, screenSignature } from "../memory/memory.js";
+import { Observer } from "../observation/perception.js";
+import {
+  CULTURES,
+  type CultureProfile,
+  DEFAULT_CULTURE,
+  cultureOf,
+  withCulture,
+} from "../personas/culture.js";
+import { getPersona } from "../personas/library.js";
+import type { Persona } from "../personas/persona.js";
+import { GoalStack, createGoal } from "../planning/goals.js";
+import { type EvePlugin, type PluginContext, PluginManager } from "../plugins/plugin.js";
+import { computeScores } from "../scoring/scorer.js";
 import { checkGeometry, checkPixels, checkRegression } from "../vision/analysis.js";
 import { WorkflowGraph } from "../workflow/graph.js";
-import { PluginManager, type EvePlugin, type PluginContext } from "../plugins/plugin.js";
-import { computeScores } from "../scoring/scorer.js";
 import type { DiscoveredWorkflow, WorkflowNode, WorkflowTransition } from "../workflow/graph.js";
-import { CognitiveSuite, type CognitiveConfig, type CognitiveLoadTimeline, type TrustSample, type ExpectationScore, type Fixation } from "./cognitiveSuite.js";
+import { type DiscoveredJourney, discoverJourney } from "../workflow/journeys.js";
 import {
-  type PersistentMemory,
-  type ApplicationMemory,
-  appIdForUrl,
-  emptyApplicationMemory,
-  applyForgetting,
-  type SessionMemoryRecord,
-} from "../memory/longTerm.js";
-import { computeLearningMetrics, type LearningMetrics } from "../memory/learning.js";
-import { discoverJourney, type DiscoveredJourney } from "../workflow/journeys.js";
-import { CULTURES, DEFAULT_CULTURE, withCulture, cultureOf, type CultureProfile } from "../personas/culture.js";
-import { tokenize } from "../cognition/mentalModel.js";
+  type CognitiveConfig,
+  type CognitiveLoadTimeline,
+  CognitiveSuite,
+  type ExpectationScore,
+  type Fixation,
+  type TrustSample,
+} from "./cognitiveSuite.js";
 
 /**
  * EveSession — one simulated human, one application, one sitting.
@@ -137,7 +143,10 @@ export interface SessionResult {
   readonly culture: string;
   readonly trustTimeline?: readonly TrustSample[];
   readonly cognitiveLoad?: CognitiveLoadTimeline;
-  readonly attention?: { fixations: Array<{ step: number; fixations: readonly Fixation[] }>; missedChanges: number };
+  readonly attention?: {
+    fixations: Array<{ step: number; fixations: readonly Fixation[] }>;
+    missedChanges: number;
+  };
   readonly expectationTimeline?: readonly ExpectationScore[];
   /** The application's long-term memory *after* this session (if a store was used). */
   readonly longTermMemory?: ApplicationMemory;
@@ -180,11 +189,11 @@ export class EveSession {
     let persona =
       typeof options.persona === "string"
         ? getPersona(options.persona)
-        : options.persona ?? getPersona("first-time-user");
+        : (options.persona ?? getPersona("first-time-user"));
     this.culture =
       typeof options.culture === "string"
-        ? CULTURES[options.culture] ?? DEFAULT_CULTURE
-        : options.culture ?? cultureOf(persona);
+        ? (CULTURES[options.culture] ?? DEFAULT_CULTURE)
+        : (options.culture ?? cultureOf(persona));
     // Attach the resolved culture so downstream reads (attention direction,
     // localization checks) see a consistent profile.
     persona = withCulture(persona, this.culture);
@@ -193,7 +202,7 @@ export class EveSession {
     this.seed =
       typeof options.seed === "string"
         ? seedFromString(options.seed)
-        : options.seed ?? seedFromString(`${this.persona.name}:${options.startUrl}`);
+        : (options.seed ?? seedFromString(`${this.persona.name}:${options.startUrl}`));
     this.rng = createRng(this.seed);
     this.events = new EventBus((err, event) =>
       this.log(`listener error on ${event}: ${String(err)}`),
@@ -313,9 +322,7 @@ export class EveSession {
 
       /* ---- Enhanced perception: attention + cognitive load ---- */
       const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
-      const stepPerception = suite
-        ? suite.perceive(percept, previousPercept, goalKeywords)
-        : null;
+      const stepPerception = suite ? suite.perceive(percept, previousPercept, goalKeywords) : null;
       const perceptForDecision = stepPerception?.perceptForDecision ?? percept;
       if (suite && !memory.isNovelScreen(percept)) {
         // Revisiting a known screen that looks the same reinforces consistency.
@@ -613,7 +620,12 @@ export class EveSession {
     }
     for (const edge of graph.allTransitions()) {
       const key = `${edge.from}=>${edge.to}::${edge.via}`;
-      const existing = appMemory.transitions[key] ?? { from: edge.from, to: edge.to, via: edge.via, traversals: 0 };
+      const existing = appMemory.transitions[key] ?? {
+        from: edge.from,
+        to: edge.to,
+        via: edge.via,
+        traversals: 0,
+      };
       existing.traversals += edge.count;
       appMemory.transitions[key] = existing;
     }
@@ -769,7 +781,9 @@ export class EveSession {
         this.addFinding({
           severity: issue.severityHint,
           category:
-            issue.kind === "low-contrast" || issue.kind === "tiny-text" || issue.kind === "tiny-target"
+            issue.kind === "low-contrast" ||
+            issue.kind === "tiny-text" ||
+            issue.kind === "tiny-target"
               ? "accessibility"
               : "visual",
           title: issue.detail.split("—")[0]?.trim().slice(0, 90) ?? issue.kind,
@@ -843,10 +857,7 @@ export class EveSession {
       );
     }
     if (action.kind === "press" && outcome.screenChanged) {
-      memory.learn(
-        { kind: "shortcut", statement: `pressing ${action.key} works here` },
-        0.5,
-      );
+      memory.learn({ kind: "shortcut", statement: `pressing ${action.key} works here` }, 0.5);
     }
   }
 
@@ -863,7 +874,9 @@ export class EveSession {
         category: "error-recovery",
         title: `An error appeared after: ${actionText}`,
         description: `The operator performed a reasonable action (${actionText}) and was shown an error. Expected instead: ${outcome.prediction.description}`,
-        evidence: [`Prediction confidence was ${(outcome.prediction.confidence * 100).toFixed(0)}%.`],
+        evidence: [
+          `Prediction confidence was ${(outcome.prediction.confidence * 100).toFixed(0)}%.`,
+        ],
         url: percept.url,
         timestamp: this.simClock,
         screenshotIndex: screenshotIndex ?? undefined,
@@ -873,7 +886,8 @@ export class EveSession {
         severity: "major",
         category: "usability",
         title: `No visible response to: ${actionText}`,
-        description: `The operator acted and nothing perceivably changed. Dead controls destroy confidence — users click again, then blame themselves, then leave.`,
+        description:
+          "The operator acted and nothing perceivably changed. Dead controls destroy confidence — users click again, then blame themselves, then leave.",
         evidence: [`Expected: ${outcome.prediction.description}`],
         url: percept.url,
         timestamp: this.simClock,
@@ -973,6 +987,8 @@ function retainedKnowledgeQuick(memory: ApplicationMemory): number {
 function iterationsSurpriseRate(memory: OperatorMemory): number {
   const eps = memory.recallEpisodes();
   if (eps.length === 0) return 0;
-  const bad = eps.filter((e) => e.outcome === "surprise" || e.outcome === "error" || e.outcome === "nothing").length;
+  const bad = eps.filter(
+    (e) => e.outcome === "surprise" || e.outcome === "error" || e.outcome === "nothing",
+  ).length;
   return Number((bad / eps.length).toFixed(3));
 }

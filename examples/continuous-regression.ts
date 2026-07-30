@@ -9,10 +9,10 @@
  *   npx tsx examples/continuous-regression.ts
  */
 
+import { AVERAGE_APP, BAD_APP, EXCELLENT_APP } from "../src/benchmarks/index.js";
+import { MockAdapter } from "../src/browser/index.js";
 import { simulatePopulation } from "../src/population/index.js";
 import { analyzeTrends, renderTrendReportMarkdown } from "../src/trends/index.js";
-import { BAD_APP, AVERAGE_APP, EXCELLENT_APP } from "../src/benchmarks/index.js";
-import { MockAdapter } from "../src/browser/index.js";
 
 const common = {
   url: "mock:home",
@@ -40,4 +40,4 @@ for (const b of builds) {
 }
 
 const report = analyzeTrends(studied);
-process.stdout.write(renderTrendReportMarkdown(report) + "\n");
+process.stdout.write(`${renderTrendReportMarkdown(report)}\n`);

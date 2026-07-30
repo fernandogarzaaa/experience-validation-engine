@@ -9,15 +9,15 @@
 import type { PopulationStudy } from "../population/population.js";
 import { runSpecialists } from "./specialists.js";
 import type {
-  SpecialistReport,
-  ConsensusPoint,
   Conflict,
-  PriorityItem,
-  StudyObservation,
-  Severity,
-  Stance,
-  Verdict,
+  ConsensusPoint,
   ExecutiveStudyReport,
+  PriorityItem,
+  Severity,
+  SpecialistReport,
+  Stance,
+  StudyObservation,
+  Verdict,
 } from "./types.js";
 
 const SEVERITY_ORDER: Record<Severity, number> = { critical: 0, major: 1, minor: 2, info: 3 };
@@ -30,16 +30,34 @@ interface Theme {
 
 /** Themes used to detect when independent specialists are talking about the same thing. */
 const THEMES: readonly Theme[] = [
-  { key: "abandonment", label: "Abandonment & drop-off", pattern: /abandon|drop-?off|churn|gave up|quitter/i },
-  { key: "broken", label: "Broken / silent interactions", pattern: /no visible response|silent|does nothing|defect|feedback/i },
-  { key: "accessibility", label: "Accessibility & legibility", pattern: /contrast|target|accessib|9px|elderly|legib/i },
-  { key: "navigation", label: "Navigation & wayfinding", pattern: /navigat|revisit|wayfinding|path|steps|long/i },
+  {
+    key: "abandonment",
+    label: "Abandonment & drop-off",
+    pattern: /abandon|drop-?off|churn|gave up|quitter/i,
+  },
+  {
+    key: "broken",
+    label: "Broken / silent interactions",
+    pattern: /no visible response|silent|does nothing|defect|feedback/i,
+  },
+  {
+    key: "accessibility",
+    label: "Accessibility & legibility",
+    pattern: /contrast|target|accessib|9px|elderly|legib/i,
+  },
+  {
+    key: "navigation",
+    label: "Navigation & wayfinding",
+    pattern: /navigat|revisit|wayfinding|path|steps|long/i,
+  },
   { key: "affect", label: "Frustration & trust", pattern: /frustrat|trust|confidence|distrust/i },
   { key: "success", label: "Task success", pattern: /success|complet|lift/i },
 ];
 
 function themeOf(observation: StudyObservation): Theme | undefined {
-  return THEMES.find((t) => t.pattern.test(observation.statement) || t.pattern.test(observation.evidence));
+  return THEMES.find(
+    (t) => t.pattern.test(observation.statement) || t.pattern.test(observation.evidence),
+  );
 }
 
 function buildConsensus(specialists: readonly SpecialistReport[]): ConsensusPoint[] {
@@ -78,7 +96,10 @@ function buildConsensus(specialists: readonly SpecialistReport[]): ConsensusPoin
       roles: [...e.roles],
       severity: e.severity,
     }))
-    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.roles.length - a.roles.length);
+    .sort(
+      (a, b) =>
+        SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.roles.length - a.roles.length,
+    );
 }
 
 function buildConflicts(specialists: readonly SpecialistReport[]): Conflict[] {
@@ -112,7 +133,10 @@ function normalizeAction(action: string): string {
 }
 
 function buildPriorities(specialists: readonly SpecialistReport[]): PriorityItem[] {
-  const merged = new Map<string, { action: string; score: number; sources: Set<string>; rationale: string }>();
+  const merged = new Map<
+    string,
+    { action: string; score: number; sources: Set<string>; rationale: string }
+  >();
   for (const s of specialists) {
     for (const rec of s.recommendations) {
       const key = normalizeAction(rec.action);
@@ -121,7 +145,12 @@ function buildPriorities(specialists: readonly SpecialistReport[]): PriorityItem
         entry.sources.add(s.role);
         entry.score = Math.max(entry.score, rec.priority);
       } else {
-        merged.set(key, { action: rec.action, score: rec.priority, sources: new Set([s.role]), rationale: rec.rationale });
+        merged.set(key, {
+          action: rec.action,
+          score: rec.priority,
+          sources: new Set([s.role]),
+          rationale: rec.rationale,
+        });
       }
     }
   }
@@ -166,10 +195,7 @@ export function moderateStudy(study: PopulationStudy): ExecutiveStudyReport {
   const confidence = Math.round(meanConfidence * (conflicts.length ? 0.9 : 1) * 100) / 100;
 
   const topConsensus = consensus[0];
-  const headline =
-    `${VERDICT_TEXT[verdict]}. ${Math.round(study.successRate * 100)}% task success across ` +
-    `${study.size} users` +
-    (topConsensus ? `; the panel agrees on: ${topConsensus.theme.toLowerCase()}.` : ".");
+  const headline = `${VERDICT_TEXT[verdict]}. ${Math.round(study.successRate * 100)}% task success across ${study.size} users${topConsensus ? `; the panel agrees on: ${topConsensus.theme.toLowerCase()}.` : "."}`;
 
   return {
     verdict,

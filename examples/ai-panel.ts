@@ -6,11 +6,11 @@
  *
  *   npx tsx examples/ai-panel.ts
  */
+import { mkdir, writeFile } from "node:fs/promises";
 import { EveSession, MockAdapter } from "../src/index.js";
 import { BENCHMARK_APPS } from "../src/index.js";
-import { runPanel, renderPanelMarkdown } from "../src/index.js";
+import { renderPanelMarkdown, runPanel } from "../src/index.js";
 import { toGitHubIssues } from "../src/index.js";
-import { mkdir, writeFile } from "node:fs/promises";
 
 const personas = ["first-time-user", "impatient-user", "office-worker", "anxious-user"];
 
@@ -37,11 +37,17 @@ console.log(`Design critic score: ${panel.critique.inspectionScore}/100`);
 console.log(`Forecast: ${panel.forecast.summary}`);
 console.log(`\nProduct backlog (${panel.plan.epics.length} epics):`);
 for (const epic of panel.plan.epics.slice(0, 5)) {
-  console.log(`  [${epic.priorityScore}] ${epic.title} — +${Math.round(epic.estimatedCompletionLift * 100)}% est.`);
+  console.log(
+    `  [${epic.priorityScore}] ${epic.title} — +${Math.round(epic.estimatedCompletionLift * 100)}% est.`,
+  );
 }
 
 await mkdir(".eve-output", { recursive: true });
 await writeFile(".eve-output/panel-report.md", renderPanelMarkdown(panel), "utf8");
-await writeFile(".eve-output/github-issues.json", JSON.stringify(toGitHubIssues(panel.tickets), null, 2), "utf8");
+await writeFile(
+  ".eve-output/github-issues.json",
+  JSON.stringify(toGitHubIssues(panel.tickets), null, 2),
+  "utf8",
+);
 console.log(`\n${panel.tickets.length} developer tickets → .eve-output/github-issues.json`);
 console.log("Full executive report → .eve-output/panel-report.md");

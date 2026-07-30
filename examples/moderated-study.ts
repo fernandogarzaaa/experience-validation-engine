@@ -24,7 +24,7 @@ const study = await simulatePopulation({
 
 const report = moderateStudy(study);
 
-process.stdout.write(renderModeratedStudyMarkdown(report) + "\n");
+process.stdout.write(`${renderModeratedStudyMarkdown(report)}\n`);
 
 process.stdout.write(
   `\nVERDICT: ${report.verdict.toUpperCase()} ` +

@@ -1,7 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
+import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
-import { VISUAL_SURFACE } from "../surface/capabilities.js";
 
 /**
  * Selenium WebDriver adapter. `selenium-webdriver` is an optional peer
@@ -55,7 +55,10 @@ export class SeleniumAdapter implements BrowserAdapter {
       const chrome = await importChromeOptions();
       if (chrome) {
         const chromeOptions = new chrome.Options();
-        chromeOptions.addArguments("--headless=new", `--window-size=${viewport.width},${viewport.height + 120}`);
+        chromeOptions.addArguments(
+          "--headless=new",
+          `--window-size=${viewport.width},${viewport.height + 120}`,
+        );
         builder.setChromeOptions(chromeOptions);
       }
     }
@@ -74,7 +77,10 @@ export class SeleniumAdapter implements BrowserAdapter {
       Space: key("SPACE", ""),
     };
     await this.driver.manage().setTimeouts({ pageLoad: 30_000, script: 15_000 });
-    await this.driver.manage().window().setRect({ width: viewport.width, height: viewport.height + 120 });
+    await this.driver
+      .manage()
+      .window()
+      .setRect({ width: viewport.width, height: viewport.height + 120 });
     await this.driver.get(url);
     await sleep(this.options.settleMs);
   }
@@ -178,7 +184,18 @@ interface SeleniumModule {
   Origin?: { VIEWPORT: unknown };
 }
 
-async function importSelenium(): Promise<SeleniumModule & { Builder: new () => { forBrowser(name: string): { setChromeOptions(o: unknown): unknown; build(): Promise<unknown> } & Record<string, unknown> } }> {
+async function importSelenium(): Promise<
+  SeleniumModule & {
+    Builder: new () => {
+      forBrowser(
+        name: string,
+      ): { setChromeOptions(o: unknown): unknown; build(): Promise<unknown> } & Record<
+        string,
+        unknown
+      >;
+    };
+  }
+> {
   try {
     // Variable specifier: optional peer — must not be resolved at compile time.
     const spec = "selenium-webdriver";
@@ -190,7 +207,9 @@ async function importSelenium(): Promise<SeleniumModule & { Builder: new () => {
   }
 }
 
-async function importChromeOptions(): Promise<{ Options: new () => { addArguments(...args: string[]): void } } | null> {
+async function importChromeOptions(): Promise<{
+  Options: new () => { addArguments(...args: string[]): void };
+} | null> {
   try {
     const spec = "selenium-webdriver/chrome.js";
     return (await import(spec)) as never;

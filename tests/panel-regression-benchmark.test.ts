@@ -1,18 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { EveSession } from "../src/engine/session.js";
-import { MockAdapter } from "../src/browser/index.js";
 import { BENCHMARK_APPS, validateBenchmarks } from "../src/benchmarks/index.js";
-import { compareExperience, extractMetrics } from "../src/regression/index.js";
-import { runPanel, moderatePanel, critiqueDesign, buildProductPlan, generateTickets, toGitHubIssues, toJiraIssues, toLinearIssues } from "../src/panel/index.js";
+import { MockAdapter } from "../src/browser/index.js";
+import { EveSession } from "../src/engine/session.js";
 import { forecastExperience } from "../src/forecasting/index.js";
+import {
+  buildProductPlan,
+  critiqueDesign,
+  generateTickets,
+  moderatePanel,
+  runPanel,
+  toGitHubIssues,
+  toJiraIssues,
+  toLinearIssues,
+} from "../src/panel/index.js";
+import { compareExperience, extractMetrics } from "../src/regression/index.js";
 
-async function run(app: (typeof BENCHMARK_APPS)[keyof typeof BENCHMARK_APPS], persona: string, seed = 5) {
+async function run(
+  app: (typeof BENCHMARK_APPS)[keyof typeof BENCHMARK_APPS],
+  persona: string,
+  seed = 5,
+) {
   return new EveSession({
     adapter: new MockAdapter(app),
     startUrl: "mock:home",
     persona,
     goal: "create an account and get to the main screen",
-    goalSuccessSignals: app === BENCHMARK_APPS.excellent ? ["all set"] : app === BENCHMARK_APPS.average ? ["your dashboard"] : ["has been created"],
+    goalSuccessSignals:
+      app === BENCHMARK_APPS.excellent
+        ? ["all set"]
+        : app === BENCHMARK_APPS.average
+          ? ["your dashboard"]
+          : ["has been created"],
     seed,
     maxSteps: 40,
     paceScale: 0,

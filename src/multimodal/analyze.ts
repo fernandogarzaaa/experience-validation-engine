@@ -4,8 +4,8 @@
  * (loading states, toasts).
  */
 
-import type { SessionResult } from "../engine/session.js";
 import type { Percept } from "../core/types.js";
+import type { SessionResult } from "../engine/session.js";
 import { DEFAULT_MULTIMODAL_PERCEPTOR } from "./perceptor.js";
 import type { CueKind, MultimodalPerceptor, MultimodalReport } from "./types.js";
 
@@ -38,7 +38,10 @@ export function analyzeScreens(
     for (const cue of cues) {
       byKind[cue.kind] += 1;
       total += 1;
-      if (!cue.accessible && (cue.kind === "icon" || cue.kind === "chart" || cue.kind === "media")) {
+      if (
+        !cue.accessible &&
+        (cue.kind === "icon" || cue.kind === "chart" || cue.kind === "media")
+      ) {
         unlabeled.push({ kind: cue.kind, screen: percept.url });
       }
       if (cue.kind === "toast") toasts.push({ screen: percept.url, label: cue.label });
