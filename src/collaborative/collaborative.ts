@@ -1,7 +1,7 @@
-import { EveSession, type SessionResult } from "../engine/session.js";
 import type { BrowserAdapter } from "../browser/adapter.js";
-import type { Persona } from "../personas/persona.js";
+import { EveSession, type SessionResult } from "../engine/session.js";
 import { InMemoryStore, type PersistentMemory } from "../memory/longTerm.js";
+import type { Persona } from "../personas/persona.js";
 import type { EvePlugin } from "../plugins/plugin.js";
 
 /**
@@ -67,8 +67,11 @@ export interface CollaborativeResult {
 /**
  * Run a collaborative scenario end-to-end.
  */
-export async function runCollaborative(scenario: CollaborativeScenario): Promise<CollaborativeResult> {
-  if (scenario.roles.length === 0) throw new Error("A collaborative scenario needs at least one role");
+export async function runCollaborative(
+  scenario: CollaborativeScenario,
+): Promise<CollaborativeResult> {
+  if (scenario.roles.length === 0)
+    throw new Error("A collaborative scenario needs at least one role");
   const sharedMemory: PersistentMemory | undefined =
     (scenario.sharedMemory ?? true) ? new InMemoryStore() : undefined;
 

@@ -90,7 +90,8 @@ export function computeLearningMetrics(memory: ApplicationMemory): LearningMetri
     // has a strong (>0.5) memory of at least one affordance leading onward.
     if (strengths.some((s) => s > 0.5)) recalledPaths += 1;
   }
-  const recognitionRecallRatio = recalledPaths > 0 ? recognizedScreens / recalledPaths : recognizedScreens > 0 ? 2 : 1;
+  const recognitionRecallRatio =
+    recalledPaths > 0 ? recognizedScreens / recalledPaths : recognizedScreens > 0 ? 2 : 1;
 
   // Retention: mean affordance strength across all remembered screens.
   const allStrengths: number[] = [];
@@ -120,10 +121,14 @@ export function computeLearningMetrics(memory: ApplicationMemory): LearningMetri
  * Model an Ebbinghaus forgetting curve for a given retention trait, sampled
  * at N session gaps. Returns retention fraction 0..1 per elapsed session.
  */
-export function forgettingCurve(retentionTrait: number, gaps = 10): Array<{ elapsed: number; retention: number }> {
+export function forgettingCurve(
+  retentionTrait: number,
+  gaps = 10,
+): Array<{ elapsed: number; retention: number }> {
   const lambda = 0.5 * (1 - retentionTrait * 0.8);
   const out: Array<{ elapsed: number; retention: number }> = [];
-  for (let d = 0; d <= gaps; d++) out.push({ elapsed: d, retention: Number(Math.exp(-lambda * d).toFixed(4)) });
+  for (let d = 0; d <= gaps; d++)
+    out.push({ elapsed: d, retention: Number(Math.exp(-lambda * d).toFixed(4)) });
   return out;
 }
 
@@ -137,7 +142,12 @@ export function renderLearningCurveSvg(
   const pad = 34;
   const series: Array<{ label: string; color: string; values: number[]; normalize: boolean }> = [
     { label: "steps", color: "#2970ff", values: metrics.stepsSeries, normalize: true },
-    { label: "confidence", color: "#12b76a", values: metrics.confidenceSeries.map((c) => c), normalize: false },
+    {
+      label: "confidence",
+      color: "#12b76a",
+      values: metrics.confidenceSeries.map((c) => c),
+      normalize: false,
+    },
   ];
   if (metrics.sessions < 2) {
     return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Learning curve"><text x="20" y="30" font-size="13" fill="#98a2b3">Not enough sessions yet — run EVE against the same app again to build a learning curve.</text></svg>`;

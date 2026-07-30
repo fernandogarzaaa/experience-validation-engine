@@ -5,8 +5,14 @@
  * panel is interpretable and deterministic (no hidden model calls).
  */
 
-import type { PopulationStudy, AggregatedFinding } from "../population/population.js";
-import type { StudyObservation, Recommendation, SpecialistReport, Severity, Stance } from "./types.js";
+import type { AggregatedFinding, PopulationStudy } from "../population/population.js";
+import type {
+  Recommendation,
+  Severity,
+  SpecialistReport,
+  Stance,
+  StudyObservation,
+} from "./types.js";
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
@@ -55,7 +61,10 @@ function assemble(
   };
 }
 
-function findingsByCategory(study: PopulationStudy, categories: readonly string[]): AggregatedFinding[] {
+function findingsByCategory(
+  study: PopulationStudy,
+  categories: readonly string[],
+): AggregatedFinding[] {
   return study.topFindings.filter((f) => categories.includes(f.category));
 }
 
@@ -71,7 +80,10 @@ export function uxResearcher(study: PopulationStudy): SpecialistReport {
   });
 
   const failing = study.segments.find(
-    (s) => s.key === "frustrated-quitters" || s.key === "early-abandoners" || s.key === "confused-wanderers",
+    (s) =>
+      s.key === "frustrated-quitters" ||
+      s.key === "early-abandoners" ||
+      s.key === "confused-wanderers",
   );
   if (failing && failing.share >= 0.1) {
     observations.push({
@@ -128,7 +140,7 @@ export function accessibilitySpecialist(study: PopulationStudy): SpecialistRepor
     const completed = atRisk.filter((o) => o.completed).length;
     observations.push({
       statement: `Accessibility-sensitive personas completed ${completed}/${atRisk.length} of the time.`,
-      evidence: `Personas matching accessibility/elderly across the population.`,
+      evidence: "Personas matching accessibility/elderly across the population.",
       severity: completed < atRisk.length / 2 ? "critical" : "minor",
     });
   }
@@ -151,7 +163,9 @@ export function accessibilitySpecialist(study: PopulationStudy): SpecialistRepor
 
   return assemble(
     "Accessibility Specialist",
-    a11y.length ? `${a11y.length} accessibility/visual issues recur population-wide.` : "No systemic accessibility issues detected.",
+    a11y.length
+      ? `${a11y.length} accessibility/visual issues recur population-wide.`
+      : "No systemic accessibility issues detected.",
     observations,
     recommendations,
     study.size,
@@ -177,7 +191,8 @@ export function qaEngineer(study: PopulationStudy): SpecialistReport {
   if (broken.some((f) => f.prevalence >= 0.5)) {
     recommendations.push({
       action: "Treat the majority-reproduced no-feedback interactions as release-blocking defects.",
-      rationale: "An interaction that silently does nothing for most users is a functional defect, not a nitpick.",
+      rationale:
+        "An interaction that silently does nothing for most users is a functional defect, not a nitpick.",
       priority: 90,
     });
   }
@@ -192,7 +207,9 @@ export function qaEngineer(study: PopulationStudy): SpecialistReport {
 
   return assemble(
     "QA Engineer",
-    broken.length ? `${broken.length} reproducible interaction defects.` : "No reproducible interaction defects.",
+    broken.length
+      ? `${broken.length} reproducible interaction defects.`
+      : "No reproducible interaction defects.",
     observations,
     recommendations,
     study.size,
@@ -225,7 +242,7 @@ export function interactionDesigner(study: PopulationStudy): SpecialistReport {
     // length — report it neutrally rather than as friction.
     observations.push({
       statement: `Open-ended sessions explored a median of ${steps.median} steps.`,
-      evidence: `No goal was set, so this reflects exploration depth, not path length.`,
+      evidence: "No goal was set, so this reflects exploration depth, not path length.",
       severity: "info",
     });
   }
@@ -271,7 +288,8 @@ export function behavioralPsychologist(study: PopulationStudy): SpecialistReport
   observations.push({
     statement: `End-state frustration averaged ${study.frustration.mean}, trust ${study.trust.mean}, confidence ${study.confidence.mean}.`,
     evidence: `Frustration p75 ${study.frustration.p75}, trust p25 ${study.trust.p25}.`,
-    severity: study.frustration.mean > 0.5 ? "major" : study.frustration.mean > 0.3 ? "minor" : "info",
+    severity:
+      study.frustration.mean > 0.5 ? "major" : study.frustration.mean > 0.3 ? "minor" : "info",
   });
 
   const quitters = study.segments.find((s) => s.key === "frustrated-quitters");
@@ -290,7 +308,8 @@ export function behavioralPsychologist(study: PopulationStudy): SpecialistReport
       severity: "major",
     });
     recommendations.push({
-      action: "Add feedback and predictability to rebuild trust (clear responses, consistent behavior).",
+      action:
+        "Add feedback and predictability to rebuild trust (clear responses, consistent behavior).",
       rationale: "Trust builds slowly and breaks fast; the population ended net-distrustful.",
       priority: 55,
     });

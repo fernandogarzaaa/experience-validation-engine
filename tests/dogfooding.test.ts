@@ -5,15 +5,18 @@
  *   2. goal-less studies don't report the step budget as a "too-long path"
  *   3. reports show a supplied label instead of the literal `mock:` url
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { EveSession, type SessionResult } from "../src/engine/session.js";
-import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
-import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
-import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../src/product/index.js";
-import { predictUX, renderUXPredictionMarkdown } from "../src/predict/index.js";
-import { renderStudyMarkdown } from "../src/research/index.js";
 import { buildApplicationMap } from "../src/appmap/index.js";
+import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
+import { EveSession, type SessionResult } from "../src/engine/session.js";
+import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
+import { predictUX, renderUXPredictionMarkdown } from "../src/predict/index.js";
+import {
+  inferProductIntelligence,
+  renderProductIntelligenceMarkdown,
+} from "../src/product/index.js";
+import { renderStudyMarkdown } from "../src/research/index.js";
 import { moderateStudy } from "../src/study/index.js";
 
 // A model of EVE's own console — a tool, not an e-commerce funnel.
@@ -83,8 +86,26 @@ function classifyGoalForTest(screen: string): string | undefined {
     dropoffRate: 0,
     endReasonBreakdown: {},
     overallScore: { count: 1, mean: 70, stdDev: 0, min: 70, max: 70, p25: 70, median: 70, p75: 70 },
-    confidence: { count: 1, mean: 0.6, stdDev: 0, min: 0.6, max: 0.6, p25: 0.6, median: 0.6, p75: 0.6 },
-    frustration: { count: 1, mean: 0.1, stdDev: 0, min: 0.1, max: 0.1, p25: 0.1, median: 0.1, p75: 0.1 },
+    confidence: {
+      count: 1,
+      mean: 0.6,
+      stdDev: 0,
+      min: 0.6,
+      max: 0.6,
+      p25: 0.6,
+      median: 0.6,
+      p75: 0.6,
+    },
+    frustration: {
+      count: 1,
+      mean: 0.1,
+      stdDev: 0,
+      min: 0.1,
+      max: 0.1,
+      p25: 0.1,
+      median: 0.1,
+      p75: 0.1,
+    },
     trust: { count: 1, mean: 0.6, stdDev: 0, min: 0.6, max: 0.6, p25: 0.6, median: 0.6, p75: 0.6 },
     stepsToComplete: { count: 1, mean: 5, stdDev: 0, min: 5, max: 5, p25: 5, median: 5, p75: 5 },
     completionHistogram: { bins: [], total: 0 },
@@ -145,7 +166,13 @@ describe("dogfooding fixes", () => {
   });
 
   it("#3 defaults the label to the url when none is given", async () => {
-    const s = await simulatePopulation({ url: "mock:", size: 4, seed: 1, maxSteps: 15, concurrency: 4 });
+    const s = await simulatePopulation({
+      url: "mock:",
+      size: 4,
+      seed: 1,
+      maxSteps: 15,
+      concurrency: 4,
+    });
     expect(s.label).toBe("mock:");
   }, 60_000);
 
@@ -173,7 +200,11 @@ describe("dogfooding fixes", () => {
       name: "Finder",
       start: "home",
       screens: [
-        { id: "home", title: "Finder", elements: [{ role: "button", text: "Search", goto: "search-results" }] },
+        {
+          id: "home",
+          title: "Finder",
+          elements: [{ role: "button", text: "Search", goto: "search-results" }],
+        },
         {
           id: "search-results",
           title: "Search results",
@@ -229,8 +260,7 @@ describe("dogfooding fixes", () => {
 
   it("#1 infers screen purposes for a tool (docs is not an 'editor')", () => {
     const map = buildApplicationMap(explorers);
-    const purpose = (id: string) =>
-      map.screens.find((s) => s.id.endsWith(id))?.purpose ?? "";
+    const purpose = (id: string) => map.screens.find((s) => s.id.endsWith(id))?.purpose ?? "";
     expect(purpose("docs")).toBe("Help / docs");
     expect(purpose("report")).toBe("Reporting / results");
     expect(purpose("running")).toBe("Task / run");
@@ -241,8 +271,16 @@ describe("dogfooding fixes", () => {
     // The console study sets no goal, so completers just hit the step budget.
     const panel = moderateStudy(study);
     const designer = panel.specialists.find((s) => s.role === "Interaction Designer")!;
-    expect(designer.observations.some((o) => /explored a median/i.test(o.statement) && o.severity === "info")).toBe(true);
-    expect(designer.recommendations.some((r) => /Shorten the primary path/i.test(r.action))).toBe(false);
-    expect(designer.observations.some((o) => /happy path is too long|took a median/i.test(o.statement))).toBe(false);
+    expect(
+      designer.observations.some(
+        (o) => /explored a median/i.test(o.statement) && o.severity === "info",
+      ),
+    ).toBe(true);
+    expect(designer.recommendations.some((r) => /Shorten the primary path/i.test(r.action))).toBe(
+      false,
+    );
+    expect(
+      designer.observations.some((o) => /happy path is too long|took a median/i.test(o.statement)),
+    ).toBe(false);
   });
 });

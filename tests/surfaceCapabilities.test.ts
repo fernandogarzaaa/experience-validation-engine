@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { VISUAL_SURFACE, TEXTUAL_SURFACE } from "../src/surface/capabilities.js";
 import { MockAdapter } from "../src/browser/mock.js";
+import { TEXTUAL_SURFACE, VISUAL_SURFACE } from "../src/surface/capabilities.js";
 
 describe("surface capabilities", () => {
   it("describes a visual surface as spatial and screenshot-capable", () => {

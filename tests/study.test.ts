@@ -1,22 +1,28 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
-import {
-  moderateStudy,
-  runSpecialists,
-  renderModeratedStudyMarkdown,
-  uxResearcher,
-  qaEngineer,
-  type ExecutiveStudyReport,
-} from "../src/study/index.js";
-import { runUserStudy } from "../src/mcp/tools.js";
 import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
+import { runUserStudy } from "../src/mcp/tools.js";
+import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
+import {
+  type ExecutiveStudyReport,
+  moderateStudy,
+  qaEngineer,
+  renderModeratedStudyMarkdown,
+  runSpecialists,
+  uxResearcher,
+} from "../src/study/index.js";
 
 describe("AI-moderated user study", () => {
   let study: PopulationStudy;
   let report: ExecutiveStudyReport;
   beforeAll(async () => {
-    study = await simulatePopulation({ url: "mock:", size: 16, seed: 7, maxSteps: 25, concurrency: 8 });
+    study = await simulatePopulation({
+      url: "mock:",
+      size: 16,
+      seed: 7,
+      maxSteps: 25,
+      concurrency: 8,
+    });
     report = moderateStudy(study);
   }, 120_000);
 
@@ -78,7 +84,7 @@ describe("AI-moderated user study", () => {
       dropoffRate: 0.0,
       topFindings: [
         {
-          title: "No visible response to: click \"Save\"",
+          title: 'No visible response to: click "Save"',
           severity: "major",
           category: "error-recovery",
           operatorsAffected: 15,
@@ -102,7 +108,13 @@ describe("AI-moderated user study", () => {
 
 describe("mcp eve_run_user_study", () => {
   it("runs the moderated study via the MCP tool", async () => {
-    const input = RunUsabilityStudySchema.parse({ url: "mock:", size: 8, seed: 1, concurrency: 4, max_steps: 25 });
+    const input = RunUsabilityStudySchema.parse({
+      url: "mock:",
+      size: 8,
+      seed: 1,
+      concurrency: 4,
+      max_steps: 25,
+    });
     const out = await runUserStudy(input);
     expect(out.markdown).toContain("executive report");
     expect(["ship", "ship-with-fixes", "do-not-ship"]).toContain(out.structured.verdict);

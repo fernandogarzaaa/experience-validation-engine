@@ -10,8 +10,8 @@
  *   npx tsx examples/human-calibration.ts
  */
 
+import { type HumanStudy, calibrate, renderCalibrationMarkdown } from "../src/calibration/index.js";
 import { simulatePopulation } from "../src/population/index.js";
-import { calibrate, renderCalibrationMarkdown, type HumanStudy } from "../src/calibration/index.js";
 
 // In practice you'd load these traces from your own (anonymized) usability
 // study — see docs/human-calibration.md for the JSON schema. Here we hand-write
@@ -19,14 +19,39 @@ import { calibrate, renderCalibrationMarkdown, type HumanStudy } from "../src/ca
 const humanStudy: HumanStudy = {
   task: "explore the app",
   traces: [
-    { completed: true, path: ["mock://acme-notes/dashboard", "mock://acme-notes/editor"], steps: 8, frustration: 0.2, confidence: 0.7 },
-    { completed: true, path: ["mock://acme-notes/dashboard", "mock://acme-notes/settings"], steps: 12, frustration: 0.3, confidence: 0.6 },
-    { completed: false, path: ["mock://acme-notes/dashboard", "mock://acme-notes/settings"], steps: 20, frustration: 0.7, confidence: 0.3, abandonedOn: "mock://acme-notes/settings" },
-    { completed: true, path: ["mock://acme-notes/dashboard", "mock://acme-notes/export"], steps: 10, frustration: 0.25, confidence: 0.65 },
+    {
+      completed: true,
+      path: ["mock://acme-notes/dashboard", "mock://acme-notes/editor"],
+      steps: 8,
+      frustration: 0.2,
+      confidence: 0.7,
+    },
+    {
+      completed: true,
+      path: ["mock://acme-notes/dashboard", "mock://acme-notes/settings"],
+      steps: 12,
+      frustration: 0.3,
+      confidence: 0.6,
+    },
+    {
+      completed: false,
+      path: ["mock://acme-notes/dashboard", "mock://acme-notes/settings"],
+      steps: 20,
+      frustration: 0.7,
+      confidence: 0.3,
+      abandonedOn: "mock://acme-notes/settings",
+    },
+    {
+      completed: true,
+      path: ["mock://acme-notes/dashboard", "mock://acme-notes/export"],
+      steps: 10,
+      frustration: 0.25,
+      confidence: 0.65,
+    },
   ],
 };
 
 const study = await simulatePopulation({ url: "mock:", size: 30, seed: 7, concurrency: 8 });
 const report = calibrate(humanStudy, study);
 
-process.stdout.write(renderCalibrationMarkdown(report) + "\n");
+process.stdout.write(`${renderCalibrationMarkdown(report)}\n`);

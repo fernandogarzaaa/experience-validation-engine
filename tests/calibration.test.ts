@@ -1,23 +1,29 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
 import {
+  type HumanStudy,
   calibrate,
   importHumanStudy,
   renderCalibrationMarkdown,
-  type HumanStudy,
 } from "../src/calibration/index.js";
-import { runCalibrate } from "../src/mcp/tools.js";
 import { CalibrateSchema } from "../src/mcp/schemas.js";
+import { runCalibrate } from "../src/mcp/tools.js";
+import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
 
 describe("human validation / calibration", () => {
   let study: PopulationStudy;
   let matching: HumanStudy;
   beforeAll(async () => {
-    study = await simulatePopulation({ url: "mock:", size: 16, seed: 7, maxSteps: 25, concurrency: 8 });
+    study = await simulatePopulation({
+      url: "mock:",
+      size: 16,
+      seed: 7,
+      maxSteps: 25,
+      concurrency: 8,
+    });
     // "Humans" mirroring EVE's own behaviour — the identity case.
     matching = {
       task: "explore",
@@ -80,7 +86,10 @@ describe("human validation / calibration", () => {
 
 describe("importHumanStudy", () => {
   it("normalizes a valid study", () => {
-    const study = importHumanStudy({ task: "t", traces: [{ completed: true, path: ["a"], frustration: 0.2 }] });
+    const study = importHumanStudy({
+      task: "t",
+      traces: [{ completed: true, path: ["a"], frustration: 0.2 }],
+    });
     expect(study.traces).toHaveLength(1);
     expect(study.traces[0]!.frustration).toBe(0.2);
   });
@@ -103,13 +112,24 @@ describe("mcp eve_calibrate", () => {
         JSON.stringify({
           task: "explore",
           traces: [
-            { completed: false, path: ["mock://acme-notes/dashboard"], abandonedOn: "mock://acme-notes/dashboard" },
+            {
+              completed: false,
+              path: ["mock://acme-notes/dashboard"],
+              abandonedOn: "mock://acme-notes/dashboard",
+            },
             { completed: true, path: ["mock://acme-notes/dashboard", "mock://acme-notes/editor"] },
           ],
         }),
         "utf8",
       );
-      const input = CalibrateSchema.parse({ human_file: file, url: "mock:", size: 8, seed: 1, max_steps: 20, concurrency: 4 });
+      const input = CalibrateSchema.parse({
+        human_file: file,
+        url: "mock:",
+        size: 8,
+        seed: 1,
+        max_steps: 20,
+        concurrency: 4,
+      });
       const out = await runCalibrate(input);
       expect(out.markdown).toContain("calibration report");
       expect(typeof out.structured.similarityScore).toBe("number");
@@ -119,7 +139,11 @@ describe("mcp eve_calibrate", () => {
   }, 60_000);
 
   it("errors clearly when the file is missing", async () => {
-    const input = CalibrateSchema.parse({ human_file: "/nonexistent/humans.json", url: "mock:", size: 4 });
+    const input = CalibrateSchema.parse({
+      human_file: "/nonexistent/humans.json",
+      url: "mock:",
+      size: 4,
+    });
     await expect(runCalibrate(input)).rejects.toThrow(/Could not read/);
   });
 });

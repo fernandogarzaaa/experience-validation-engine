@@ -3,7 +3,7 @@
  * twin survives and keeps evolving across processes and sessions.
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { TwinProfile } from "./types.js";

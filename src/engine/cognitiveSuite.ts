@@ -1,23 +1,28 @@
-import type { Percept, PredictionOutcome } from "../core/types.js";
+import {
+  type AttentionSnapshot,
+  type Fixation,
+  allocateAttention,
+  attendedPercept,
+} from "../cognition/attention.js";
 import type { Decision } from "../cognition/cognition.js";
-import type { Persona } from "../personas/persona.js";
-import type { Rng } from "../core/random.js";
-import type { EmotionalState } from "../emotion/emotionalState.js";
-import { allocateAttention, attendedPercept, type AttentionSnapshot, type Fixation } from "../cognition/attention.js";
 import {
-  estimateCognitiveLoad,
-  DecisionFatigue,
   type CognitiveLoadBreakdown,
+  DecisionFatigue,
+  estimateCognitiveLoad,
 } from "../cognition/cognitiveLoad.js";
-import { TrustModel, type TrustSample } from "../emotion/trust.js";
 import {
+  type ExpectationScore,
+  ViolationStreak,
   buildExpectation,
   scoreExpectation,
-  ViolationStreak,
-  type ExpectationScore,
 } from "../cognition/expectation.js";
-import { cultureOf } from "../personas/culture.js";
+import type { Rng } from "../core/random.js";
+import type { Percept, PredictionOutcome } from "../core/types.js";
+import type { EmotionalState } from "../emotion/emotionalState.js";
+import { TrustModel, type TrustSample } from "../emotion/trust.js";
 import type { ApplicationMemory } from "../memory/longTerm.js";
+import { cultureOf } from "../personas/culture.js";
+import type { Persona } from "../personas/persona.js";
 
 /**
  * CognitiveSuite bundles the phase-2 per-step cognitive subsystems —
@@ -98,13 +103,24 @@ export class CognitiveSuite {
   }
 
   /** Perceive one screen: allocate attention and estimate load. */
-  perceive(percept: Percept, previousPercept: Percept | null, goalKeywords: readonly string[]): StepPerception {
+  perceive(
+    percept: Percept,
+    previousPercept: Percept | null,
+    goalKeywords: readonly string[],
+  ): StepPerception {
     let attention: AttentionSnapshot | null = null;
     let perceptForDecision = percept;
     if (this.config.attention) {
-      attention = allocateAttention(percept, previousPercept, goalKeywords, this.persona, this.rng, {
-        readingDirection: cultureOf(this.persona).readingDirection,
-      });
+      attention = allocateAttention(
+        percept,
+        previousPercept,
+        goalKeywords,
+        this.persona,
+        this.rng,
+        {
+          readingDirection: cultureOf(this.persona).readingDirection,
+        },
+      );
       this.fixationLog.push({ step: this.fixationLog.length, fixations: attention.fixations });
       this.missedChangeCount += attention.missedChanges.length;
       // Only attended elements enter the decision. Dialogs are always kept.
@@ -217,7 +233,10 @@ export class CognitiveSuite {
     };
   }
 
-  attentionSummary(): { fixations: Array<{ step: number; fixations: readonly Fixation[] }>; missedChanges: number } | null {
+  attentionSummary(): {
+    fixations: Array<{ step: number; fixations: readonly Fixation[] }>;
+    missedChanges: number;
+  } | null {
     if (!this.config.attention) return null;
     return { fixations: this.fixationLog, missedChanges: this.missedChangeCount };
   }

@@ -1,10 +1,10 @@
-import type { Point, VisibleElement } from "../core/types.js";
 import type { Rng } from "../core/random.js";
+import type { Point, VisibleElement } from "../core/types.js";
 import {
+  type Persona,
   clickScatterPx,
   motorActionMs,
   typingIntervalMs,
-  type Persona,
 } from "../personas/persona.js";
 
 /**
@@ -27,11 +27,7 @@ export interface Gesture {
   readonly durationMs: number;
 }
 
-export function planClick(
-  target: VisibleElement,
-  persona: Persona,
-  rng: Rng,
-): Gesture {
+export function planClick(target: VisibleElement, persona: Persona, rng: Rng): Gesture {
   const cx = target.box.x + target.box.width / 2;
   const cy = target.box.y + target.box.height / 2;
   const scatter = clickScatterPx(persona);
@@ -44,13 +40,10 @@ export function planClick(
     y > target.box.y + target.box.height;
   // A miss on a tiny target: humans notice and correct, which costs time —
   // the actuator re-aims at the center, but we keep `missed` as a signal.
-  const point: Point = missed
-    ? { x: cx, y: cy }
-    : { x, y };
-  const durationMs = Math.max(
-    120,
-    rng.gaussian(motorActionMs(persona), motorActionMs(persona) * 0.2),
-  ) + (missed ? motorActionMs(persona) * 0.6 : 0);
+  const point: Point = missed ? { x: cx, y: cy } : { x, y };
+  const durationMs =
+    Math.max(120, rng.gaussian(motorActionMs(persona), motorActionMs(persona) * 0.2)) +
+    (missed ? motorActionMs(persona) * 0.6 : 0);
   return { point: { x: Math.round(point.x), y: Math.round(point.y) }, missed, durationMs };
 }
 
@@ -63,9 +56,30 @@ export interface TypingPlan {
 }
 
 const NEIGHBOR_KEYS: Record<string, string> = {
-  a: "s", s: "a", d: "f", f: "g", g: "h", h: "j", j: "k", k: "l",
-  q: "w", w: "e", e: "r", r: "t", t: "y", y: "u", u: "i", i: "o", o: "p",
-  z: "x", x: "c", c: "v", v: "b", b: "n", n: "m", m: "n",
+  a: "s",
+  s: "a",
+  d: "f",
+  f: "g",
+  g: "h",
+  h: "j",
+  j: "k",
+  k: "l",
+  q: "w",
+  w: "e",
+  e: "r",
+  r: "t",
+  t: "y",
+  y: "u",
+  u: "i",
+  i: "o",
+  o: "p",
+  z: "x",
+  x: "c",
+  c: "v",
+  v: "b",
+  b: "n",
+  n: "m",
+  m: "n",
 };
 
 export function planTyping(text: string, persona: Persona, rng: Rng): TypingPlan {

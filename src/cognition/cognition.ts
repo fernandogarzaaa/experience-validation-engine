@@ -1,8 +1,8 @@
-import type { Action, Percept, Prediction } from "../core/types.js";
 import type { Rng } from "../core/random.js";
-import type { Persona } from "../personas/persona.js";
+import type { Action, Percept, Prediction } from "../core/types.js";
 import type { EmotionVector } from "../emotion/emotionalState.js";
 import type { OperatorMemory } from "../memory/memory.js";
+import type { Persona } from "../personas/persona.js";
 import type { GoalStack } from "../planning/goals.js";
 
 /**

@@ -24,16 +24,14 @@ export interface EveEventMap {
   "loop:act": { step: number; action: Action };
   "loop:outcome": { step: number; outcome: PredictionOutcome };
   "loop:iteration": { iteration: LoopIteration };
-  "finding": { finding: Finding };
+  finding: { finding: Finding };
   "goal:changed": { goal: string; subgoal: string | null };
   "emotion:update": { emotion: Readonly<Record<string, number>>; step: number };
 }
 
 export type EveEventName = keyof EveEventMap;
 
-type Listener<K extends EveEventName> = (
-  payload: EveEventMap[K],
-) => void | Promise<void>;
+type Listener<K extends EveEventName> = (payload: EveEventMap[K]) => void | Promise<void>;
 
 /**
  * Minimal async-aware typed event bus. Listener errors are collected and

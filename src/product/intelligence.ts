@@ -10,7 +10,7 @@
  * app source is inspected, preserving EVE's human-perception boundary.
  */
 
-import type { PopulationStudy, OperatorRun } from "../population/population.js";
+import type { OperatorRun, PopulationStudy } from "../population/population.js";
 
 export interface InferredPersona {
   readonly archetype: string;
@@ -87,15 +87,33 @@ const round = (v: number, p = 2): number => Math.round(v * 10 ** p) / 10 ** p;
 // Ordered rules (first match wins). Cover product/tool/console vocabulary —
 // not just web-commerce funnels — so non-e-commerce apps still yield insight.
 const GOAL_RULES: readonly { goal: string; pattern: RegExp }[] = [
-  { goal: "User acquisition (signup)", pattern: /sign-?up|register|create-?account|get-?started|trial|onboard/i },
-  { goal: "Monetization", pattern: /pricing|plan|upgrade|billing|checkout|purchase|buy|subscribe|cart/i },
+  {
+    goal: "User acquisition (signup)",
+    pattern: /sign-?up|register|create-?account|get-?started|trial|onboard/i,
+  },
+  {
+    goal: "Monetization",
+    pattern: /pricing|plan|upgrade|billing|checkout|purchase|buy|subscribe|cart/i,
+  },
   { goal: "Returning-user access", pattern: /log-?in|sign-?in|\bauth\b/i },
-  { goal: "Help & documentation", pattern: /\bdocs?\b|documentation|guide|help|tutorial|readme|reference/i },
-  { goal: "Reporting & analytics", pattern: /report|analytics|insights|summary|scorecard|metrics|\bstats?\b/i },
+  {
+    goal: "Help & documentation",
+    pattern: /\bdocs?\b|documentation|guide|help|tutorial|readme|reference/i,
+  },
+  {
+    goal: "Reporting & analytics",
+    pattern: /report|analytics|insights|summary|scorecard|metrics|\bstats?\b/i,
+  },
   // Only unambiguous task verbs — generic nouns like "study"/"session" would
   // otherwise pull config/new-item screens into execution (first-match wins).
-  { goal: "Task execution", pattern: /\brun(?:ning)?\b|execute|process(?:ing)?|\bjob\b|build|scan|render/i },
-  { goal: "Configuration & setup", pattern: /settings|preferences|profile|account|config|setup|\bnew\b|options/i },
+  {
+    goal: "Task execution",
+    pattern: /\brun(?:ning)?\b|execute|process(?:ing)?|\bjob\b|build|scan|render/i,
+  },
+  {
+    goal: "Configuration & setup",
+    pattern: /settings|preferences|profile|account|config|setup|\bnew\b|options/i,
+  },
   { goal: "Data portability / retention", pattern: /export|download|backup|import/i },
   { goal: "Core product engagement", pattern: /dashboard|home|workspace|editor|feed|app|note/i },
   { goal: "Discovery", pattern: /search|browse|explore|catalog|results/i },
@@ -185,7 +203,10 @@ function transitionCounts(study: PopulationStudy): Map<string, Map<string, numbe
 }
 
 /** Reconstruct the dominant path by greedily following the busiest transitions. */
-function dominantWorkflow(study: PopulationStudy, edges: Map<string, Map<string, number>>): Workflow | null {
+function dominantWorkflow(
+  study: PopulationStudy,
+  edges: Map<string, Map<string, number>>,
+): Workflow | null {
   const starts = new Map<string, number>();
   for (const op of study.operators) {
     const first = op.path[0];
@@ -197,7 +218,7 @@ function dominantWorkflow(study: PopulationStudy, edges: Map<string, Map<string,
   const sequence: string[] = [start];
   const seen = new Set<string>([start]);
   let current = start;
-  let minTraversal = Infinity;
+  let minTraversal = Number.POSITIVE_INFINITY;
   for (let step = 0; step < 8; step += 1) {
     const outs = edges.get(current);
     if (!outs) break;
@@ -233,7 +254,10 @@ function topTransitionWorkflow(edges: Map<string, Map<string, number>>): Workflo
 }
 
 /** Score each screen by reach × engagement, flagging critical-path membership. */
-function inferFeatureImportance(study: PopulationStudy, criticalPath: ReadonlySet<string>): FeatureImportance[] {
+function inferFeatureImportance(
+  study: PopulationStudy,
+  criticalPath: ReadonlySet<string>,
+): FeatureImportance[] {
   const maxVisits = Math.max(1, ...study.navigationHeatmap.map((e) => e.visits));
   return study.navigationHeatmap
     .map((e) => ({
@@ -260,8 +284,15 @@ function inferFrictionPages(study: PopulationStudy): FrictionPage[] {
       const frictionScore = Math.round(dropShare * 60 + (revisitRatio / maxRevisit) * 40);
       const reasons: string[] = [];
       if (e.dropoffs > 0) reasons.push(`${e.dropoffs} user(s) abandoned here`);
-      if (revisitRatio >= 3) reasons.push(`revisited ${round(revisitRatio, 1)}× per user (back-and-forth searching)`);
-      return { screen: shortName(e.screen), frictionScore, dropoffs: e.dropoffs, revisitRatio: round(revisitRatio, 1), reasons };
+      if (revisitRatio >= 3)
+        reasons.push(`revisited ${round(revisitRatio, 1)}× per user (back-and-forth searching)`);
+      return {
+        screen: shortName(e.screen),
+        frictionScore,
+        dropoffs: e.dropoffs,
+        revisitRatio: round(revisitRatio, 1),
+        reasons,
+      };
     })
     .filter((f) => f.reasons.length > 0)
     .sort((a, b) => b.frictionScore - a.frictionScore)
@@ -281,13 +312,20 @@ function inferDropoffCauses(study: PopulationStudy): DropoffCause[] {
   return [...byScreen.entries()]
     .map(([screen, operators]) => {
       const name = shortName(screen);
-      const onScreen = study.topFindings.find((f) => f.evidence && new RegExp(name, "i").test(f.evidence));
+      const onScreen = study.topFindings.find(
+        (f) => f.evidence && new RegExp(name, "i").test(f.evidence),
+      );
       const likelyCause = onScreen
         ? `${onScreen.title} (${Math.round(onScreen.prevalence * 100)}% of users)`
         : worstFinding
           ? `Likely: ${worstFinding.title}`
           : "Users could not find a path forward.";
-      return { screen: name, operators, share: study.size ? round(operators / study.size, 3) : 0, likelyCause };
+      return {
+        screen: name,
+        operators,
+        share: study.size ? round(operators / study.size, 3) : 0,
+        likelyCause,
+      };
     })
     .sort((a, b) => b.operators - a.operators)
     .slice(0, 6);
@@ -304,7 +342,10 @@ export function inferProductIntelligence(study: PopulationStudy): ProductIntelli
 
   const criticalWorkflows: Workflow[] = [];
   if (dominant) criticalWorkflows.push(dominant);
-  if (topTransition && !(dominant && topTransition.sequence.join(">") === dominant.sequence.slice(0, 2).join(">")))
+  if (
+    topTransition &&
+    !(dominant && topTransition.sequence.join(">") === dominant.sequence.slice(0, 2).join(">"))
+  )
     criticalWorkflows.push(topTransition);
 
   return {

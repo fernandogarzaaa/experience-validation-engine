@@ -1,6 +1,6 @@
-import type { Decision, DecisionPolicy, CognitiveContext } from "./cognition.js";
-import { HeuristicCognition } from "./heuristicCognition.js";
 import { clamp01 } from "../core/random.js";
+import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
+import { HeuristicCognition } from "./heuristicCognition.js";
 
 /**
  * Optional LLM-backed decision policy, powered by the Anthropic API.
@@ -72,14 +72,16 @@ export class LlmCognition implements DecisionPolicy {
     const client = await this.getClient();
     if (!client) return this.fallback.decide(ctx);
     try {
-      const response = await (client as {
-        messages: {
-          create: (params: Record<string, unknown>) => Promise<{
-            stop_reason?: string;
-            content: Array<{ type: string; text?: string }>;
-          }>;
-        };
-      }).messages.create({
+      const response = await (
+        client as {
+          messages: {
+            create: (params: Record<string, unknown>) => Promise<{
+              stop_reason?: string;
+              content: Array<{ type: string; text?: string }>;
+            }>;
+          };
+        }
+      ).messages.create({
         model: this.model,
         max_tokens: this.maxTokens,
         system: this.systemPrompt(ctx),
@@ -117,10 +119,10 @@ export class LlmCognition implements DecisionPolicy {
   private systemPrompt(ctx: CognitiveContext): string {
     const p = ctx.persona;
     return [
-      `You are role-playing a real human using a piece of software. Stay strictly in character.`,
+      "You are role-playing a real human using a piece of software. Stay strictly in character.",
       `Persona: ${p.name} — ${p.description}`,
       `Traits (0..1): patience=${p.traits.patience}, techLiteracy=${p.traits.techLiteracy}, curiosity=${p.traits.curiosity}, riskTolerance=${p.traits.riskTolerance}, thoroughness=${p.traits.thoroughness}, keyboardPreference=${p.traits.keyboardPreference}.`,
-      `You only know what you can see on screen. You cannot inspect code, network traffic, or anything a human could not perceive.`,
+      "You only know what you can see on screen. You cannot inspect code, network traffic, or anything a human could not perceive.",
       `Each turn, choose exactly one next action and predict what will happen. Rationale must be first-person, in the persona's voice.`,
       `If your frustration is beyond what this persona would tolerate, choose "abandon".`,
     ].join("\n");
@@ -136,12 +138,15 @@ export class LlmCognition implements DecisionPolicy {
     );
     const thoughts = memory.currentThoughts().map((t) => t.content);
     if (thoughts.length) lines.push(`In mind: ${thoughts.join("; ")}`);
-    const facts = memory.knownFacts().slice(0, 6).map((f) => f.statement);
+    const facts = memory
+      .knownFacts()
+      .slice(0, 6)
+      .map((f) => f.statement);
     if (facts.length) lines.push(`Learned so far: ${facts.join("; ")}`);
     lines.push("");
     lines.push(`Screen — URL: ${percept.url}`);
     lines.push(`Title: ${percept.title}`);
-    if (percept.loadingIndicator) lines.push(`A loading indicator is visible.`);
+    if (percept.loadingIndicator) lines.push("A loading indicator is visible.");
     for (const d of percept.dialogs) lines.push(`DIALOG: ${d.text.slice(0, 200)}`);
     lines.push(`Visible elements (id role "text" [flags]):`);
     for (const el of percept.elements.slice(0, 80)) {

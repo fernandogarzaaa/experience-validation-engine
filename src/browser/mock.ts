@@ -1,6 +1,6 @@
 import type { Point, Viewport, VisibleElement } from "../core/types.js";
-import type { BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
+import type { BrowserAdapter, RawSnapshot } from "./adapter.js";
 
 /**
  * MockAdapter — an in-memory simulated application.
@@ -190,7 +190,9 @@ export class MockAdapter implements BrowserAdapter {
     for (const screen of app.screens) {
       for (const el of screen.elements) {
         if (el.goto && !app.screens.some((s) => s.id === el.goto)) {
-          throw new Error(`Mock app "${app.name}": screen "${screen.id}" links to unknown screen "${el.goto}"`);
+          throw new Error(
+            `Mock app "${app.name}": screen "${screen.id}" links to unknown screen "${el.goto}"`,
+          );
         }
       }
     }
@@ -258,7 +260,15 @@ export class MockAdapter implements BrowserAdapter {
     if (key === "Tab") {
       const interactiveIdxs = screen.elements
         .map((el, i) => ({ el, i }))
-        .filter(({ el }) => !el.disabled && (el.editable || el.goto || el.role === "button" || el.role === "link" || el.role === "checkbox"))
+        .filter(
+          ({ el }) =>
+            !el.disabled &&
+            (el.editable ||
+              el.goto ||
+              el.role === "button" ||
+              el.role === "link" ||
+              el.role === "checkbox"),
+        )
         .map(({ i }) => i);
       if (interactiveIdxs.length === 0) return;
       const pos = interactiveIdxs.indexOf(this.focusedIndex);
@@ -271,7 +281,10 @@ export class MockAdapter implements BrowserAdapter {
 
   async scrollBy(deltaY: number): Promise<void> {
     const snap = await this.snapshot();
-    this.scrollY = Math.max(0, Math.min(snap.scrollHeight - this.viewport.height, this.scrollY + deltaY));
+    this.scrollY = Math.max(
+      0,
+      Math.min(snap.scrollHeight - this.viewport.height, this.scrollY + deltaY),
+    );
   }
 
   async goBack(): Promise<void> {
@@ -284,7 +297,11 @@ export class MockAdapter implements BrowserAdapter {
   }
 
   async navigate(url: string): Promise<void> {
-    const target = url.replace(/^mock:\/*/, "").split("/").pop() ?? "";
+    const target =
+      url
+        .replace(/^mock:\/*/, "")
+        .split("/")
+        .pop() ?? "";
     if (this.app.screens.some((s) => s.id === target)) this.go(target);
   }
 
@@ -314,14 +331,21 @@ export class MockAdapter implements BrowserAdapter {
     screen.elements.forEach((spec, index) => {
       const role = spec.role ?? "text";
       const height = spec.height ?? (role === "heading" ? 48 : role === "textbox" ? 40 : 36);
-      const width = spec.width ?? Math.min(this.viewport.width - 120, role === "heading" ? 600 : 420);
+      const width =
+        spec.width ?? Math.min(this.viewport.width - 120, role === "heading" ? 600 : 420);
       const typed = this.typedInto.has(`${screen.id}:${index}`);
       out.push({
         id: index,
         role,
         text: typed && spec.editable ? `${spec.text} (filled)` : spec.text,
         box: { x: 60, y, width, height },
-        interactive: !!spec.goto || !!spec.editable || role === "button" || role === "link" || role === "checkbox" || role === "tab",
+        interactive:
+          !!spec.goto ||
+          !!spec.editable ||
+          role === "button" ||
+          role === "link" ||
+          role === "checkbox" ||
+          role === "tab",
         disabled: spec.disabled ?? false,
         editable: spec.editable ?? false,
         focused: index === this.focusedIndex,

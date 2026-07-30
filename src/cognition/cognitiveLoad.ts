@@ -1,7 +1,7 @@
+import { clamp01 } from "../core/random.js";
 import type { Percept } from "../core/types.js";
 import type { Persona } from "../personas/persona.js";
 import { workingMemoryCapacity } from "../personas/persona.js";
-import { clamp01 } from "../core/random.js";
 
 /**
  * Cognitive load estimation.

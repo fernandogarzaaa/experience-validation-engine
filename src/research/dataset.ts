@@ -5,10 +5,7 @@
  * Markdown report. These are the building blocks of "Research Mode".
  */
 
-import type {
-  PopulationStudy,
-  OperatorRun,
-} from "../population/population.js";
+import type { OperatorRun, PopulationStudy } from "../population/population.js";
 import type { Distribution } from "../population/stats.js";
 
 export type DatasetFormat = "json" | "csv" | "markdown";
@@ -77,9 +74,7 @@ export function renderStudyMarkdown(study: PopulationStudy): string {
   const lines: string[] = [
     `# EVE usability study — ${study.label ?? study.url}`,
     "",
-    `Simulated **${study.size} operators**` +
-      (study.goal ? ` attempting: _${study.goal}_` : " (open-ended exploration)") +
-      `. Generated ${study.generatedAt}.`,
+    `Simulated **${study.size} operators**${study.goal ? ` attempting: _${study.goal}_` : " (open-ended exploration)"}. Generated ${study.generatedAt}.`,
     "",
     "## Headline",
     `- **Success rate:** ${pct(study.successRate)}`,
@@ -117,9 +112,7 @@ export function renderStudyMarkdown(study: PopulationStudy): string {
   lines.push("", "## Navigation heatmap (most-visited screens)");
   for (const entry of study.navigationHeatmap.slice(0, 12)) {
     lines.push(
-      `- \`${entry.screen}\` — ${entry.visits} visits across ${entry.operators} operators ` +
-        `(reach ${pct(entry.reach)})` +
-        (entry.dropoffs ? `, ${entry.dropoffs} drop-off${entry.dropoffs > 1 ? "s" : ""} here` : ""),
+      `- \`${entry.screen}\` — ${entry.visits} visits across ${entry.operators} operators (reach ${pct(entry.reach)})${entry.dropoffs ? `, ${entry.dropoffs} drop-off${entry.dropoffs > 1 ? "s" : ""} here` : ""}`,
     );
   }
 
@@ -127,9 +120,7 @@ export function renderStudyMarkdown(study: PopulationStudy): string {
     lines.push("", "## Most common findings (population-wide)");
     for (const f of study.topFindings) {
       lines.push(
-        `- **[${f.severity}] ${f.title}** — hit by ${f.operatorsAffected} ` +
-          `operators (${pct(f.prevalence)})` +
-          (f.recommendation ? `. Fix: ${f.recommendation}` : ""),
+        `- **[${f.severity}] ${f.title}** — hit by ${f.operatorsAffected} operators (${pct(f.prevalence)})${f.recommendation ? `. Fix: ${f.recommendation}` : ""}`,
       );
     }
   }

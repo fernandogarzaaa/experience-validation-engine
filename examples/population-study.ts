@@ -29,7 +29,7 @@ const study = await simulatePopulation({
   },
 });
 
-process.stdout.write("\n" + renderStudyMarkdown(study) + "\n");
+process.stdout.write(`\n${renderStudyMarkdown(study)}\n`);
 
 const written = await writeStudyDataset(study, ".eve-output/study");
 process.stdout.write(

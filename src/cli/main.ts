@@ -1,38 +1,38 @@
-import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
-import { resolveConfig, loadConfigFile, type EveConfig } from "../config/config.js";
+import { parseArgs } from "node:util";
+import { validateBenchmarks } from "../benchmarks/index.js";
 import { createAdapter } from "../browser/index.js";
-import {
-  definePersona,
-  getPersona,
-  listPersonas,
-  registerPersona,
-  listProfessions,
-  getProfession,
-  applyProfession,
-  listCultures,
-  getCulture,
-  type Persona,
-} from "../personas/index.js";
-import { EveSession, type SessionResult } from "../engine/session.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
-import { UtilityCognition } from "../cognition/utilityCognition.js";
 import { LlmCognition } from "../cognition/llmCognition.js";
+import { UtilityCognition } from "../cognition/utilityCognition.js";
+import { type EveConfig, loadConfigFile, resolveConfig } from "../config/config.js";
+import { EveSession, type SessionResult } from "../engine/session.js";
+import { FileMemoryStore } from "../memory/longTerm.js";
+import { runPanel } from "../panel/index.js";
+import {
+  type Persona,
+  applyProfession,
+  definePersona,
+  getCulture,
+  getPersona,
+  getProfession,
+  listCultures,
+  listPersonas,
+  listProfessions,
+  registerPersona,
+} from "../personas/index.js";
 import {
   AccessibilityPlugin,
-  PerformancePlugin,
+  type EvePlugin,
   LlmCriticPlugin,
   LocalizationPlugin,
-  type EvePlugin,
+  PerformancePlugin,
 } from "../plugins/index.js";
-import { writeReports } from "../reporting/index.js";
-import { FileMemoryStore } from "../memory/longTerm.js";
-import { validateBenchmarks } from "../benchmarks/index.js";
-import { runPanel } from "../panel/index.js";
 import { simulatePopulation } from "../population/index.js";
-import { writeStudyDataset, renderStudyJson, renderStudyMarkdown } from "../research/index.js";
-import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
+import { writeReports } from "../reporting/index.js";
+import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
+import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 
 /**
  * The `eve` CLI.
@@ -130,7 +130,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (command === "cultures") {
     for (const c of listCultures()) {
-      process.stdout.write(`${c.locale.padEnd(8)} ${c.name} (${c.readingDirection.toUpperCase()}, ${c.currency}, ${c.dateFormat})\n`);
+      process.stdout.write(
+        `${c.locale.padEnd(8)} ${c.name} (${c.readingDirection.toUpperCase()}, ${c.currency}, ${c.dateFormat})\n`,
+      );
     }
     return 0;
   }
@@ -225,7 +227,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   if (config.url.startsWith("mock:")) config.browser = "mock";
 
   for (const spec of config.customPersonas ?? []) registerPersona(definePersona(spec));
-  let persona: Persona = typeof config.persona === "string" ? getPersona(config.persona) : config.persona;
+  let persona: Persona =
+    typeof config.persona === "string" ? getPersona(config.persona) : config.persona;
   if (config.profession) persona = applyProfession(persona, getProfession(config.profession));
 
   const plugins: EvePlugin[] = [];
@@ -234,7 +237,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   if (config.culture) plugins.push(new LocalizationPlugin());
   if (config.plugins.llmCritic) {
     plugins.push(
-      new LlmCriticPlugin(typeof config.plugins.llmCritic === "object" ? config.plugins.llmCritic : {}),
+      new LlmCriticPlugin(
+        typeof config.plugins.llmCritic === "object" ? config.plugins.llmCritic : {},
+      ),
     );
   }
 
@@ -243,7 +248,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     : config.utilityDecisions
       ? new UtilityCognition(config.explorationStrategy)
       : new HeuristicCognition(config.explorationStrategy);
-  const longTermMemory = config.longTermMemoryPath ? new FileMemoryStore(config.longTermMemoryPath) : undefined;
+  const longTermMemory = config.longTermMemoryPath
+    ? new FileMemoryStore(config.longTermMemoryPath)
+    : undefined;
 
   const log = (line: string) => {
     if (config.verbosity !== "quiet") process.stdout.write(`  ${line}\n`);
@@ -282,28 +289,44 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
     process.stdout.write(`\n${"─".repeat(64)}\n`);
     process.stdout.write(`Overall experience score : ${overall}/100\n`);
-    process.stdout.write(`Findings                 : ${critical} critical, ${major} major, ${result.findings.length - critical - major} other\n`);
-    process.stdout.write(`Outcome                  : ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}\n`);
-    process.stdout.write(`Steps / simulated time   : ${result.usage.steps} / ${(result.usage.durationMs / 60000).toFixed(1)} min\n`);
+    process.stdout.write(
+      `Findings                 : ${critical} critical, ${major} major, ${result.findings.length - critical - major} other\n`,
+    );
+    process.stdout.write(
+      `Outcome                  : ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}\n`,
+    );
+    process.stdout.write(
+      `Steps / simulated time   : ${result.usage.steps} / ${(result.usage.durationMs / 60000).toFixed(1)} min\n`,
+    );
     if (result.learningMetrics && result.learningMetrics.sessions > 1) {
-      process.stdout.write(`Learning (this app)      : session ${result.learningMetrics.sessions}, learning rate ${result.learningMetrics.learningRate}, steps ${result.learningMetrics.stepsSeries.join("→")}\n`);
+      process.stdout.write(
+        `Learning (this app)      : session ${result.learningMetrics.sessions}, learning rate ${result.learningMetrics.learningRate}, steps ${result.learningMetrics.stepsSeries.join("→")}\n`,
+      );
     }
     if (result.cognitiveLoad) {
-      process.stdout.write(`Cognitive load index     : mean ${result.cognitiveLoad.meanIndex}, peak ${result.cognitiveLoad.peakIndex}\n`);
+      process.stdout.write(
+        `Cognitive load index     : mean ${result.cognitiveLoad.meanIndex}, peak ${result.cognitiveLoad.peakIndex}\n`,
+      );
     }
     process.stdout.write(`Reports                  : ${written.html}\n`);
 
     if (values.panel) {
       const panel = runPanel([result]);
-      process.stdout.write(`\nAI panel:\n`);
-      process.stdout.write(`  Design critic  : ${panel.critique.inspectionScore}/100 (${panel.critique.items.length} issues)\n`);
+      process.stdout.write("\nAI panel:\n");
+      process.stdout.write(
+        `  Design critic  : ${panel.critique.inspectionScore}/100 (${panel.critique.items.length} issues)\n`,
+      );
       process.stdout.write(`  Forecast       : ${panel.forecast.summary}\n`);
-      process.stdout.write(`  Product plan   : ${panel.plan.epics.length} epics, ${panel.tickets.length} tickets\n`);
+      process.stdout.write(
+        `  Product plan   : ${panel.plan.epics.length} epics, ${panel.tickets.length} tickets\n`,
+      );
     }
     process.stdout.write(`${"─".repeat(64)}\n`);
     return critical > 0 ? 1 : 0;
   } catch (err) {
-    process.stderr.write(`\nEVE session failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `\nEVE session failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return 1;
   }
 }
@@ -316,7 +339,10 @@ function parsePositiveInt(value: string, flag: string): number {
 
 function splitList(value: string | undefined): string[] | undefined {
   if (!value) return undefined;
-  const items = value.split(",").map((s) => s.trim()).filter(Boolean);
+  const items = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return items.length ? items : undefined;
 }
 
@@ -363,15 +389,22 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
       professions: splitList(values.professions),
       cultures: splitList(values.cultures),
       goal: values.goal,
-      seed: values.seed ? (/^\d+$/.test(values.seed) ? Number(values.seed) : values.seed) : undefined,
+      seed: values.seed
+        ? /^\d+$/.test(values.seed)
+          ? Number(values.seed)
+          : values.seed
+        : undefined,
       maxSteps: values.steps ? parsePositiveInt(values.steps, "--steps") : undefined,
       cognitive: Boolean(values.cognitive),
       utility: Boolean(values.utility),
-      concurrency: values.concurrency ? parsePositiveInt(values.concurrency, "--concurrency") : undefined,
+      concurrency: values.concurrency
+        ? parsePositiveInt(values.concurrency, "--concurrency")
+        : undefined,
       onProgress: values.quiet
         ? undefined
         : (done, total) => {
-            if (done === total || done % 10 === 0) process.stderr.write(`  ${done}/${total} operators\n`);
+            if (done === total || done % 10 === 0)
+              process.stderr.write(`  ${done}/${total} operators\n`);
           },
     });
 
@@ -381,34 +414,42 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
 
     if (base) {
       const written = await writeStudyDataset(study, base);
-      process.stderr.write(`\nDataset written: ${written.markdown} · ${written.csv} · ${written.json}\n`);
+      process.stderr.write(
+        `\nDataset written: ${written.markdown} · ${written.csv} · ${written.json}\n`,
+      );
       if (report) {
         await writeFile(`${base}/moderated-study.md`, renderModeratedStudyMarkdown(report), "utf8");
         process.stderr.write(`Moderated study: ${base}/moderated-study.md\n`);
       }
       if (intel) {
-        await writeFile(`${base}/product-report.md`, renderProductIntelligenceMarkdown(intel), "utf8");
+        await writeFile(
+          `${base}/product-report.md`,
+          renderProductIntelligenceMarkdown(intel),
+          "utf8",
+        );
         process.stderr.write(`Product report: ${base}/product-report.md\n`);
       }
     }
 
     if (format === "json") {
       process.stdout.write(
-        JSON.stringify(
+        `${JSON.stringify(
           { study, ...(report ? { moderated: report } : {}), ...(intel ? { product: intel } : {}) },
           null,
           2,
-        ) + "\n",
+        )}\n`,
       );
     } else {
-      process.stdout.write(renderStudyMarkdown(study) + "\n");
-      if (report) process.stdout.write("\n" + renderModeratedStudyMarkdown(report) + "\n");
-      if (intel) process.stdout.write("\n" + renderProductIntelligenceMarkdown(intel) + "\n");
+      process.stdout.write(`${renderStudyMarkdown(study)}\n`);
+      if (report) process.stdout.write(`\n${renderModeratedStudyMarkdown(report)}\n`);
+      if (intel) process.stdout.write(`\n${renderProductIntelligenceMarkdown(intel)}\n`);
     }
     // Non-zero exit if most of the population fails — CI-gate friendly.
     return study.successRate < 0.5 ? 1 : 0;
   } catch (err) {
-    process.stderr.write(`\nEVE study failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `\nEVE study failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return 1;
   }
 }

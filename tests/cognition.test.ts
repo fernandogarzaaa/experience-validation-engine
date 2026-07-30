@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   comparePrediction,
-  predictInteraction,
   perceivesError,
+  predictInteraction,
   tokenize,
 } from "../src/cognition/index.js";
 import type { Percept, VisibleElement } from "../src/core/types.js";
@@ -43,7 +43,11 @@ describe("mental model", () => {
   });
 
   it("predicts navigation from link labels", () => {
-    const prediction = predictInteraction(element("Billing settings", { role: "link" }), "click", 0.7);
+    const prediction = predictInteraction(
+      element("Billing settings", { role: "link" }),
+      "click",
+      0.7,
+    );
     expect(prediction.expectedSignals).toContain("billing");
     expect(prediction.expectsChange).toBe(true);
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveConfig, ConfigError } from "../src/config/index.js";
+import { ConfigError, resolveConfig } from "../src/config/index.js";
 
 describe("configuration", () => {
   it("applies defaults", () => {
@@ -16,9 +16,9 @@ describe("configuration", () => {
 
   it("rejects unknown browsers and strategies", () => {
     expect(() => resolveConfig({ url: "https://x.test", browser: "ie6" })).toThrow(/browser/);
-    expect(() =>
-      resolveConfig({ url: "https://x.test", explorationStrategy: "chaotic" }),
-    ).toThrow(/explorationStrategy/);
+    expect(() => resolveConfig({ url: "https://x.test", explorationStrategy: "chaotic" })).toThrow(
+      /explorationStrategy/,
+    );
   });
 
   it("range-checks numbers", () => {
@@ -27,7 +27,11 @@ describe("configuration", () => {
   });
 
   it("patience shorthand derives a modified persona", () => {
-    const config = resolveConfig({ url: "https://x.test", persona: "office-worker", patience: 0.9 });
+    const config = resolveConfig({
+      url: "https://x.test",
+      persona: "office-worker",
+      patience: 0.9,
+    });
     expect(typeof config.persona).not.toBe("string");
     if (typeof config.persona !== "string") {
       expect(config.persona.traits.patience).toBe(0.9);

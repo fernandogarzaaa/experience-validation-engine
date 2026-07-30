@@ -10,11 +10,7 @@ export class PerformancePlugin implements EvePlugin {
   private readonly latencies: number[] = [];
   private slowReported = new Set<string>();
 
-  async onOutcome(
-    ctx: PluginContext,
-    outcome: PredictionOutcome,
-    percept: Percept,
-  ): Promise<void> {
+  async onOutcome(ctx: PluginContext, outcome: PredictionOutcome, percept: Percept): Promise<void> {
     this.latencies.push(outcome.perceivedLatencyMs);
     const seconds = outcome.perceivedLatencyMs / 1000;
     if (seconds > 3 && !this.slowReported.has(percept.url)) {
@@ -24,9 +20,13 @@ export class PerformancePlugin implements EvePlugin {
         category: "performance",
         title: `A ${seconds.toFixed(1)}s wait after acting on ${shortUrl(percept.url)}`,
         description: `The operator acted and then watched a loading state for ${seconds.toFixed(1)} seconds before the screen settled. Waits beyond ~1s break flow; beyond ~10s users assume failure.`,
-        evidence: [`Perceived latency: ${outcome.perceivedLatencyMs}ms`, `Screen: ${percept.title || percept.url}`],
+        evidence: [
+          `Perceived latency: ${outcome.perceivedLatencyMs}ms`,
+          `Screen: ${percept.title || percept.url}`,
+        ],
         url: percept.url,
-        recommendation: "Show immediate feedback (<100ms), keep interactions under 1s, and show determinate progress for anything longer.",
+        recommendation:
+          "Show immediate feedback (<100ms), keep interactions under 1s, and show determinate progress for anything longer.",
       });
     }
   }

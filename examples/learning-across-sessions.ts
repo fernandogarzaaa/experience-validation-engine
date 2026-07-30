@@ -5,12 +5,19 @@
  *
  *   npx tsx examples/learning-across-sessions.ts
  */
-import { EveSession, MockAdapter, DEMO_APP, InMemoryStore, UtilityCognition } from "../src/index.js";
-import { renderLearningCurveSvg } from "../src/index.js";
 import { writeFile } from "node:fs/promises";
+import {
+  DEMO_APP,
+  EveSession,
+  InMemoryStore,
+  MockAdapter,
+  UtilityCognition,
+} from "../src/index.js";
+import type { SessionResult } from "../src/index.js";
+import { renderLearningCurveSvg } from "../src/index.js";
 
 const store = new InMemoryStore();
-let last;
+let last: SessionResult | undefined;
 
 for (let s = 1; s <= 5; s++) {
   const session = new EveSession({
@@ -36,8 +43,12 @@ for (let s = 1; s <= 5; s++) {
 const lm = last!.learningMetrics!;
 console.log(`\nLearning rate (power-law α): ${lm.learningRate} (fit R²=${lm.learningFit})`);
 console.log(`Steps per session: ${lm.stepsSeries.join(" → ")}`);
-console.log(`Latest session takes ${Math.round(lm.timeReductionRatio * 100)}% of the first session's time`);
-console.log(`Retention: ${(lm.retention * 100).toFixed(0)}% · recognition:recall ratio ${lm.recognitionRecallRatio}`);
+console.log(
+  `Latest session takes ${Math.round(lm.timeReductionRatio * 100)}% of the first session's time`,
+);
+console.log(
+  `Retention: ${(lm.retention * 100).toFixed(0)}% · recognition:recall ratio ${lm.recognitionRecallRatio}`,
+);
 
 await writeFile(".eve-output/learning-curve.svg", renderLearningCurveSvg(lm), "utf8");
 console.log("\nLearning curve written to .eve-output/learning-curve.svg");

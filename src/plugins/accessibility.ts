@@ -36,9 +36,13 @@ export class AccessibilityPlugin implements EvePlugin {
           "Meaningful images without alt text are invisible to screen-reader users and convey nothing when they fail to load.",
         evidence: unlabeledImages
           .slice(0, 3)
-          .map((el) => `Image at (${Math.round(el.box.x)}, ${Math.round(el.box.y)}), ${Math.round(el.box.width)}×${Math.round(el.box.height)}px`),
+          .map(
+            (el) =>
+              `Image at (${Math.round(el.box.x)}, ${Math.round(el.box.y)}), ${Math.round(el.box.width)}×${Math.round(el.box.height)}px`,
+          ),
         url: percept.url,
-        recommendation: "Provide descriptive alt text for meaningful images (empty alt for decorative ones).",
+        recommendation:
+          "Provide descriptive alt text for meaningful images (empty alt for decorative ones).",
       });
     }
 
@@ -79,9 +83,12 @@ export class AccessibilityPlugin implements EvePlugin {
           title: "No visible keyboard focus anywhere on the screen",
           description:
             "A keyboard-only user cannot tell where they are: no element on this screen shows focus, so Tab navigation is blind.",
-          evidence: [`${interactive.length} interactive elements present, none focused/focusable-visible.`],
+          evidence: [
+            `${interactive.length} interactive elements present, none focused/focusable-visible.`,
+          ],
           url: percept.url,
-          recommendation: "Ensure a visible focus indicator and a sane tab order for every interactive element.",
+          recommendation:
+            "Ensure a visible focus indicator and a sane tab order for every interactive element.",
         });
       }
     }

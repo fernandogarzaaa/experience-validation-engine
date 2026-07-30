@@ -23,7 +23,11 @@ describe("detectAffordances", () => {
   });
 
   it("finds subcommands in a help listing", () => {
-    const found = detectAffordances(["Commands:", "  start    Start the proxy", "  stop     Stop it"]);
+    const found = detectAffordances([
+      "Commands:",
+      "  start    Start the proxy",
+      "  stop     Stop it",
+    ]);
     expect(found.map((a) => a.command)).toEqual(["start", "stop"]);
   });
 

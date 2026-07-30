@@ -1,8 +1,8 @@
-import type { VisibleElement } from "../core/types.js";
-import type { Persona } from "../personas/persona.js";
-import type { EmotionVector } from "../emotion/emotionalState.js";
-import type { SalienceScore } from "./salience.js";
 import { clamp01 } from "../core/random.js";
+import type { VisibleElement } from "../core/types.js";
+import type { EmotionVector } from "../emotion/emotionalState.js";
+import type { Persona } from "../personas/persona.js";
+import type { SalienceScore } from "./salience.js";
 
 /**
  * Utility-based decision model.
@@ -35,7 +35,10 @@ export interface DecisionWeights {
   urgency: number;
 }
 
-export function decisionWeights(persona: Persona, emotion: Readonly<EmotionVector>): DecisionWeights {
+export function decisionWeights(
+  persona: Persona,
+  emotion: Readonly<EmotionVector>,
+): DecisionWeights {
   const t = persona.traits;
   const frustration = emotion.frustration;
   const confidence = emotion.confidence;
@@ -45,7 +48,8 @@ export function decisionWeights(persona: Persona, emotion: Readonly<EmotionVecto
   return {
     expectedSuccess: 1.0 + confidence * 0.3,
     reward: 1.2 + frustration * 0.6, // frustrated users chase goal progress harder
-    curiosity: clamp01(t.curiosity * (1 - frustration * 0.9)) * (0.5 + t.experimentation * 0.7) +
+    curiosity:
+      clamp01(t.curiosity * (1 - frustration * 0.9)) * (0.5 + t.experimentation * 0.7) +
       confidence * 0.25,
     // Loss aversion baseline ~2x reward weight, shifted by disposition/state.
     risk: 2.0 * (1.3 - t.riskTolerance) * (1.15 - confidence * 0.3) * (1.2 - trust * 0.3),

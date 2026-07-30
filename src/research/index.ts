@@ -7,7 +7,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { PopulationStudy } from "../population/population.js";
-import { renderStudyJson, renderOperatorCsv, renderStudyMarkdown } from "./dataset.js";
+import { renderOperatorCsv, renderStudyJson, renderStudyMarkdown } from "./dataset.js";
 
 export {
   renderStudy,

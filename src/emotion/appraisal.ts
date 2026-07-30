@@ -26,11 +26,7 @@ export interface AppraisalContext {
   readonly cognitiveEffort: number;
 }
 
-export function appraise(
-  emotion: EmotionalState,
-  persona: Persona,
-  ctx: AppraisalContext,
-): void {
+export function appraise(emotion: EmotionalState, persona: Persona, ctx: AppraisalContext): void {
   const t = persona.traits;
   const { outcome } = ctx;
 

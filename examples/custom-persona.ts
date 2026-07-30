@@ -5,11 +5,11 @@
  *   npx tsx examples/custom-persona.ts
  */
 import {
+  DEMO_APP,
   EveSession,
   MockAdapter,
-  DEMO_APP,
-  definePersona,
   buildReport,
+  definePersona,
   renderMarkdown,
 } from "../src/index.js";
 

@@ -1,5 +1,5 @@
-import type { ProductPlan, Epic, UserStory } from "./productManager.js";
 import type { ExecutiveReport } from "./moderator.js";
+import type { Epic, ProductPlan, UserStory } from "./productManager.js";
 
 /**
  * Developer AI.
@@ -67,7 +67,9 @@ function ticketFromStory(epic: Epic, story: UserStory, executive: ExecutiveRepor
 /* ------------------------------------------------------------------ */
 
 /** GitHub Issues (one Markdown block per ticket, ready for the API `body`). */
-export function toGitHubIssues(tickets: readonly DevTicket[]): Array<{ title: string; body: string; labels: string[] }> {
+export function toGitHubIssues(
+  tickets: readonly DevTicket[],
+): Array<{ title: string; body: string; labels: string[] }> {
   return tickets.map((t) => ({
     title: t.title,
     body: `${t.body}\n\n_Priority: ${t.priority} · Estimate: ${t.estimate}_`,
@@ -89,9 +91,13 @@ export function toLinearIssues(
 }
 
 /** Jira tickets (summary/description/priority/issuetype). */
-export function toJiraIssues(
-  tickets: readonly DevTicket[],
-): Array<{ summary: string; description: string; priority: string; issuetype: string; labels: string[] }> {
+export function toJiraIssues(tickets: readonly DevTicket[]): Array<{
+  summary: string;
+  description: string;
+  priority: string;
+  issuetype: string;
+  labels: string[];
+}> {
   const priorityMap = { urgent: "Highest", high: "High", medium: "Medium", low: "Low" } as const;
   return tickets.map((t) => ({
     summary: t.title,
@@ -103,11 +109,16 @@ export function toJiraIssues(
 }
 
 /** A single Markdown task document. */
-export function toMarkdownTasks(tickets: readonly DevTicket[], title = "EVE-generated UX backlog"): string {
+export function toMarkdownTasks(
+  tickets: readonly DevTicket[],
+  title = "EVE-generated UX backlog",
+): string {
   const lines = [`# ${title}`, ""];
   for (const t of tickets) {
     lines.push(`## ${t.key} — ${t.title}`);
-    lines.push(`> Priority: **${t.priority}** · Estimate: **${t.estimate}** · Labels: ${t.labels.join(", ")}`);
+    lines.push(
+      `> Priority: **${t.priority}** · Estimate: **${t.estimate}** · Labels: ${t.labels.join(", ")}`,
+    );
     lines.push("");
     lines.push(t.body);
     lines.push("");

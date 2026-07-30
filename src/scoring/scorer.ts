@@ -1,13 +1,7 @@
-import type {
-  Finding,
-  LoopIteration,
-  Score,
-  ScoreDimension,
-  SessionUsage,
-} from "../core/types.js";
+import { clamp } from "../core/random.js";
+import type { Finding, LoopIteration, Score, ScoreDimension, SessionUsage } from "../core/types.js";
 import type { EmotionSample } from "../emotion/emotionalState.js";
 import type { DiscoveredWorkflow, WorkflowNode } from "../workflow/graph.js";
-import { clamp } from "../core/random.js";
 
 /**
  * Scoring: converts the raw record of an experience session into 0..100
@@ -65,10 +59,22 @@ export function computeScores(input: ScoringInput): Score[] {
   const byCategory = (category: Finding["category"]) =>
     input.findings.filter((f) => f.category === category);
 
-  const findingPenalty = (findings: readonly Finding[], perCritical = 25, perMajor = 12, perMinor = 4): number => {
+  const findingPenalty = (
+    findings: readonly Finding[],
+    perCritical = 25,
+    perMajor = 12,
+    perMinor = 4,
+  ): number => {
     let penalty = 0;
     for (const f of findings) {
-      penalty += f.severity === "critical" ? perCritical : f.severity === "major" ? perMajor : f.severity === "minor" ? perMinor : 1;
+      penalty +=
+        f.severity === "critical"
+          ? perCritical
+          : f.severity === "major"
+            ? perMajor
+            : f.severity === "minor"
+              ? perMinor
+              : 1;
     }
     return penalty;
   };
@@ -79,10 +85,14 @@ export function computeScores(input: ScoringInput): Score[] {
     let value = 90;
     value -= surpriseRate * 45;
     if (surprises.length)
-      evidence.push(`${surprises.length}/${outcomes.length} actions violated the operator's expectation.`);
+      evidence.push(
+        `${surprises.length}/${outcomes.length} actions violated the operator's expectation.`,
+      );
     value -= deadClicks.length * 6;
     if (deadClicks.length)
-      evidence.push(`${deadClicks.length} interactions produced no visible response ("dead clicks").`);
+      evidence.push(
+        `${deadClicks.length} interactions produced no visible response ("dead clicks").`,
+      );
     value -= findingPenalty(byCategory("usability"));
     if (input.abandoned) {
       value -= 20;
@@ -103,7 +113,7 @@ export function computeScores(input: ScoringInput): Score[] {
     const rate = (xs: typeof outcomes) =>
       xs.length ? xs.filter((o) => o.surprise > 0.5).length / xs.length : 0;
     const improvement = rate(early) - rate(late);
-    let value = 70 + improvement * 60 - peakEmotion("confusion") * 25;
+    const value = 70 + improvement * 60 - peakEmotion("confusion") * 25;
     if (outcomes.length >= 6) {
       evidence.push(
         `Expectation-violation rate went from ${(rate(early) * 100).toFixed(0)}% (first half) to ${(rate(late) * 100).toFixed(0)}% (second half).`,
@@ -117,8 +127,9 @@ export function computeScores(input: ScoringInput): Score[] {
   {
     const findings = byCategory("accessibility");
     const evidence = findings.slice(0, 5).map((f) => f.title);
-    let value = 95 - findingPenalty(findings, 30, 15, 5);
-    if (evidence.length === 0) evidence.push("No accessibility barriers were perceived during the session.");
+    const value = 95 - findingPenalty(findings, 30, 15, 5);
+    if (evidence.length === 0)
+      evidence.push("No accessibility barriers were perceived during the session.");
     results.set("accessibility", { value: clamp(value, 0, 100), evidence });
   }
 
@@ -135,8 +146,12 @@ export function computeScores(input: ScoringInput): Score[] {
       value += 8;
     }
     if (wastedRatio > 0.2)
-      evidence.push(`${(wastedRatio * 100).toFixed(0)}% of screens were revisited repeatedly — the operator wandered.`);
-    evidence.push(`Session lasted ${(input.usage.durationMs / 1000).toFixed(1)}s over ${input.usage.steps} steps.`);
+      evidence.push(
+        `${(wastedRatio * 100).toFixed(0)}% of screens were revisited repeatedly — the operator wandered.`,
+      );
+    evidence.push(
+      `Session lasted ${(input.usage.durationMs / 1000).toFixed(1)}s over ${input.usage.steps} steps.`,
+    );
     results.set("efficiency", { value: clamp(value, 0, 100), evidence });
   }
 
@@ -144,9 +159,10 @@ export function computeScores(input: ScoringInput): Score[] {
   {
     const findings = byCategory("consistency");
     const evidence = findings.slice(0, 5).map((f) => f.title);
-    let value = 90 - findingPenalty(findings);
+    const value = 90 - findingPenalty(findings);
     // Surprise concentrated on repeat visits implies inconsistent behavior.
-    if (evidence.length === 0) evidence.push("No behavioral or visual inconsistencies were perceived.");
+    if (evidence.length === 0)
+      evidence.push("No behavioral or visual inconsistencies were perceived.");
     results.set("consistency", { value: clamp(value, 0, 100), evidence });
   }
 
@@ -155,7 +171,10 @@ export function computeScores(input: ScoringInput): Score[] {
     const findings = byCategory("visual");
     const evidence = findings.slice(0, 6).map((f) => f.title);
     const value = 92 - findingPenalty(findings, 28, 12, 4);
-    if (evidence.length === 0) evidence.push("No visual defects (contrast, clipping, overflow, misalignment) were perceived.");
+    if (evidence.length === 0)
+      evidence.push(
+        "No visual defects (contrast, clipping, overflow, misalignment) were perceived.",
+      );
     results.set("visualDesign", { value: clamp(value, 0, 100), evidence });
   }
 
@@ -163,9 +182,12 @@ export function computeScores(input: ScoringInput): Score[] {
   {
     const evidence: string[] = [];
     const backSteps = input.iterations.filter((it) => it.action.kind === "back").length;
-    let value = 88 - input.revisitRatio * 40 - backSteps * 4 - findingPenalty(byCategory("navigation"));
+    const value =
+      88 - input.revisitRatio * 40 - backSteps * 4 - findingPenalty(byCategory("navigation"));
     if (backSteps > 0) evidence.push(`The operator backtracked ${backSteps} time(s).`);
-    evidence.push(`${input.usage.uniqueUrls} distinct locations reached across ${input.usage.screensVisited} screens.`);
+    evidence.push(
+      `${input.usage.uniqueUrls} distinct locations reached across ${input.usage.screensVisited} screens.`,
+    );
     results.set("navigation", { value: clamp(value, 0, 100), evidence });
   }
 
@@ -202,7 +224,7 @@ export function computeScores(input: ScoringInput): Score[] {
       (it) => it.action.kind === "scroll" || it.action.kind === "back",
     ).length;
     const ratio = input.iterations.length ? searchy / input.iterations.length : 0;
-    let value = 85 - ratio * 60 - findingPenalty(byCategory("content"));
+    const value = 85 - ratio * 60 - findingPenalty(byCategory("content"));
     evidence.push(
       `${(ratio * 100).toFixed(0)}% of steps were spent hunting (scrolling/backtracking) rather than acting.`,
     );
@@ -219,8 +241,10 @@ export function computeScores(input: ScoringInput): Score[] {
     let earlyConfusion = 0;
     for (const s of firstQuarter) earlyConfusion = Math.max(earlyConfusion, s.values.confusion);
     const sawOnboarding = input.workflowNodes.some((n) => n.kind === "onboarding");
-    let value = 80 - earlyConfusion * 45 + (sawOnboarding ? 10 : 0);
-    evidence.push(`Peak confusion during the opening minutes: ${(earlyConfusion * 100).toFixed(0)}%.`);
+    const value = 80 - earlyConfusion * 45 + (sawOnboarding ? 10 : 0);
+    evidence.push(
+      `Peak confusion during the opening minutes: ${(earlyConfusion * 100).toFixed(0)}%.`,
+    );
     if (sawOnboarding) evidence.push("An onboarding/welcome flow was present and encountered.");
     results.set("onboarding", { value: clamp(value, 0, 100), evidence });
   }
@@ -252,9 +276,14 @@ export function computeScores(input: ScoringInput): Score[] {
     const latencies = outcomes.map((o) => o.perceivedLatencyMs);
     const slow = latencies.filter((ms) => ms > 2000);
     const avg = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
-    let value = 95 - slow.length * 8 - Math.min(25, avg / 100) - findingPenalty(byCategory("performance"), 20, 10, 4);
+    const value =
+      95 -
+      slow.length * 8 -
+      Math.min(25, avg / 100) -
+      findingPenalty(byCategory("performance"), 20, 10, 4);
     evidence.push(`Average perceived wait after actions: ${avg.toFixed(0)}ms.`);
-    if (slow.length) evidence.push(`${slow.length} action(s) left the operator waiting over 2 seconds.`);
+    if (slow.length)
+      evidence.push(`${slow.length} action(s) left the operator waiting over 2 seconds.`);
     results.set("responsiveness", { value: clamp(value, 0, 100), evidence });
   }
 
@@ -273,7 +302,8 @@ export function computeScores(input: ScoringInput): Score[] {
   /* ---- cognitive load ------------------------------------------------------ */
   {
     // Higher score = lighter load (score is "goodness").
-    const loadProxy = meanEmotion("confusion") * 0.5 + meanEmotion("fatigue") * 0.3 + meanEmotion("stress") * 0.2;
+    const loadProxy =
+      meanEmotion("confusion") * 0.5 + meanEmotion("fatigue") * 0.3 + meanEmotion("stress") * 0.2;
     results.set("cognitiveLoad", {
       value: clamp((1 - loadProxy) * 100, 0, 100),
       evidence: [
@@ -281,19 +311,15 @@ export function computeScores(input: ScoringInput): Score[] {
       ],
     });
   }
-
-  /* ---- trust ------------------------------------------------------------ */
-  {
-    results.set("trust", {
-      value: clamp(meanEmotion("trust") * 100, 0, 100),
-      evidence: [
-        `Mean trust across the session: ${(meanEmotion("trust") * 100).toFixed(0)}%.`,
-        errors.length
-          ? `Trust was damaged by ${errors.length} visible error(s).`
-          : "No trust-damaging events (errors, broken promises) occurred.",
-      ],
-    });
-  }
+  results.set("trust", {
+    value: clamp(meanEmotion("trust") * 100, 0, 100),
+    evidence: [
+      `Mean trust across the session: ${(meanEmotion("trust") * 100).toFixed(0)}%.`,
+      errors.length
+        ? `Trust was damaged by ${errors.length} visible error(s).`
+        : "No trust-damaging events (errors, broken promises) occurred.",
+    ],
+  });
 
   /* ---- overall ----------------------------------------------------------- */
   {

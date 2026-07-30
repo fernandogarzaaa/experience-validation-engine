@@ -1,5 +1,5 @@
-import type { Action, Percept } from "../core/types.js";
 import type { Rng } from "../core/random.js";
+import type { Action, Percept } from "../core/types.js";
 import { workingMemoryCapacity } from "../personas/persona.js";
 import type { Persona } from "../personas/persona.js";
 
@@ -161,12 +161,14 @@ export class OperatorMemory {
 
   /** Has an action with this description failed before on this screen? */
   remembersFailure(signature: string, actionDescription: string): boolean {
-    return this.recallEpisodes(
-      (ep) =>
-        ep.screenSignature === signature &&
-        ep.action === actionDescription &&
-        (ep.outcome === "error" || ep.outcome === "nothing"),
-    ).length > 0;
+    return (
+      this.recallEpisodes(
+        (ep) =>
+          ep.screenSignature === signature &&
+          ep.action === actionDescription &&
+          (ep.outcome === "error" || ep.outcome === "nothing"),
+      ).length > 0
+    );
   }
 
   /* ---------------- semantic memory ---------------- */
@@ -179,7 +181,11 @@ export class OperatorMemory {
       existing.reinforcements += 1;
       existing.confidence = Math.min(1, existing.confidence + 0.2 * rate);
     } else {
-      this.facts.set(key, { ...fact, confidence: confidence * (0.5 + rate * 0.5), reinforcements: 1 });
+      this.facts.set(key, {
+        ...fact,
+        confidence: confidence * (0.5 + rate * 0.5),
+        reinforcements: 1,
+      });
     }
   }
 
@@ -250,7 +256,12 @@ export class OperatorMemory {
    * long-term memory profile is loaded; a no-op for first-ever sessions.
    */
   seedFamiliarScreens(
-    remembered: ReadonlyArray<{ signature: string; url: string; title: string; affordances: Iterable<string> }>,
+    remembered: ReadonlyArray<{
+      signature: string;
+      url: string;
+      title: string;
+      affordances: Iterable<string>;
+    }>,
   ): void {
     for (const r of remembered) {
       if (this.screens.has(r.signature)) continue;

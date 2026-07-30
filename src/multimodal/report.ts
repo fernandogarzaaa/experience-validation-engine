@@ -33,7 +33,9 @@ export function renderMultimodalMarkdown(report: MultimodalReport): string {
     const grouped = new Map<string, number>();
     for (const u of report.unlabeled) grouped.set(u.kind, (grouped.get(u.kind) ?? 0) + 1);
     for (const [kind, count] of grouped) {
-      lines.push(`- ${count} unlabeled **${kind}** element(s) — invisible to screen readers and ambiguous to humans.`);
+      lines.push(
+        `- ${count} unlabeled **${kind}** element(s) — invisible to screen readers and ambiguous to humans.`,
+      );
     }
   }
   lines.push("");

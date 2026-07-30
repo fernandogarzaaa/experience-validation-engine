@@ -6,7 +6,7 @@
  *
  *   npx tsx examples/collaborative-workflow.ts
  */
-import { runCollaborative, MockAdapter, DEMO_APP } from "../src/index.js";
+import { DEMO_APP, MockAdapter, runCollaborative } from "../src/index.js";
 
 const result = await runCollaborative({
   name: "Note creation & review",
@@ -41,6 +41,9 @@ for (const h of result.handoffs) {
 }
 console.log("\nPer role:");
 for (const r of result.roleResults) {
-  console.log(`  ${r.role}: ${r.result.endReason} (${r.result.usage.steps} steps, score ${r.result.scores.find((s) => s.dimension === "overall")!.value})`);
+  console.log(
+    `  ${r.role}: ${r.result.endReason} (${r.result.usage.steps} steps, score ${r.result.scores.find((s) => s.dimension === "overall")!.value})`,
+  );
 }
-if (result.breakdown) console.log(`\n⚠ Breakdown at "${result.breakdown.role}": ${result.breakdown.reason}`);
+if (result.breakdown)
+  console.log(`\n⚠ Breakdown at "${result.breakdown.role}": ${result.breakdown.reason}`);

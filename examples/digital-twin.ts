@@ -10,8 +10,8 @@
  *   npx tsx examples/digital-twin.ts
  */
 
-import { createTwin, runTwinSession, renderTwinMarkdown } from "../src/twins/index.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
+import { createTwin, renderTwinMarkdown, runTwinSession } from "../src/twins/index.js";
 
 let twin = createTwin({ id: "power-user-a", name: "Power User A", basePersona: "power-user" });
 
@@ -32,4 +32,4 @@ for (let i = 0; i < 5; i += 1) {
   );
 }
 
-process.stdout.write("\n" + renderTwinMarkdown(twin) + "\n");
+process.stdout.write(`\n${renderTwinMarkdown(twin)}\n`);

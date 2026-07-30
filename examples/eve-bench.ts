@@ -11,9 +11,9 @@
  *   npx tsx examples/eve-bench.ts
  */
 
-import { runEveBench, renderEveBenchMarkdown } from "../src/evebench/index.js";
+import { renderEveBenchMarkdown, runEveBench } from "../src/evebench/index.js";
 
 const report = await runEveBench({ seed: 7, maxSteps: 40 });
 
-process.stdout.write(renderEveBenchMarkdown(report) + "\n");
+process.stdout.write(`${renderEveBenchMarkdown(report)}\n`);
 process.exit(report.ordered ? 0 : 1); // CI gate: fail if the instrument miscalibrates

@@ -30,7 +30,9 @@ export function renderModeratedStudyMarkdown(report: ExecutiveStudyReport): stri
     lines.push("- The panel raised no shared themes.");
   } else {
     for (const c of report.consensus) {
-      lines.push(`- **${c.theme}** _(${c.severity}; ${c.roles.length} specialists)_ — ${c.statement}`);
+      lines.push(
+        `- **${c.theme}** _(${c.severity}; ${c.roles.length} specialists)_ — ${c.statement}`,
+      );
       lines.push(`  - Raised by: ${c.roles.join(", ")}`);
     }
   }
@@ -58,7 +60,8 @@ export function renderModeratedStudyMarkdown(report: ExecutiveStudyReport): stri
     for (const o of s.observations) lines.push(`- [${o.severity}] ${o.statement} — ${o.evidence}`);
     if (s.recommendations.length) {
       lines.push("", "Recommendations:");
-      for (const r of s.recommendations) lines.push(`- (${r.priority}) ${r.action} — ${r.rationale}`);
+      for (const r of s.recommendations)
+        lines.push(`- (${r.priority}) ${r.action} — ${r.rationale}`);
     }
   }
 

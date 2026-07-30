@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type { Percept, VisibleElement, PerceivedRole } from "../src/core/types.js";
-import { EveSession } from "../src/engine/session.js";
 import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
+import type { PerceivedRole, Percept, VisibleElement } from "../src/core/types.js";
+import { EveSession } from "../src/engine/session.js";
 import {
   HeuristicMultimodalPerceptor,
-  analyzeScreens,
   analyzeMultimodal,
+  analyzeScreens,
   renderMultimodalMarkdown,
 } from "../src/multimodal/index.js";
 
@@ -52,7 +52,9 @@ describe("HeuristicMultimodalPerceptor", () => {
     expect(kinds).toContain("chart");
     expect(kinds).toContain("text-in-image");
     expect(kinds.filter((k) => k === "media")).toHaveLength(2);
-    const unlabeledMedia = perceptor.perceive(p).cues.find((c) => c.kind === "media" && !c.accessible);
+    const unlabeledMedia = perceptor
+      .perceive(p)
+      .cues.find((c) => c.kind === "media" && !c.accessible);
     expect(unlabeledMedia).toBeDefined();
   });
 
@@ -115,7 +117,14 @@ describe("analyzeMultimodal (integration)", () => {
             { role: "alert", text: "Report saved successfully" },
           ],
         },
-        { id: "done", title: "Done", elements: [{ role: "heading", text: "Done" }, { role: "button", text: "Back", goto: "home" }] },
+        {
+          id: "done",
+          title: "Done",
+          elements: [
+            { role: "heading", text: "Done" },
+            { role: "button", text: "Back", goto: "home" },
+          ],
+        },
       ],
     };
     const result = await new EveSession({

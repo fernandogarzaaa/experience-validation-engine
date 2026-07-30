@@ -1,24 +1,33 @@
 import { describe, expect, it } from "vitest";
-import {
-  getProfession,
-  listProfessions,
-  applyProfession,
-  getCulture,
-  listCultures,
-  withCulture,
-  cultureOf,
-  getPersona,
-} from "../src/personas/index.js";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
 import { runCollaborative } from "../src/collaborative/index.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
-import { discoverJourney } from "../src/workflow/journeys.js";
 import { EveSession } from "../src/engine/session.js";
+import {
+  applyProfession,
+  cultureOf,
+  getCulture,
+  getPersona,
+  getProfession,
+  listCultures,
+  listProfessions,
+  withCulture,
+} from "../src/personas/index.js";
 import { WorkflowGraph } from "../src/workflow/graph.js";
+import { discoverJourney } from "../src/workflow/journeys.js";
 
 describe("professions", () => {
   it("ships the documented professions", () => {
     const names = listProfessions().map((p) => p.name);
-    for (const n of ["doctor", "teacher", "lawyer", "designer", "accountant", "student", "salesperson", "executive"]) {
+    for (const n of [
+      "doctor",
+      "teacher",
+      "lawyer",
+      "designer",
+      "accountant",
+      "student",
+      "salesperson",
+      "executive",
+    ]) {
       expect(names).toContain(n);
     }
   });
@@ -89,8 +98,21 @@ describe("collaborative sessions", () => {
       startUrl: "mock:login",
       seed: 3,
       roles: [
-        { name: "author", persona: "office-worker", goal: "log in", goalSuccessSignals: ["your notes"], maxSteps: 20 },
-        { name: "reviewer", persona: "power-user", goal: "open settings", goalSuccessSignals: ["settings"], startUrl: "mock:dashboard", maxSteps: 15 },
+        {
+          name: "author",
+          persona: "office-worker",
+          goal: "log in",
+          goalSuccessSignals: ["your notes"],
+          maxSteps: 20,
+        },
+        {
+          name: "reviewer",
+          persona: "power-user",
+          goal: "open settings",
+          goalSuccessSignals: ["settings"],
+          startUrl: "mock:dashboard",
+          maxSteps: 15,
+        },
       ],
     });
     expect(result.roleResults.length).toBe(2);

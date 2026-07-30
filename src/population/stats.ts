@@ -43,8 +43,7 @@ export function mean(values: readonly number[]): number {
 export function stdDev(values: readonly number[]): number {
   if (values.length < 2) return 0;
   const m = mean(values);
-  const variance =
-    values.reduce((sum, v) => sum + (v - m) ** 2, 0) / (values.length - 1);
+  const variance = values.reduce((sum, v) => sum + (v - m) ** 2, 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 

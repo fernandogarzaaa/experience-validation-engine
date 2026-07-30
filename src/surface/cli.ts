@@ -1,9 +1,9 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import type { BrowserAdapter, RawSnapshot } from "../browser/adapter.js";
 import type { Point, Viewport } from "../core/types.js";
-import { TEXTUAL_SURFACE } from "./capabilities.js";
-import { LINE_HEIGHT, layoutTextFrame, type TextAffordance } from "./textFrame.js";
 import { detectAffordances, stripAnsi } from "./affordances.js";
+import { TEXTUAL_SURFACE } from "./capabilities.js";
+import { LINE_HEIGHT, type TextAffordance, layoutTextFrame } from "./textFrame.js";
 
 const DEFAULT_WINDOW_ROWS = 24;
 const SETTLE_MS = 50;
@@ -16,9 +16,10 @@ const INTERACTIVE_SETTLE_MS = 300;
 function tokenizeCommand(command: string): string[] {
   const tokens: string[] = [];
   const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(command))) {
+  let match = pattern.exec(command);
+  while (match !== null) {
     tokens.push(match[1] ?? match[2] ?? match[3] ?? "");
+    match = pattern.exec(command);
   }
   return tokens;
 }

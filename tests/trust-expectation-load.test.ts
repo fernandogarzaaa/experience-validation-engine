@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { TrustModel } from "../src/emotion/trust.js";
-import { buildExpectation, scoreExpectation, ViolationStreak } from "../src/cognition/expectation.js";
-import { estimateCognitiveLoad, DecisionFatigue } from "../src/cognition/cognitiveLoad.js";
-import { getPersona } from "../src/personas/index.js";
+import { DecisionFatigue, estimateCognitiveLoad } from "../src/cognition/cognitiveLoad.js";
+import {
+  ViolationStreak,
+  buildExpectation,
+  scoreExpectation,
+} from "../src/cognition/expectation.js";
 import type { Percept, PredictionOutcome, VisibleElement } from "../src/core/types.js";
+import { TrustModel } from "../src/emotion/trust.js";
+import { getPersona } from "../src/personas/index.js";
 
 function percept(elements: Partial<VisibleElement>[], overrides: Partial<Percept> = {}): Percept {
   return {
@@ -65,24 +69,43 @@ describe("trust model", () => {
     const insecure = new TrustModel(0.6);
     insecure.observeSecurityCues(percept([{ text: "log in" }], { url: "http://x.test/" }));
     const secure = new TrustModel(0.6);
-    secure.observeSecurityCues(percept([{ text: "Your data is encrypted and secure" }], { url: "https://x.test/" }));
-    expect(secure.snapshot().securityPerception).toBeGreaterThan(insecure.snapshot().securityPerception);
+    secure.observeSecurityCues(
+      percept([{ text: "Your data is encrypted and secure" }], { url: "https://x.test/" }),
+    );
+    expect(secure.snapshot().securityPerception).toBeGreaterThan(
+      insecure.snapshot().securityPerception,
+    );
   });
 });
 
 describe("expectation engine", () => {
   it("scores a matching outcome highly", () => {
     const target: VisibleElement = {
-      id: 0, role: "link", text: "Billing", box: { x: 0, y: 0, width: 100, height: 30 },
-      interactive: true, disabled: false, editable: false, focused: false, clippedByViewport: false,
+      id: 0,
+      role: "link",
+      text: "Billing",
+      box: { x: 0, y: 0, width: 100, height: 30 },
+      interactive: true,
+      disabled: false,
+      editable: false,
+      focused: false,
+      clippedByViewport: false,
     };
     const exp = buildExpectation(
-      { description: "go to billing", expectedSignals: ["billing"], expectsChange: true, confidence: 0.8 },
+      {
+        description: "go to billing",
+        expectedSignals: ["billing"],
+        expectsChange: true,
+        confidence: 0.8,
+      },
       target,
       "click",
     );
     const before = percept([{ text: "Billing" }], { url: "https://x.test/" });
-    const after = percept([{ text: "Billing overview", role: "heading" }, { text: "Invoices" }], { url: "https://x.test/billing", title: "Billing" });
+    const after = percept([{ text: "Billing overview", role: "heading" }, { text: "Invoices" }], {
+      url: "https://x.test/billing",
+      title: "Billing",
+    });
     const score = scoreExpectation(exp, before, after, 300);
     expect(score.matchScore).toBeGreaterThan(0.6);
     expect(score.surprise).toBeLessThan(0.4);
@@ -102,7 +125,13 @@ describe("expectation engine", () => {
 
   it("violation streak compounds", () => {
     const streak = new ViolationStreak();
-    const bad = { matchScore: 0.2, surprise: 0.8, violationSeverity: 0.8, violations: ["outcome"] as const, perceivedLatencyMs: 100 };
+    const bad = {
+      matchScore: 0.2,
+      surprise: 0.8,
+      violationSeverity: 0.8,
+      violations: ["outcome"] as const,
+      perceivedLatencyMs: 100,
+    };
     expect(streak.register(bad as never)).toBe(1);
     expect(streak.register(bad as never)).toBe(2);
     expect(streak.register(bad as never)).toBe(3);
@@ -113,7 +142,10 @@ describe("expectation engine", () => {
 describe("cognitive load", () => {
   it("a dense screen has higher load than a simple one", () => {
     const persona = getPersona("office-worker");
-    const simple = percept([{ text: "Welcome", role: "heading" }, { text: "Start", role: "button", interactive: true }]);
+    const simple = percept([
+      { text: "Welcome", role: "heading" },
+      { text: "Start", role: "button", interactive: true },
+    ]);
     const dense = percept(
       Array.from({ length: 30 }, (_, i) => ({
         text: `option ${i} with some descriptive text`,

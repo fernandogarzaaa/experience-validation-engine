@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { planClick, planTyping, hesitationMs } from "../src/browser/index.js";
-import { getPersona } from "../src/personas/index.js";
+import { hesitationMs, planClick, planTyping } from "../src/browser/index.js";
 import { createRng } from "../src/core/random.js";
 import type { VisibleElement } from "../src/core/types.js";
+import { getPersona } from "../src/personas/index.js";
 
 const target: VisibleElement = {
   id: 0,

@@ -1,17 +1,17 @@
-import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
+import { describe, expect, it } from "vitest";
+import type { Percept, VisibleElement } from "../src/core/types.js";
+import { DEFAULT_ACCESSIBILITY } from "../src/personas/index.js";
 import {
   checkGeometry,
-  simulateColorVision,
+  contrastRatio,
   decodePng,
   frameDiffRatio,
   luminanceVariance,
-  contrastRatio,
-  relativeLuminance,
   parseHexColor,
+  relativeLuminance,
+  simulateColorVision,
 } from "../src/vision/index.js";
-import { DEFAULT_ACCESSIBILITY } from "../src/personas/index.js";
-import type { Percept, VisibleElement } from "../src/core/types.js";
 
 function el(overrides: Partial<VisibleElement>): VisibleElement {
   return {
@@ -83,7 +83,14 @@ describe("pixel math", () => {
 describe("geometry checks", () => {
   it("flags low-contrast declared colors", () => {
     const issues = checkGeometry(
-      percept([el({ text: "faint label text", color: "#cccccc", backgroundColor: "#ffffff", fontSize: 14 })]),
+      percept([
+        el({
+          text: "faint label text",
+          color: "#cccccc",
+          backgroundColor: "#ffffff",
+          fontSize: 14,
+        }),
+      ]),
       DEFAULT_ACCESSIBILITY,
     );
     expect(issues.some((i) => i.kind === "low-contrast")).toBe(true);
@@ -91,25 +98,39 @@ describe("geometry checks", () => {
 
   it("accepts high-contrast text", () => {
     const issues = checkGeometry(
-      percept([el({ text: "clear label", color: "#111111", backgroundColor: "#ffffff", fontSize: 14 })]),
+      percept([
+        el({ text: "clear label", color: "#111111", backgroundColor: "#ffffff", fontSize: 14 }),
+      ]),
       DEFAULT_ACCESSIBILITY,
     );
     expect(issues.some((i) => i.kind === "low-contrast")).toBe(false);
   });
 
   it("flags tiny text against the persona's comfortable minimum", () => {
-    const issues = checkGeometry(
-      percept([el({ text: "tiny print", fontSize: 8 })]),
-      { ...DEFAULT_ACCESSIBILITY, minComfortableFontPx: 14 },
-    );
+    const issues = checkGeometry(percept([el({ text: "tiny print", fontSize: 8 })]), {
+      ...DEFAULT_ACCESSIBILITY,
+      minComfortableFontPx: 14,
+    });
     expect(issues.some((i) => i.kind === "tiny-text")).toBe(true);
   });
 
   it("flags overlapping interactive controls", () => {
     const issues = checkGeometry(
       percept([
-        el({ id: 0, text: "Save", role: "button", interactive: true, box: { x: 10, y: 10, width: 100, height: 40 } }),
-        el({ id: 1, text: "Cancel", role: "button", interactive: true, box: { x: 20, y: 15, width: 100, height: 40 } }),
+        el({
+          id: 0,
+          text: "Save",
+          role: "button",
+          interactive: true,
+          box: { x: 10, y: 10, width: 100, height: 40 },
+        }),
+        el({
+          id: 1,
+          text: "Cancel",
+          role: "button",
+          interactive: true,
+          box: { x: 20, y: 15, width: 100, height: 40 },
+        }),
       ]),
       DEFAULT_ACCESSIBILITY,
     );

@@ -11,8 +11,8 @@
  *   npx tsx examples/multimodal-perception.ts
  */
 
-import { EveSession } from "../src/engine/session.js";
 import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
+import { EveSession } from "../src/engine/session.js";
 import { analyzeMultimodal, renderMultimodalMarkdown } from "../src/multimodal/index.js";
 
 // A visually rich mock app: a chart, an unlabeled image, an icon-only button,
@@ -54,4 +54,4 @@ const result = await new EveSession({
   maxSteps: 25,
 }).run();
 
-process.stdout.write(renderMultimodalMarkdown(analyzeMultimodal(result)) + "\n");
+process.stdout.write(`${renderMultimodalMarkdown(analyzeMultimodal(result))}\n`);

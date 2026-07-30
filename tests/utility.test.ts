@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
+import type { SalienceScore } from "../src/cognition/salience.js";
 import {
   decisionWeights,
   evaluateUtilities,
-  softmaxChoice,
   motorEffort,
+  softmaxChoice,
   wantsVerification,
 } from "../src/cognition/utility.js";
-import { getPersona } from "../src/personas/index.js";
-import type { EmotionVector } from "../src/emotion/emotionalState.js";
-import type { SalienceScore } from "../src/cognition/salience.js";
 import type { VisibleElement } from "../src/core/types.js";
+import type { EmotionVector } from "../src/emotion/emotionalState.js";
+import { getPersona } from "../src/personas/index.js";
 
 function emotion(overrides: Partial<EmotionVector> = {}): EmotionVector {
   return {
@@ -61,8 +61,14 @@ describe("decision weights respond to emotion", () => {
   });
 
   it("low trust and low confidence raise risk aversion", () => {
-    const trusting = decisionWeights(getPersona("office-worker"), emotion({ trust: 0.9, confidence: 0.9 }));
-    const wary = decisionWeights(getPersona("office-worker"), emotion({ trust: 0.2, confidence: 0.2 }));
+    const trusting = decisionWeights(
+      getPersona("office-worker"),
+      emotion({ trust: 0.9, confidence: 0.9 }),
+    );
+    const wary = decisionWeights(
+      getPersona("office-worker"),
+      emotion({ trust: 0.2, confidence: 0.2 }),
+    );
     expect(wary.risk).toBeGreaterThan(trusting.risk);
   });
 
@@ -86,7 +92,10 @@ describe("utility evaluation", () => {
   });
 
   it("motor effort grows with distance and shrinks with size (Fitts)", () => {
-    const near = motorEffort(el("x", { x: 100, y: 100, width: 200, height: 60 }), { x: 110, y: 110 });
+    const near = motorEffort(el("x", { x: 100, y: 100, width: 200, height: 60 }), {
+      x: 110,
+      y: 110,
+    });
     const far = motorEffort(el("x", { x: 900, y: 700, width: 20, height: 12 }), { x: 0, y: 0 });
     expect(far).toBeGreaterThan(near);
   });
@@ -96,7 +105,10 @@ describe("softmax choice", () => {
   it("is reproducible under a fixed sampler and favors top utility", () => {
     const weights = decisionWeights(getPersona("office-worker"), emotion());
     const candidates = evaluateUtilities(
-      [score({ element: el("Best"), goalRelevance: 1, risk: 0 }), score({ element: el("Meh"), goalRelevance: 0.1 })],
+      [
+        score({ element: el("Best"), goalRelevance: 1, risk: 0 }),
+        score({ element: el("Meh"), goalRelevance: 0.1 }),
+      ],
       weights,
     );
     // Deterministic sampler at 0 always picks the first (highest) bucket.
@@ -108,7 +120,9 @@ describe("softmax choice", () => {
 describe("verification behavior", () => {
   it("low trust induces double-checking of risky actions", () => {
     expect(wantsVerification(0.8, emotion({ trust: 0.15 }), getPersona("anxious-user"))).toBe(true);
-    expect(wantsVerification(0.8, emotion({ trust: 0.95 }), getPersona("confident-user"))).toBe(false);
+    expect(wantsVerification(0.8, emotion({ trust: 0.95 }), getPersona("confident-user"))).toBe(
+      false,
+    );
     expect(wantsVerification(0.1, emotion({ trust: 0.1 }), getPersona("anxious-user"))).toBe(false);
   });
 });

@@ -1,19 +1,25 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { simulatePopulation, type PopulationStudy } from "../src/population/index.js";
+import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
+import { runProductReport } from "../src/mcp/tools.js";
+import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
 import {
+  type ProductIntelligence,
   inferProductIntelligence,
   renderProductIntelligenceMarkdown,
-  type ProductIntelligence,
 } from "../src/product/index.js";
-import { runProductReport } from "../src/mcp/tools.js";
-import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
 
 describe("product intelligence", () => {
   let study: PopulationStudy;
   let intel: ProductIntelligence;
   beforeAll(async () => {
-    study = await simulatePopulation({ url: "mock:", size: 16, seed: 7, maxSteps: 25, concurrency: 8 });
+    study = await simulatePopulation({
+      url: "mock:",
+      size: 16,
+      seed: 7,
+      maxSteps: 25,
+      concurrency: 8,
+    });
     intel = inferProductIntelligence(study);
   }, 120_000);
 
@@ -71,7 +77,13 @@ describe("product intelligence", () => {
 
 describe("mcp eve_product_report", () => {
   it("runs product intelligence via the MCP tool", async () => {
-    const input = RunUsabilityStudySchema.parse({ url: "mock:", size: 8, seed: 1, concurrency: 4, max_steps: 25 });
+    const input = RunUsabilityStudySchema.parse({
+      url: "mock:",
+      size: 8,
+      seed: 1,
+      concurrency: 4,
+      max_steps: 25,
+    });
     const out = await runProductReport(input);
     expect(out.markdown).toContain("Product intelligence");
     expect((out.structured.personas as unknown[]).length).toBeGreaterThan(0);

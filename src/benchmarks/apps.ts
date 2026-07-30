@@ -146,7 +146,13 @@ export const BAD_APP: MockAppSpec = {
       title: "Untitled",
       elements: [
         { role: "heading", text: "PLATFORM" },
-        { role: "text", text: "Synergize your workflow paradigm.", fontSize: 8, color: "#cfcfcf", backgroundColor: "#ffffff" },
+        {
+          role: "text",
+          text: "Synergize your workflow paradigm.",
+          fontSize: 8,
+          color: "#cfcfcf",
+          backgroundColor: "#ffffff",
+        },
         { role: "button", text: "Go", goto: "gate" },
         { role: "button", text: "Click here", goto: "dead" },
         { role: "button", text: "Submit", goto: "gate" },
@@ -159,7 +165,13 @@ export const BAD_APP: MockAppSpec = {
       title: "Untitled",
       elements: [
         { role: "heading", text: "AUTH" },
-        { role: "text", text: "Provide OAuth token payload to initialize the webhook schema.", fontSize: 9, color: "#d0d0d0", backgroundColor: "#ffffff" },
+        {
+          role: "text",
+          text: "Provide OAuth token payload to initialize the webhook schema.",
+          fontSize: 9,
+          color: "#d0d0d0",
+          backgroundColor: "#ffffff",
+        },
         { role: "textbox", text: "", editable: true },
         { role: "button", text: "Proceed", goto: "err" },
       ],

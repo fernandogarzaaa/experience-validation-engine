@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { parse } from "yaml";
-import type { Viewport } from "../core/types.js";
 import type { AdapterName } from "../browser/index.js";
-import type { ExplorationStrategy } from "../planning/strategies.js";
-import { definePersona, type Persona, type PersonaSpec } from "../personas/persona.js";
+import type { Viewport } from "../core/types.js";
 import { getPersona } from "../personas/library.js";
+import { type Persona, type PersonaSpec, definePersona } from "../personas/persona.js";
+import type { ExplorationStrategy } from "../planning/strategies.js";
 
 /**
  * YAML configuration for `eve run` and programmatic use.
@@ -84,47 +84,47 @@ export function resolveConfig(raw: unknown): EveConfig {
     viewport: { ...DEFAULT_CONFIG.viewport },
   };
 
-  if (input["persona"] !== undefined) config.persona = expectString(input, "persona");
-  if (input["browser"] !== undefined) {
+  if (input.persona !== undefined) config.persona = expectString(input, "persona");
+  if (input.browser !== undefined) {
     const browser = expectString(input, "browser") as AdapterName;
     if (!ADAPTERS.includes(browser)) {
       throw new ConfigError(`browser must be one of ${ADAPTERS.join(", ")}; got "${browser}"`);
     }
     config.browser = browser;
   }
-  if (input["headless"] !== undefined) config.headless = expectBoolean(input, "headless");
-  if (input["viewport"] !== undefined) {
-    const v = input["viewport"] as Record<string, unknown>;
+  if (input.headless !== undefined) config.headless = expectBoolean(input, "headless");
+  if (input.viewport !== undefined) {
+    const v = input.viewport as Record<string, unknown>;
     config.viewport = {
       width: expectNumber(v, "width", 320, 7680),
       height: expectNumber(v, "height", 240, 4320),
     };
   }
-  if (input["goal"] !== undefined) config.goal = expectString(input, "goal");
-  if (input["goalSuccessSignals"] !== undefined) {
+  if (input.goal !== undefined) config.goal = expectString(input, "goal");
+  if (input.goalSuccessSignals !== undefined) {
     config.goalSuccessSignals = expectStringArray(input, "goalSuccessSignals");
   }
-  if (input["seed"] !== undefined) {
-    const seed = input["seed"];
+  if (input.seed !== undefined) {
+    const seed = input.seed;
     if (typeof seed !== "number" && typeof seed !== "string") {
       throw new ConfigError("seed must be a number or string");
     }
     config.seed = seed;
   }
-  if (input["maxSteps"] !== undefined) config.maxSteps = expectNumber(input, "maxSteps", 1, 100000);
-  if (input["maxDurationMinutes"] !== undefined) {
+  if (input.maxSteps !== undefined) config.maxSteps = expectNumber(input, "maxSteps", 1, 100000);
+  if (input.maxDurationMinutes !== undefined) {
     config.maxDurationMinutes = expectNumber(input, "maxDurationMinutes", 0.1, 24 * 60);
   }
-  if (input["explorationStrategy"] !== undefined) {
+  if (input.explorationStrategy !== undefined) {
     const strategy = expectString(input, "explorationStrategy") as ExplorationStrategy;
     if (!STRATEGIES.includes(strategy)) {
       throw new ConfigError(`explorationStrategy must be one of ${STRATEGIES.join(", ")}`);
     }
     config.explorationStrategy = strategy;
   }
-  if (input["screenshots"] !== undefined) config.screenshots = expectBoolean(input, "screenshots");
-  if (input["paceScale"] !== undefined) config.paceScale = expectNumber(input, "paceScale", 0, 2);
-  if (input["patience"] !== undefined) {
+  if (input.screenshots !== undefined) config.screenshots = expectBoolean(input, "screenshots");
+  if (input.paceScale !== undefined) config.paceScale = expectNumber(input, "paceScale", 0, 2);
+  if (input.patience !== undefined) {
     // Convenience: patience override without a full custom persona.
     const patience = expectNumber(input, "patience", 0, 1);
     const base = typeof config.persona === "string" ? getPersona(config.persona) : config.persona;
@@ -136,45 +136,47 @@ export function resolveConfig(raw: unknown): EveConfig {
       disposition: base.disposition,
     });
   }
-  if (input["outputDir"] !== undefined) config.outputDir = expectString(input, "outputDir");
-  if (input["verbosity"] !== undefined) {
+  if (input.outputDir !== undefined) config.outputDir = expectString(input, "outputDir");
+  if (input.verbosity !== undefined) {
     const verbosity = expectString(input, "verbosity");
     if (!["quiet", "normal", "verbose"].includes(verbosity)) {
-      throw new ConfigError(`verbosity must be quiet|normal|verbose`);
+      throw new ConfigError("verbosity must be quiet|normal|verbose");
     }
     config.verbosity = verbosity as EveConfig["verbosity"];
   }
-  if (input["language"] !== undefined) config.language = expectString(input, "language");
-  if (input["plugins"] !== undefined) {
-    const p = input["plugins"] as Record<string, unknown>;
-    if (p["accessibility"] !== undefined) config.plugins.accessibility = expectBoolean(p, "accessibility");
-    if (p["performance"] !== undefined) config.plugins.performance = expectBoolean(p, "performance");
-    if (p["llmCritic"] !== undefined) {
+  if (input.language !== undefined) config.language = expectString(input, "language");
+  if (input.plugins !== undefined) {
+    const p = input.plugins as Record<string, unknown>;
+    if (p.accessibility !== undefined)
+      config.plugins.accessibility = expectBoolean(p, "accessibility");
+    if (p.performance !== undefined) config.plugins.performance = expectBoolean(p, "performance");
+    if (p.llmCritic !== undefined) {
       config.plugins.llmCritic =
-        typeof p["llmCritic"] === "object" && p["llmCritic"] !== null
-          ? (p["llmCritic"] as { model?: string; maxScreens?: number })
+        typeof p.llmCritic === "object" && p.llmCritic !== null
+          ? (p.llmCritic as { model?: string; maxScreens?: number })
           : expectBoolean(p, "llmCritic");
     }
   }
-  if (input["llmCognition"] !== undefined) {
+  if (input.llmCognition !== undefined) {
     config.llmCognition =
-      typeof input["llmCognition"] === "object" && input["llmCognition"] !== null
-        ? (input["llmCognition"] as { model?: string })
+      typeof input.llmCognition === "object" && input.llmCognition !== null
+        ? (input.llmCognition as { model?: string })
         : expectBoolean(input, "llmCognition");
   }
-  if (input["customPersonas"] !== undefined) {
-    if (!Array.isArray(input["customPersonas"])) {
+  if (input.customPersonas !== undefined) {
+    if (!Array.isArray(input.customPersonas)) {
       throw new ConfigError("customPersonas must be an array of persona specs");
     }
-    config.customPersonas = input["customPersonas"] as PersonaSpec[];
+    config.customPersonas = input.customPersonas as PersonaSpec[];
     // Validate each spec eagerly so config errors surface before the run.
     for (const spec of config.customPersonas) definePersona(spec);
   }
-  if (input["cognitive"] !== undefined) config.cognitive = expectBoolean(input, "cognitive");
-  if (input["utilityDecisions"] !== undefined) config.utilityDecisions = expectBoolean(input, "utilityDecisions");
-  if (input["culture"] !== undefined) config.culture = expectString(input, "culture");
-  if (input["profession"] !== undefined) config.profession = expectString(input, "profession");
-  if (input["longTermMemoryPath"] !== undefined) {
+  if (input.cognitive !== undefined) config.cognitive = expectBoolean(input, "cognitive");
+  if (input.utilityDecisions !== undefined)
+    config.utilityDecisions = expectBoolean(input, "utilityDecisions");
+  if (input.culture !== undefined) config.culture = expectString(input, "culture");
+  if (input.profession !== undefined) config.profession = expectString(input, "profession");
+  if (input.longTermMemoryPath !== undefined) {
     config.longTermMemoryPath = expectString(input, "longTermMemoryPath");
   }
   return config;

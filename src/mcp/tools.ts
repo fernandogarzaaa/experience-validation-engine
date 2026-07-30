@@ -13,47 +13,48 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
+import { validateBenchmarks } from "../benchmarks/index.js";
 import { createAdapter } from "../browser/index.js";
+import type { AdapterName, BrowserAdapter } from "../browser/index.js";
+import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
+import type { HumanStudy } from "../calibration/index.js";
+import type { DecisionPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
-import type { DecisionPolicy } from "../cognition/cognition.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
+import { renderEveBenchMarkdown, runEveBench } from "../evebench/index.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
-import { validateBenchmarks } from "../benchmarks/index.js";
-import { writeReports } from "../reporting/index.js";
-import { simulatePopulation } from "../population/index.js";
-import type { AdapterName } from "../browser/index.js";
-import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
-import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
-import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
-import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
-import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
-import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
-import { createTwin, runTwinSession, renderTwinMarkdown, FileTwinStore } from "../twins/index.js";
-import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
 import { analyzeMultimodal, renderMultimodalMarkdown } from "../multimodal/index.js";
-import { runEveBench, renderEveBenchMarkdown } from "../evebench/index.js";
 import {
-  getPersona,
-  listPersonas,
-  getProfession,
-  listProfessions,
+  type Persona,
   applyProfession,
   getCulture,
+  getPersona,
+  getProfession,
   listCultures,
-  type Persona,
+  listPersonas,
+  listProfessions,
 } from "../personas/index.js";
+import { simulatePopulation } from "../population/index.js";
+import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
+import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../product/index.js";
+import { writeReports } from "../reporting/index.js";
+import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
+import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
+import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
+import { FileTwinStore, createTwin, renderTwinMarkdown, runTwinSession } from "../twins/index.js";
 import type {
+  ApplicationMapInput,
+  BenchmarkInput,
+  CalibrateInput,
+  CompareBuildsInput,
+  EveBenchInput,
+  GetReportInput,
+  MultimodalScanInput,
   RunSessionInput,
   RunUsabilityStudyInput,
-  CompareBuildsInput,
-  ApplicationMapInput,
   TwinSessionInput,
-  CalibrateInput,
-  MultimodalScanInput,
-  EveBenchInput,
-  BenchmarkInput,
-  GetReportInput,
 } from "./schemas.js";
 
 /** Maximum characters returned in a single tool response before truncation. */
@@ -77,11 +78,7 @@ export class ToolInputError extends Error {
 
 function truncate(text: string): string {
   if (text.length <= CHARACTER_LIMIT) return text;
-  return (
-    text.slice(0, CHARACTER_LIMIT) +
-    `\n\n…[truncated ${text.length - CHARACTER_LIMIT} characters — read the ` +
-    `full report file with eve_get_report]`
-  );
+  return `${text.slice(0, CHARACTER_LIMIT)}\n\n…[truncated ${text.length - CHARACTER_LIMIT} characters — read the full report file with eve_get_report]`;
 }
 
 function severityRank(severity: string): number {
@@ -120,8 +117,7 @@ function resolvePersona(input: RunSessionInput): Persona {
       .map((p) => p.name)
       .join(", ");
     throw new ToolInputError(
-      `Unknown persona "${input.persona}". Available personas: ${names}. ` +
-        `(Call eve_list_personas for descriptions.)`,
+      `Unknown persona "${input.persona}". Available personas: ${names}. (Call eve_list_personas for descriptions.)`,
     );
   }
   if (input.profession) {
@@ -132,8 +128,7 @@ function resolvePersona(input: RunSessionInput): Persona {
         .map((p) => p.name)
         .join(", ");
       throw new ToolInputError(
-        `Unknown profession "${input.profession}". Available: ${names}. ` +
-          `(Call eve_list_professions.)`,
+        `Unknown profession "${input.profession}". Available: ${names}. (Call eve_list_professions.)`,
       );
     }
   }
@@ -149,8 +144,7 @@ function resolveCulture(input: RunSessionInput): string | undefined {
       .map((c) => c.locale)
       .join(", ");
     throw new ToolInputError(
-      `Unknown culture "${input.culture}". Available locales: ${locales}. ` +
-        `(Call eve_list_cultures.)`,
+      `Unknown culture "${input.culture}". Available locales: ${locales}. (Call eve_list_cultures.)`,
     );
   }
 }
@@ -167,20 +161,14 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
   const isMock = input.url.startsWith("mock:");
   const browser = input.browser ?? (isMock ? "mock" : "playwright");
 
-  const policy: DecisionPolicy = input.utility
-    ? new UtilityCognition()
-    : new HeuristicCognition();
+  const policy: DecisionPolicy = input.utility ? new UtilityCognition() : new HeuristicCognition();
 
-  const longTermMemory = input.remember_file
-    ? new FileMemoryStore(input.remember_file)
-    : undefined;
+  const longTermMemory = input.remember_file ? new FileMemoryStore(input.remember_file) : undefined;
 
   const debug = process.env.EVE_MCP_DEBUG === "1";
-  const onLog = debug
-    ? (line: string) => process.stderr.write(`[eve] ${line}\n`)
-    : undefined;
+  const onLog = debug ? (line: string) => process.stderr.write(`[eve] ${line}\n`) : undefined;
 
-  let adapter;
+  let adapter: BrowserAdapter;
   try {
     adapter = createAdapter(browser, { headless: true });
   } catch (err) {
@@ -276,8 +264,7 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
     `# EVE session — ${result.personaName} on ${input.url}`,
     "",
     `**Overall experience score:** ${overall}/100`,
-    `**Outcome:** ${result.endReason}` +
-      (result.abandonReason ? ` — ${result.abandonReason}` : ""),
+    `**Outcome:** ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}`,
     `**Findings:** ${bySeverity.critical} critical, ${bySeverity.major} major, ` +
       `${bySeverity.minor + bySeverity.other} other`,
     `**Steps / simulated time:** ${result.usage.steps} / ` +
@@ -300,7 +287,7 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
   if (topFindings.length) {
     lines.push("## Top findings");
     for (const f of topFindings) {
-      lines.push(`- **[${f.severity}] ${f.title}**` + (f.evidence ? ` — ${f.evidence}` : ""));
+      lines.push(`- **[${f.severity}] ${f.title}**${f.evidence ? ` — ${f.evidence}` : ""}`);
       if (f.recommendation) lines.push(`  - Fix: ${f.recommendation}`);
     }
     lines.push("");
@@ -479,7 +466,9 @@ export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolO
   }
 
   const structured: Record<string, unknown> = { ...prediction, file };
-  const markdown = truncate(renderUXPredictionMarkdown(prediction) + (file ? `\n\nWritten: ${file}` : ""));
+  const markdown = truncate(
+    renderUXPredictionMarkdown(prediction) + (file ? `\n\nWritten: ${file}` : ""),
+  );
   return { markdown, structured };
 }
 
@@ -488,7 +477,7 @@ export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolO
  * file, run a matching EVE population, and score the simulation's realism.
  */
 export async function runCalibrate(input: CalibrateInput): Promise<ToolOutput> {
-  let human;
+  let human: HumanStudy;
   try {
     const raw = await readFile(input.human_file, "utf8");
     human = importHumanStudy(JSON.parse(raw));
@@ -523,8 +512,7 @@ export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolO
   if (!twin) {
     if (!input.name || !input.base_persona) {
       throw new ToolInputError(
-        `Twin "${input.twin_id}" does not exist yet — provide \`name\` and ` +
-          `\`base_persona\` to create it.`,
+        `Twin "${input.twin_id}" does not exist yet — provide \`name\` and \`base_persona\` to create it.`,
       );
     }
     try {
@@ -542,7 +530,7 @@ export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolO
 
   const isMock = input.url.startsWith("mock:");
   const browser = input.browser ?? (isMock ? "mock" : "playwright");
-  let adapter;
+  let adapter: BrowserAdapter;
   try {
     adapter = createAdapter(browser as AdapterName, { headless: true });
   } catch (err) {
@@ -567,9 +555,7 @@ export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolO
     outcome,
   };
   const markdown = truncate(
-    renderTwinMarkdown(updated) +
-      `\n_Last session:_ ${outcome.completed ? "completed" : "did not complete"}, ` +
-      `score ${outcome.overall}, ${outcome.steps} steps.`,
+    `${renderTwinMarkdown(updated)}\n_Last session:_ ${outcome.completed ? "completed" : "did not complete"}, score ${outcome.overall}, ${outcome.steps} steps.`,
   );
   return { markdown, structured };
 }
@@ -581,7 +567,7 @@ export async function runTwinSessionTool(input: TwinSessionInput): Promise<ToolO
 export async function runMultimodalScan(input: MultimodalScanInput): Promise<ToolOutput> {
   const isMock = input.url.startsWith("mock:");
   const browser = input.browser ?? (isMock ? "mock" : "playwright");
-  let adapter;
+  let adapter: BrowserAdapter;
   try {
     adapter = createAdapter(browser as AdapterName, { headless: true });
   } catch (err) {
@@ -589,7 +575,7 @@ export async function runMultimodalScan(input: MultimodalScanInput): Promise<Too
       `Could not start the "${browser}" browser backend: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
-  let persona;
+  let persona: Persona;
   try {
     persona = getPersona(input.persona);
   } catch {
@@ -629,7 +615,7 @@ export async function runApplicationMap(input: ApplicationMapInput): Promise<Too
 
   const results: SessionResult[] = [];
   for (let i = 0; i < input.explorers; i += 1) {
-    let adapter;
+    let adapter: BrowserAdapter;
     try {
       adapter = createAdapter(browser as AdapterName, { headless: true });
     } catch (err) {
@@ -660,7 +646,9 @@ export async function runApplicationMap(input: ApplicationMapInput): Promise<Too
   }
 
   const structured: Record<string, unknown> = { ...map, file };
-  const markdown = truncate(renderApplicationMapMarkdown(map) + (file ? `\n\nWritten: ${file}` : ""));
+  const markdown = truncate(
+    renderApplicationMapMarkdown(map) + (file ? `\n\nWritten: ${file}` : ""),
+  );
   return { markdown, structured };
 }
 

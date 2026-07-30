@@ -1,21 +1,21 @@
-import { describe, it, expect } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
+import { TwinSessionSchema } from "../src/mcp/schemas.js";
+import { runTwinSessionTool } from "../src/mcp/tools.js";
 import {
-  createTwin,
-  twinPersona,
-  evolveTwin,
-  runTwinSession,
-  renderTwinMarkdown,
   FileTwinStore,
   InMemoryTwinStore,
   type TwinProfile,
+  createTwin,
+  evolveTwin,
+  renderTwinMarkdown,
+  runTwinSession,
+  twinPersona,
 } from "../src/twins/index.js";
-import { MockAdapter, DEMO_APP } from "../src/browser/index.js";
-import { runTwinSessionTool } from "../src/mcp/tools.js";
-import { TwinSessionSchema } from "../src/mcp/schemas.js";
 
 describe("digital twin lifecycle", () => {
   it("creates a twin seeded from its base persona", () => {
@@ -31,18 +31,34 @@ describe("digital twin lifecycle", () => {
 
   it("evolves purely from an outcome (expertise grows, confidence drifts)", () => {
     const twin = createTwin({ id: "a", name: "A", basePersona: "first-time-user" });
-    const e1 = evolveTwin(twin.evolution, { url: "mock:", overall: 80, completed: true, finalTrust: 0.7, steps: 10 });
+    const e1 = evolveTwin(twin.evolution, {
+      url: "mock:",
+      overall: 80,
+      completed: true,
+      finalTrust: 0.7,
+      steps: 10,
+    });
     expect(e1.sessions).toBe(1);
     expect(e1.expertise).toBeGreaterThan(twin.evolution.expertise);
     expect(e1.scoreHistory).toEqual([80]);
-    const e2 = evolveTwin(e1, { url: "mock:", overall: 85, completed: true, finalTrust: 0.75, steps: 8 });
+    const e2 = evolveTwin(e1, {
+      url: "mock:",
+      overall: 85,
+      completed: true,
+      finalTrust: 0.75,
+      steps: 8,
+    });
     expect(e2.sessions).toBe(2);
     expect(e2.expertise).toBeGreaterThan(e1.expertise);
     expect(e2.appsExperienced).toEqual(["mock:"]); // same app, not double-counted
   });
 
   it("runs and evolves across sessions, accumulating memory", async () => {
-    let twin: TwinProfile = createTwin({ id: "pa", name: "Power User A", basePersona: "power-user" });
+    let twin: TwinProfile = createTwin({
+      id: "pa",
+      name: "Power User A",
+      basePersona: "power-user",
+    });
     for (let i = 0; i < 3; i += 1) {
       const r = await runTwinSession(twin, {
         adapter: new MockAdapter(DEMO_APP),
@@ -73,7 +89,9 @@ describe("twin stores", () => {
     const dir = await mkdtemp(join(tmpdir(), "eve-twins-"));
     try {
       const store = new FileTwinStore(join(dir, "twins.json"));
-      await store.save(createTwin({ id: "sr", name: "Senior Accountant", basePersona: "office-worker" }));
+      await store.save(
+        createTwin({ id: "sr", name: "Senior Accountant", basePersona: "office-worker" }),
+      );
       const reloaded = new FileTwinStore(join(dir, "twins.json"));
       expect((await reloaded.load("sr"))?.name).toBe("Senior Accountant");
     } finally {
@@ -97,7 +115,9 @@ describe("mcp eve_twin_session", () => {
         max_steps: 25,
       });
       const out1 = await runTwinSessionTool(first);
-      expect((out1.structured.twin as { evolution: { sessions: number } }).evolution.sessions).toBe(1);
+      expect((out1.structured.twin as { evolution: { sessions: number } }).evolution.sessions).toBe(
+        1,
+      );
 
       // Second call omits name/base_persona — it must load the existing twin.
       const second = TwinSessionSchema.parse({
@@ -108,7 +128,9 @@ describe("mcp eve_twin_session", () => {
         max_steps: 25,
       });
       const out2 = await runTwinSessionTool(second);
-      expect((out2.structured.twin as { evolution: { sessions: number } }).evolution.sessions).toBe(2);
+      expect((out2.structured.twin as { evolution: { sessions: number } }).evolution.sessions).toBe(
+        2,
+      );
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -117,7 +139,11 @@ describe("mcp eve_twin_session", () => {
   it("errors if a new twin lacks name/base_persona", async () => {
     const dir = await mkdtemp(join(tmpdir(), "eve-twin-err-"));
     try {
-      const input = TwinSessionSchema.parse({ twin_file: join(dir, "t.json"), twin_id: "ghost", url: "mock:" });
+      const input = TwinSessionSchema.parse({
+        twin_file: join(dir, "t.json"),
+        twin_id: "ghost",
+        url: "mock:",
+      });
       await expect(runTwinSessionTool(input)).rejects.toThrow(/does not exist/);
     } finally {
       await rm(dir, { recursive: true, force: true });

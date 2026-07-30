@@ -1,10 +1,5 @@
-import type {
-  Percept,
-  Prediction,
-  PredictionOutcome,
-  VisibleElement,
-} from "../core/types.js";
 import { clamp01 } from "../core/random.js";
+import type { Percept, Prediction, PredictionOutcome, VisibleElement } from "../core/types.js";
 import { screenSignature } from "../memory/memory.js";
 
 /**
@@ -31,8 +26,29 @@ const ERROR_PATTERNS: readonly RegExp[] = [
 ];
 
 const STOPWORDS = new Set([
-  "the", "a", "an", "to", "of", "and", "or", "in", "on", "for", "with", "your",
-  "you", "is", "are", "this", "that", "it", "at", "by", "be", "as", "from",
+  "the",
+  "a",
+  "an",
+  "to",
+  "of",
+  "and",
+  "or",
+  "in",
+  "on",
+  "for",
+  "with",
+  "your",
+  "you",
+  "is",
+  "are",
+  "this",
+  "that",
+  "it",
+  "at",
+  "by",
+  "be",
+  "as",
+  "from",
 ]);
 
 export function tokenize(text: string): string[] {
@@ -116,8 +132,7 @@ export function comparePrediction(
   perceivedLatencyMs: number,
 ): PredictionOutcome {
   const screenChanged =
-    screenSignature(before) !== screenSignature(after) ||
-    significantTextChange(before, after);
+    screenSignature(before) !== screenSignature(after) || significantTextChange(before, after);
   const afterText = visibleText(after).toLowerCase();
   const matched: string[] = [];
   const missed: string[] = [];

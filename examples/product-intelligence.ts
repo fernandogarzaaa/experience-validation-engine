@@ -11,12 +11,15 @@
  */
 
 import { simulatePopulation } from "../src/population/index.js";
-import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../src/product/index.js";
+import {
+  inferProductIntelligence,
+  renderProductIntelligenceMarkdown,
+} from "../src/product/index.js";
 
 const study = await simulatePopulation({ url: "mock:", size: 30, seed: 7, concurrency: 8 });
 const intel = inferProductIntelligence(study);
 
-process.stdout.write(renderProductIntelligenceMarkdown(intel) + "\n");
+process.stdout.write(`${renderProductIntelligenceMarkdown(intel)}\n`);
 
-process.stdout.write("\nTop business goal by traffic: " + (intel.businessGoals[0]?.goal ?? "—") + "\n");
-process.stdout.write("Critical path: " + (intel.criticalWorkflows[0]?.sequence.join(" → ") ?? "—") + "\n");
+process.stdout.write(`\nTop business goal by traffic: ${intel.businessGoals[0]?.goal ?? "—"}\n`);
+process.stdout.write(`Critical path: ${intel.criticalWorkflows[0]?.sequence.join(" → ") ?? "—"}\n`);

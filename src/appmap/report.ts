@@ -54,13 +54,12 @@ export function renderApplicationMapMarkdown(map: ApplicationMap): string {
   ];
   for (const s of map.screens) {
     lines.push(
-      `- **${shortName(s.id)}** — _${s.purpose}_ · ${s.affordances.length} affordances, ` +
-        `${s.inDegree} in / ${s.outDegree} out` +
-        (map.entryPoints.includes(s.id) ? " · entry point" : "") +
-        (map.deadEnds.includes(s.id) ? " · dead-end" : ""),
+      `- **${shortName(s.id)}** — _${s.purpose}_ · ${s.affordances.length} affordances, ${s.inDegree} in / ${s.outDegree} out${map.entryPoints.includes(s.id) ? " · entry point" : ""}${map.deadEnds.includes(s.id) ? " · dead-end" : ""}`,
     );
     if (s.unexercised.length) {
-      lines.push(`  - Unexercised affordances (candidate hidden/edge paths): ${s.unexercised.join(", ")}`);
+      lines.push(
+        `  - Unexercised affordances (candidate hidden/edge paths): ${s.unexercised.join(", ")}`,
+      );
     }
   }
 
@@ -71,7 +70,9 @@ export function renderApplicationMapMarkdown(map: ApplicationMap): string {
     list.push(shortName(s.id));
     byPurpose.set(s.purpose, list);
   }
-  for (const [purpose, members] of [...byPurpose.entries()].sort((a, b) => b[1].length - a[1].length)) {
+  for (const [purpose, members] of [...byPurpose.entries()].sort(
+    (a, b) => b[1].length - a[1].length,
+  )) {
     lines.push(`- **${purpose}:** ${members.join(", ")}`);
   }
 

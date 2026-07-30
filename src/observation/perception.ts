@@ -1,5 +1,5 @@
-import type { Percept } from "../core/types.js";
 import type { BrowserAdapter } from "../browser/adapter.js";
+import type { Percept } from "../core/types.js";
 
 /**
  * The observation layer turns raw adapter snapshots into {@link Percept}s —

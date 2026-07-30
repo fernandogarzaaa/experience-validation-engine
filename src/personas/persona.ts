@@ -128,9 +128,7 @@ export function definePersona(spec: PersonaSpec): Persona {
     }
     if (key === "readingSpeedWpm") {
       if (value < 40 || value > 1200) {
-        throw new Error(
-          `Persona "${spec.name}": readingSpeedWpm ${value} out of range 40..1200`,
-        );
+        throw new Error(`Persona "${spec.name}": readingSpeedWpm ${value} out of range 40..1200`);
       }
     } else if (value < 0 || value > 1) {
       throw new Error(`Persona "${spec.name}": trait ${key}=${value} out of range 0..1`);
@@ -151,8 +149,7 @@ export function definePersona(spec: PersonaSpec): Persona {
 
 /** Time to read `wordCount` words, in ms. Thoroughness gates skimming. */
 export function readingTimeMs(persona: Persona, wordCount: number): number {
-  const effectiveWords =
-    wordCount * (0.35 + 0.65 * persona.traits.thoroughness); // skimmers read a subset
+  const effectiveWords = wordCount * (0.35 + 0.65 * persona.traits.thoroughness); // skimmers read a subset
   const msPerWord = 60_000 / persona.traits.readingSpeedWpm;
   return Math.max(120, effectiveWords * msPerWord);
 }
@@ -175,9 +172,7 @@ export function typingIntervalMs(persona: Persona): number {
  * target center. Small targets plus low accuracy produce misclicks.
  */
 export function clickScatterPx(persona: Persona): number {
-  return (
-    (1 - persona.traits.clickAccuracy) * 14 * persona.accessibility.motorDifficultyFactor
-  );
+  return (1 - persona.traits.clickAccuracy) * 14 * persona.accessibility.motorDifficultyFactor;
 }
 
 /**

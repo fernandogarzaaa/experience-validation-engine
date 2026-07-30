@@ -51,7 +51,12 @@ export const WORKFLOW_SIGNATURES: readonly WorkflowSignature[] = [
   {
     kind: "signup",
     urlHints: [/\/sign-?up/i, /\/register/i, /\/join\b/i, /\/create-?account/i],
-    contentHints: [/\bsign ?up\b/i, /\bcreate (an |your )?account\b/i, /\bregister\b/i, /\bget started\b/i],
+    contentHints: [
+      /\bsign ?up\b/i,
+      /\bcreate (an |your )?account\b/i,
+      /\bregister\b/i,
+      /\bget started\b/i,
+    ],
     controlHints: [/\bsign ?up\b/i, /\bcreate account\b/i, /\bregister\b/i],
   },
   {
@@ -135,7 +140,13 @@ export const WORKFLOW_SIGNATURES: readonly WorkflowSignature[] = [
   {
     kind: "checkout",
     urlHints: [/\/checkout/i, /\/cart/i, /\/payment/i, /\/billing/i],
-    contentHints: [/\bcheckout\b/i, /\bshopping cart\b/i, /\bpayment\b/i, /\bbilling\b/i, /\border summary\b/i],
+    contentHints: [
+      /\bcheckout\b/i,
+      /\bshopping cart\b/i,
+      /\bpayment\b/i,
+      /\bbilling\b/i,
+      /\border summary\b/i,
+    ],
     controlHints: [/\bplace order\b/i, /\bpay\b/i, /\bcheckout\b/i],
   },
   {
@@ -147,13 +158,24 @@ export const WORKFLOW_SIGNATURES: readonly WorkflowSignature[] = [
   {
     kind: "confirmation",
     urlHints: [/\/(confirm|success|thank-?you|done)/i],
-    contentHints: [/\bsuccess(fully)?\b/i, /\bthank you\b/i, /\bconfirmed?\b/i, /\bcheck your email\b/i, /\ball set\b/i],
+    contentHints: [
+      /\bsuccess(fully)?\b/i,
+      /\bthank you\b/i,
+      /\bconfirmed?\b/i,
+      /\bcheck your email\b/i,
+      /\ball set\b/i,
+    ],
     controlHints: [],
   },
   {
     kind: "onboarding",
     urlHints: [/\/onboarding/i, /\/welcome/i, /\/getting-?started/i],
-    contentHints: [/\bwelcome\b/i, /\bgetting started\b/i, /\blet'?s get you set up\b/i, /\btake a tour\b/i],
+    contentHints: [
+      /\bwelcome\b/i,
+      /\bgetting started\b/i,
+      /\blet'?s get you set up\b/i,
+      /\btake a tour\b/i,
+    ],
     controlHints: [/\bskip\b/i, /\bnext\b/i, /\btake the tour\b/i],
   },
   {

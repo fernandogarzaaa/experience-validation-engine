@@ -1,4 +1,4 @@
-import type { PerceivedRole, VisibleElement, Viewport } from "../core/types.js";
+import type { PerceivedRole, Viewport, VisibleElement } from "../core/types.js";
 
 /**
  * Text-frame layout.
@@ -101,8 +101,7 @@ export function layoutTextFrame(frame: TextFrame): LaidOutFrame {
         disabled: false,
         editable: affordance.role === "textbox",
         focused: false,
-        clippedByViewport:
-          affordance.line < frame.scrollLine || affordance.line >= lastVisibleLine,
+        clippedByViewport: affordance.line < frame.scrollLine || affordance.line >= lastVisibleLine,
       });
       cursor = affordance.column + affordance.text.length;
     }

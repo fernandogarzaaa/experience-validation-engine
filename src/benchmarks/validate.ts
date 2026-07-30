@@ -1,5 +1,5 @@
-import { EveSession } from "../engine/session.js";
 import { MockAdapter } from "../browser/mock.js";
+import { EveSession } from "../engine/session.js";
 import { BENCHMARK_APPS, type BenchmarkTier } from "./apps.js";
 
 /**
@@ -47,7 +47,10 @@ export interface BenchmarkOptions {
   cognitive?: boolean;
 }
 
-async function runTier(tier: BenchmarkTier, options: BenchmarkOptions): Promise<BenchmarkRunResult> {
+async function runTier(
+  tier: BenchmarkTier,
+  options: BenchmarkOptions,
+): Promise<BenchmarkRunResult> {
   const personas = options.personas ?? DEFAULT_PANEL;
   const app = BENCHMARK_APPS[tier];
   const perPersona: BenchmarkRunResult["perPersona"] = [];
@@ -76,7 +79,9 @@ async function runTier(tier: BenchmarkTier, options: BenchmarkOptions): Promise<
 }
 
 /** Run all three tiers and validate the ordering. */
-export async function validateBenchmarks(options: BenchmarkOptions = {}): Promise<BenchmarkValidation> {
+export async function validateBenchmarks(
+  options: BenchmarkOptions = {},
+): Promise<BenchmarkValidation> {
   const excellent = await runTier("excellent", options);
   const average = await runTier("average", options);
   const bad = await runTier("bad", options);

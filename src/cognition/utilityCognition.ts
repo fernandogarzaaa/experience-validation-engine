@@ -1,11 +1,11 @@
-import type { CognitiveContext, Decision } from "./cognition.js";
-import { HeuristicCognition } from "./heuristicCognition.js";
-import { scoreAffordances } from "./salience.js";
-import { predictInteraction } from "./mentalModel.js";
-import { decisionWeights, evaluateUtilities, softmaxChoice, wantsVerification } from "./utility.js";
+import { clamp01 } from "../core/random.js";
 import type { StrategyWeights } from "../planning/strategies.js";
 import type { ExplorationStrategy } from "../planning/strategies.js";
-import { clamp01 } from "../core/random.js";
+import type { CognitiveContext, Decision } from "./cognition.js";
+import { HeuristicCognition } from "./heuristicCognition.js";
+import { predictInteraction } from "./mentalModel.js";
+import { scoreAffordances } from "./salience.js";
+import { decisionWeights, evaluateUtilities, softmaxChoice, wantsVerification } from "./utility.js";
 
 /**
  * Utility-based decision policy.
@@ -75,7 +75,10 @@ export class UtilityCognition extends HeuristicCognition {
         effort: effortBase + 0.1,
       };
     }
-    if ((persona.accessibility.keyboardOnly || persona.traits.keyboardPreference > 0.7) && el.focused) {
+    if (
+      (persona.accessibility.keyboardOnly || persona.traits.keyboardPreference > 0.7) &&
+      el.focused
+    ) {
       return {
         action: { kind: "press", key: "Enter" },
         rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
