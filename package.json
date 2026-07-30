@@ -60,7 +60,7 @@
     "url": "git+https://github.com/fernandogarzaaa/experience-validation-engine.git"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "pngjs": "^7.0.0",
     "yaml": "^2.4.0",
     "zod": "^3.25.76"
@@ -89,8 +89,12 @@
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.11.0",
     "@types/pngjs": "^6.0.4",
+    "@vitest/coverage-v8": "^3.2.7",
     "playwright": "^1.62.0",
     "typescript": "^5.4.0",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "test-exclude": "^8.0.0"
   }
 }
