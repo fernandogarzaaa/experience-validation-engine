@@ -60,7 +60,7 @@ jobs:
       - run: npm run coverage
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/
@@ -120,7 +120,7 @@ jobs:
         run: node bin/eve.js benchmark
       - name: Smoke-test the MCP server (stdio handshake + tools/list)
         run: npm run mcp:smoke
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: eve-demo-report
           path: .eve-output/
