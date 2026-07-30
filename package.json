@@ -40,7 +40,7 @@
     "format": "biome format --write src tests examples"
   },
   "engines": {
-    "node": ">=18.17"
+    "node": ">=20.0.0"
   },
   "keywords": [
     "ux",
@@ -94,9 +94,6 @@
     "@vitest/coverage-v8": "^4.1.10",
     "playwright": "^1.62.0",
     "typescript": "^5.4.0",
-    "vitest": "^3.2.7"
-  },
-  "overrides": {
-    "test-exclude": "^8.0.0"
+    "vitest": "^4.1.10"
   }
 }
