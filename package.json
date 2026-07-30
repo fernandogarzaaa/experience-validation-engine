@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/node": "^20.11.0",
+    "@types/node": "^26.1.2",
     "@types/pngjs": "^6.0.4",
     "@vitest/coverage-v8": "^3.2.7",
     "playwright": "^1.62.0",
