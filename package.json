@@ -31,6 +31,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
     "mcp": "node bin/eve-mcp.js",
     "mcp:smoke": "node scripts/mcp-smoke.mjs",
     "lint": "biome check src tests examples",
