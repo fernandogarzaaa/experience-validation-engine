@@ -3,7 +3,7 @@ import type { BrowserAdapter, RawSnapshot } from "../browser/adapter.js";
 import type { Point, Viewport } from "../core/types.js";
 import { detectAffordances, stripAnsi } from "./affordances.js";
 import { TEXTUAL_SURFACE } from "./capabilities.js";
-import { LINE_HEIGHT, type TextAffordance, layoutTextFrame } from "./textFrame.js";
+import { LINE_HEIGHT, layoutTextFrame, type TextAffordance } from "./textFrame.js";
 
 const DEFAULT_WINDOW_ROWS = 24;
 const SETTLE_MS = 50;

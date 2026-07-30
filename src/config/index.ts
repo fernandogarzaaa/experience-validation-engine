@@ -1,7 +1,7 @@
+export type { EveConfig } from "./config.js";
 export {
-  resolveConfig,
-  loadConfigFile,
   ConfigError,
   DEFAULT_CONFIG,
+  loadConfigFile,
+  resolveConfig,
 } from "./config.js";
-export type { EveConfig } from "./config.js";

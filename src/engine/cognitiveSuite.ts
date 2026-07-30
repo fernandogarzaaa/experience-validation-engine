@@ -1,8 +1,8 @@
 import {
   type AttentionSnapshot,
-  type Fixation,
   allocateAttention,
   attendedPercept,
+  type Fixation,
 } from "../cognition/attention.js";
 import type { Decision } from "../cognition/cognition.js";
 import {
@@ -11,10 +11,10 @@ import {
   estimateCognitiveLoad,
 } from "../cognition/cognitiveLoad.js";
 import {
-  type ExpectationScore,
-  ViolationStreak,
   buildExpectation,
+  type ExpectationScore,
   scoreExpectation,
+  ViolationStreak,
 } from "../cognition/expectation.js";
 import type { Rng } from "../core/random.js";
 import type { Percept, PredictionOutcome } from "../core/types.js";
@@ -250,4 +250,4 @@ export class CognitiveSuite {
   }
 }
 
-export type { CognitiveLoadBreakdown, TrustSample, ExpectationScore, Fixation };
+export type { CognitiveLoadBreakdown, ExpectationScore, Fixation, TrustSample };

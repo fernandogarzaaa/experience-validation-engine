@@ -5,9 +5,9 @@
  */
 
 export {
-  buildApplicationMap,
   type ApplicationMap,
   type AppScreen,
+  buildApplicationMap,
   type MapTransition,
 } from "./appmap.js";
 export { renderApplicationMapMarkdown, renderApplicationMapMermaid } from "./report.js";

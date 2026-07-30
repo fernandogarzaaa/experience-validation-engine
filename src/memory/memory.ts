@@ -1,7 +1,7 @@
 import type { Rng } from "../core/random.js";
 import type { Action, Percept } from "../core/types.js";
-import { workingMemoryCapacity } from "../personas/persona.js";
 import type { Persona } from "../personas/persona.js";
+import { workingMemoryCapacity } from "../personas/persona.js";
 
 /**
  * The operator's memory, split — as human memory is — into subsystems:

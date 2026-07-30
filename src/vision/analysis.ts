@@ -1,8 +1,8 @@
 import type { Percept, VisibleElement } from "../core/types.js";
 import type { AccessibilityProfile } from "../personas/persona.js";
 import {
-  type DecodedImage,
   contrastRatio,
+  type DecodedImage,
   decodePng,
   frameDiffRatio,
   luminanceVariance,

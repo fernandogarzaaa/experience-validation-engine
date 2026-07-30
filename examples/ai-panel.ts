@@ -7,10 +7,14 @@
  *   npx tsx examples/ai-panel.ts
  */
 import { mkdir, writeFile } from "node:fs/promises";
-import { EveSession, MockAdapter } from "../src/index.js";
-import { BENCHMARK_APPS } from "../src/index.js";
-import { renderPanelMarkdown, runPanel } from "../src/index.js";
-import { toGitHubIssues } from "../src/index.js";
+import {
+  BENCHMARK_APPS,
+  EveSession,
+  MockAdapter,
+  renderPanelMarkdown,
+  runPanel,
+  toGitHubIssues,
+} from "../src/index.js";
 
 const personas = ["first-time-user", "impatient-user", "office-worker", "anxious-user"];
 

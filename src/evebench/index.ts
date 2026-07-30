@@ -4,11 +4,11 @@
  */
 
 export {
-  runEveBench,
-  EVEBENCH_CASES,
-  type EveBenchReport,
-  type CaseScore,
   type BenchmarkCase,
+  type CaseScore,
+  EVEBENCH_CASES,
   type EveBenchOptions,
+  type EveBenchReport,
+  runEveBench,
 } from "./evebench.js";
 export { renderEveBenchMarkdown } from "./report.js";

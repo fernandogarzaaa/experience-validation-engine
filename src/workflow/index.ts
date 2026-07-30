@@ -1,12 +1,12 @@
-export { WORKFLOW_SIGNATURES } from "./catalog.js";
 export type { WorkflowKind, WorkflowSignature } from "./catalog.js";
-export { detectWorkflow } from "./detector.js";
+export { WORKFLOW_SIGNATURES } from "./catalog.js";
 export type { WorkflowMatch } from "./detector.js";
-export { WorkflowGraph } from "./graph.js";
+export { detectWorkflow } from "./detector.js";
 export type {
+  DiscoveredWorkflow,
   WorkflowNode,
   WorkflowTransition,
-  DiscoveredWorkflow,
 } from "./graph.js";
-export { discoverJourney, inferJourneyIntent } from "./journeys.js";
+export { WorkflowGraph } from "./graph.js";
 export type { DiscoveredJourney, JourneyStep } from "./journeys.js";
+export { discoverJourney, inferJourneyIntent } from "./journeys.js";

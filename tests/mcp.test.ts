@@ -11,13 +11,13 @@ import {
 } from "../src/mcp/schemas.js";
 import { createServer } from "../src/mcp/server.js";
 import {
-  ToolInputError,
   getReport,
   listCulturesTool,
   listPersonasTool,
   listProfessionsTool,
   runBenchmark,
   runSession,
+  ToolInputError,
 } from "../src/mcp/tools.js";
 
 /** Apply Zod defaults the way the MCP SDK does before a handler runs. */

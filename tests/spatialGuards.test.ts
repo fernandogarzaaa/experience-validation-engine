@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Percept } from "../src/core/types.js";
 import { HeuristicMultimodalPerceptor } from "../src/multimodal/perceptor.js";
 import { AccessibilityPlugin } from "../src/plugins/accessibility.js";
-import { TEXTUAL_SURFACE, VISUAL_SURFACE } from "../src/surface/capabilities.js";
 import type { SurfaceCapabilities } from "../src/surface/capabilities.js";
+import { TEXTUAL_SURFACE, VISUAL_SURFACE } from "../src/surface/capabilities.js";
 import { checkPixels } from "../src/vision/analysis.js";
 
 function percept(): Percept {

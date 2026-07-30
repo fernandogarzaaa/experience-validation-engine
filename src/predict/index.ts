@@ -5,11 +5,11 @@
  */
 
 export {
-  predictUX,
-  wilsonInterval,
-  type UXPrediction,
-  type UXPredictionItem,
   type PredictedStruggle,
   type PredictionBasis,
+  predictUX,
+  type UXPrediction,
+  type UXPredictionItem,
+  wilsonInterval,
 } from "./predict.js";
 export { renderUXPredictionMarkdown } from "./report.js";

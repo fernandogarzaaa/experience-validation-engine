@@ -1,9 +1,9 @@
 import type { Rng } from "../core/random.js";
 import type { Point, VisibleElement } from "../core/types.js";
 import {
-  type Persona,
   clickScatterPx,
   motorActionMs,
+  type Persona,
   typingIntervalMs,
 } from "../personas/persona.js";
 

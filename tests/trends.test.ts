@@ -6,11 +6,11 @@ import { CompareBuildsSchema } from "../src/mcp/schemas.js";
 import { compareBuilds } from "../src/mcp/tools.js";
 import { simulatePopulation } from "../src/population/index.js";
 import {
-  type BuildSnapshot,
-  type TrendMetricKey,
   analyzeTrends,
+  type BuildSnapshot,
   metricsFromStudy,
   renderTrendReportMarkdown,
+  type TrendMetricKey,
 } from "../src/trends/index.js";
 
 function snap(label: string, m: Record<TrendMetricKey, number>): BuildSnapshot {

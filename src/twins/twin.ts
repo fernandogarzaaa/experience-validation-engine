@@ -7,7 +7,7 @@
 import type { BrowserAdapter } from "../browser/index.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
 import { type ApplicationMemory, InMemoryStore } from "../memory/index.js";
-import { type Persona, applyProfession, getPersona, getProfession } from "../personas/index.js";
+import { applyProfession, getPersona, getProfession, type Persona } from "../personas/index.js";
 import type { TwinEvolution, TwinProfile, TwinSessionOutcome } from "./types.js";
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));

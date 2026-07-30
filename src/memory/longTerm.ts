@@ -207,4 +207,4 @@ export function retainedKnowledge(memory: ApplicationMemory): number {
   return sum;
 }
 
-export type { LearnedFact, ScreenNode, ScreenEdge };
+export type { LearnedFact, ScreenEdge, ScreenNode };

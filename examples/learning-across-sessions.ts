@@ -6,15 +6,15 @@
  *   npx tsx examples/learning-across-sessions.ts
  */
 import { writeFile } from "node:fs/promises";
+import type { SessionResult } from "../src/index.js";
 import {
   DEMO_APP,
   EveSession,
   InMemoryStore,
   MockAdapter,
+  renderLearningCurveSvg,
   UtilityCognition,
 } from "../src/index.js";
-import type { SessionResult } from "../src/index.js";
-import { renderLearningCurveSvg } from "../src/index.js";
 
 const store = new InMemoryStore();
 let last: SessionResult | undefined;

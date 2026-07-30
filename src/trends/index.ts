@@ -3,14 +3,14 @@
  * and surface improvements and regressions per metric.
  */
 
+export { renderTrendReportMarkdown } from "./report.js";
 export {
   analyzeTrends,
+  type BuildSnapshot,
+  type MetricTrend,
   metricsFromStudy,
   TREND_METRICS,
-  type TrendReport,
-  type MetricTrend,
-  type BuildSnapshot,
   type TrendDirection,
   type TrendMetricKey,
+  type TrendReport,
 } from "./trends.js";
-export { renderTrendReportMarkdown } from "./report.js";

@@ -3,7 +3,7 @@ import { parse } from "yaml";
 import type { AdapterName } from "../browser/index.js";
 import type { Viewport } from "../core/types.js";
 import { getPersona } from "../personas/library.js";
-import { type Persona, type PersonaSpec, definePersona } from "../personas/persona.js";
+import { definePersona, type Persona, type PersonaSpec } from "../personas/persona.js";
 import type { ExplorationStrategy } from "../planning/strategies.js";
 
 /**

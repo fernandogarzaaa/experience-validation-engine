@@ -1,25 +1,25 @@
+export type { CritiqueItem, DesignCritique, Heuristic } from "./designCritic.js";
 export { critiqueDesign } from "./designCritic.js";
-export type { DesignCritique, CritiqueItem, Heuristic } from "./designCritic.js";
-export { moderatePanel } from "./moderator.js";
-export type { ExecutiveReport, ConsensusIssue, Disagreement } from "./moderator.js";
-export { buildProductPlan } from "./productManager.js";
-export type { ProductPlan, Epic, UserStory, RoadmapPhase } from "./productManager.js";
+export type { DevTicket } from "./developer.js";
 export {
   generateTickets,
   toGitHubIssues,
-  toLinearIssues,
   toJiraIssues,
+  toLinearIssues,
   toMarkdownTasks,
 } from "./developer.js";
-export type { DevTicket } from "./developer.js";
+export type { ConsensusIssue, Disagreement, ExecutiveReport } from "./moderator.js";
+export { moderatePanel } from "./moderator.js";
+export type { Epic, ProductPlan, RoadmapPhase, UserStory } from "./productManager.js";
+export { buildProductPlan } from "./productManager.js";
 
 import type { SessionResult } from "../engine/session.js";
 import { type ExperienceForecast, forecastExperience } from "../forecasting/forecast.js";
-import { critiqueDesign } from "./designCritic.js";
 import type { DesignCritique } from "./designCritic.js";
+import { critiqueDesign } from "./designCritic.js";
 import { type DevTicket, generateTickets } from "./developer.js";
 import { type ExecutiveReport, moderatePanel } from "./moderator.js";
-import { type ProductPlan, buildProductPlan } from "./productManager.js";
+import { buildProductPlan, type ProductPlan } from "./productManager.js";
 
 export interface PanelResult {
   readonly executive: ExecutiveReport;

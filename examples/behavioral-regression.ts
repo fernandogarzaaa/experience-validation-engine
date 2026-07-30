@@ -8,8 +8,9 @@
  *
  *   npx tsx examples/behavioral-regression.ts
  */
-import { EveSession, MockAdapter, compareExperience } from "../src/index.js";
+
 import type { MockAppSpec } from "../src/index.js";
+import { compareExperience, EveSession, MockAdapter } from "../src/index.js";
 
 const baselineBuild: MockAppSpec = {
   name: "Checkout",

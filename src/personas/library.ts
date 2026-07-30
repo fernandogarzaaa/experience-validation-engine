@@ -1,4 +1,4 @@
-import { type Persona, definePersona } from "./persona.js";
+import { definePersona, type Persona } from "./persona.js";
 
 /**
  * Built-in persona library.

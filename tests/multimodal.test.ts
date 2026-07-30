@@ -4,9 +4,9 @@ import { MockAdapter, type MockAppSpec } from "../src/browser/index.js";
 import type { PerceivedRole, Percept, VisibleElement } from "../src/core/types.js";
 import { EveSession } from "../src/engine/session.js";
 import {
-  HeuristicMultimodalPerceptor,
   analyzeMultimodal,
   analyzeScreens,
+  HeuristicMultimodalPerceptor,
   renderMultimodalMarkdown,
 } from "../src/multimodal/index.js";
 

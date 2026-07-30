@@ -10,7 +10,7 @@
  *   npx tsx examples/human-calibration.ts
  */
 
-import { type HumanStudy, calibrate, renderCalibrationMarkdown } from "../src/calibration/index.js";
+import { calibrate, type HumanStudy, renderCalibrationMarkdown } from "../src/calibration/index.js";
 import { simulatePopulation } from "../src/population/index.js";
 
 // In practice you'd load these traces from your own (anonymized) usability

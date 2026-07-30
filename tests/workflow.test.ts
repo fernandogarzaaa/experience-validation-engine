@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Percept, VisibleElement } from "../src/core/types.js";
-import { WorkflowGraph, detectWorkflow } from "../src/workflow/index.js";
+import { detectWorkflow, WorkflowGraph } from "../src/workflow/index.js";
 
 function make(url: string, title: string, headings: string[], controls: string[]): Percept {
   let id = 0;
