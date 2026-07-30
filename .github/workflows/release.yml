@@ -38,7 +38,7 @@ jobs:
       # workflow run so consumers can verify where it was built.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag }}
       - uses: actions/setup-node@v4
