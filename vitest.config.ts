@@ -3,6 +3,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
+    // Real-browser tests live in tests/browser and run via `npm run test:browser`.
+    // The default suite must stay offline and browser-free.
+    exclude: ["tests/browser/**", "node_modules/**", "dist/**"],
     environment: "node",
     testTimeout: 20_000,
     coverage: {
