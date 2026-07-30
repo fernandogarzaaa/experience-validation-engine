@@ -93,7 +93,7 @@
     "@types/pngjs": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
     "playwright": "^1.62.0",
-    "typescript": "^5.4.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
 }
