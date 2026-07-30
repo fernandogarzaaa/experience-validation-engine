@@ -31,6 +31,15 @@ updates:
       - dependency-name: puppeteer
       - dependency-name: selenium-webdriver
       - dependency-name: "@anthropic-ai/sdk"
+      # @types/node's major is the only thing that tells tsc which Node APIs
+      # exist — it must track engines.node's floor, not the latest release.
+      # Left to auto-update, the two drift apart silently: tsc keeps passing
+      # because newer types are typically additive, but nothing then stops
+      # code from using an API the floor doesn't actually have. Bump this
+      # only by hand, in the same commit that moves engines.node and the CI
+      # matrix — never as an independent Dependabot PR.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
