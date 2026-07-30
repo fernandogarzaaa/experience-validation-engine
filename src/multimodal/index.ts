@@ -4,8 +4,8 @@
  * inside EVE's human-perception boundary.
  */
 
-export { HeuristicMultimodalPerceptor, DEFAULT_MULTIMODAL_PERCEPTOR } from "./perceptor.js";
 export { analyzeMultimodal, analyzeScreens } from "./analyze.js";
+export { DEFAULT_MULTIMODAL_PERCEPTOR, HeuristicMultimodalPerceptor } from "./perceptor.js";
 export { renderMultimodalMarkdown } from "./report.js";
 export type {
   CueKind,

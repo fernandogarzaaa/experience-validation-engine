@@ -3,13 +3,13 @@ import { join } from "node:path";
 import type { SessionResult } from "../engine/session.js";
 import { renderHtml } from "./html.js";
 import { renderMarkdown } from "./markdown.js";
-import { type ExperienceReport, buildReport } from "./report.js";
+import { buildReport, type ExperienceReport } from "./report.js";
 
-export { buildReport } from "./report.js";
-export type { ExperienceReport } from "./report.js";
-export { renderMarkdown } from "./markdown.js";
 export { renderHtml } from "./html.js";
+export { renderMarkdown } from "./markdown.js";
 export { renderPanelMarkdown } from "./panelReport.js";
+export type { ExperienceReport } from "./report.js";
+export { buildReport } from "./report.js";
 
 /** JSON rendering strips raw screenshot buffers (kept in HTML instead). */
 export function renderJson(report: ExperienceReport): string {

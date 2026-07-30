@@ -5,4 +5,4 @@
 
 export { calibrate, importHumanStudy } from "./calibration.js";
 export { renderCalibrationMarkdown } from "./report.js";
-export type { HumanTrace, HumanStudy, CalibrationReport } from "./types.js";
+export type { CalibrationReport, HumanStudy, HumanTrace } from "./types.js";

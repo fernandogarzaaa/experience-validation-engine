@@ -10,11 +10,11 @@ import type { PopulationStudy } from "../population/population.js";
 import { renderOperatorCsv, renderStudyJson, renderStudyMarkdown } from "./dataset.js";
 
 export {
+  type DatasetFormat,
+  renderOperatorCsv,
   renderStudy,
   renderStudyJson,
-  renderOperatorCsv,
   renderStudyMarkdown,
-  type DatasetFormat,
 } from "./dataset.js";
 
 export interface WrittenDataset {

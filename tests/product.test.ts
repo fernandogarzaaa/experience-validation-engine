@@ -4,8 +4,8 @@ import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
 import { runProductReport } from "../src/mcp/tools.js";
 import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
 import {
-  type ProductIntelligence,
   inferProductIntelligence,
+  type ProductIntelligence,
   renderProductIntelligenceMarkdown,
 } from "../src/product/index.js";
 

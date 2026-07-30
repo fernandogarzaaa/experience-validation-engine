@@ -10,7 +10,7 @@ import {
 } from "../cognition/mentalModel.js";
 import { readingLoad, riskOf } from "../cognition/salience.js";
 import { EventBus } from "../core/events.js";
-import { type Rng, clamp01, createRng, seedFromString } from "../core/random.js";
+import { clamp01, createRng, type Rng, seedFromString } from "../core/random.js";
 import type {
   Finding,
   LoopIteration,
@@ -22,33 +22,33 @@ import type {
 } from "../core/types.js";
 import { describeAction } from "../core/types.js";
 import { appraise, decayRate } from "../emotion/appraisal.js";
-import { type EmotionSample, EmotionalState } from "../emotion/emotionalState.js";
-import { type LearningMetrics, computeLearningMetrics } from "../memory/learning.js";
+import { EmotionalState, type EmotionSample } from "../emotion/emotionalState.js";
+import { computeLearningMetrics, type LearningMetrics } from "../memory/learning.js";
 import {
   type ApplicationMemory,
-  type PersistentMemory,
-  type SessionMemoryRecord,
   appIdForUrl,
   applyForgetting,
   emptyApplicationMemory,
+  type PersistentMemory,
+  type SessionMemoryRecord,
 } from "../memory/longTerm.js";
 import { OperatorMemory, screenSignature } from "../memory/memory.js";
 import { Observer } from "../observation/perception.js";
 import {
   CULTURES,
   type CultureProfile,
-  DEFAULT_CULTURE,
   cultureOf,
+  DEFAULT_CULTURE,
   withCulture,
 } from "../personas/culture.js";
 import { getPersona } from "../personas/library.js";
 import type { Persona } from "../personas/persona.js";
-import { GoalStack, createGoal } from "../planning/goals.js";
+import { createGoal, GoalStack } from "../planning/goals.js";
 import { type EvePlugin, type PluginContext, PluginManager } from "../plugins/plugin.js";
 import { computeScores } from "../scoring/scorer.js";
 import { checkGeometry, checkPixels, checkRegression } from "../vision/analysis.js";
-import { WorkflowGraph } from "../workflow/graph.js";
 import type { DiscoveredWorkflow, WorkflowNode, WorkflowTransition } from "../workflow/graph.js";
+import { WorkflowGraph } from "../workflow/graph.js";
 import { type DiscoveredJourney, discoverJourney } from "../workflow/journeys.js";
 import {
   type CognitiveConfig,

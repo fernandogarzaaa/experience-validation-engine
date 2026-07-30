@@ -4,10 +4,10 @@ import { UtilityCognition } from "../src/cognition/utilityCognition.js";
 import { EveSession } from "../src/engine/session.js";
 import { computeLearningMetrics, forgettingCurve } from "../src/memory/learning.js";
 import {
-  InMemoryStore,
   appIdForUrl,
   applyForgetting,
   emptyApplicationMemory,
+  InMemoryStore,
 } from "../src/memory/longTerm.js";
 
 describe("long-term memory store", () => {

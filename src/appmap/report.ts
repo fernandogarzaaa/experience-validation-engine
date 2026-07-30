@@ -20,7 +20,9 @@ function nodeId(id: string, index: number): string {
 /** Render the navigation graph as a Mermaid flowchart. */
 export function renderApplicationMapMermaid(map: ApplicationMap): string {
   const ids = new Map<string, string>();
-  map.screens.forEach((s, i) => ids.set(s.id, nodeId(s.id, i)));
+  map.screens.forEach((s, i) => {
+    ids.set(s.id, nodeId(s.id, i));
+  });
 
   const lines: string[] = ["flowchart LR"];
   for (const s of map.screens) {

@@ -4,29 +4,29 @@
  */
 
 export {
-  simulatePopulation,
-  sampleOperators,
+  type AggregatedFinding,
+  type HeatmapEntry,
+  type OperatorRun,
+  type OperatorSpec,
   type PopulationOptions,
   type PopulationStudy,
-  type OperatorSpec,
-  type OperatorRun,
-  type HeatmapEntry,
-  type AggregatedFinding,
+  sampleOperators,
+  simulatePopulation,
 } from "./population.js";
 export {
-  summarize,
-  histogram,
-  quantile,
-  mean,
-  stdDev,
-  pearson,
-  type Distribution,
-  type Histogram,
-  type HistogramBin,
-} from "./stats.js";
-export {
-  segmentPopulation,
   classifySegment,
   type Segment,
   type SegmentableOperator,
+  segmentPopulation,
 } from "./segments.js";
+export {
+  type Distribution,
+  type Histogram,
+  type HistogramBin,
+  histogram,
+  mean,
+  pearson,
+  quantile,
+  stdDev,
+  summarize,
+} from "./stats.js";

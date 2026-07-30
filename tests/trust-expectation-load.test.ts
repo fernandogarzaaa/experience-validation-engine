@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DecisionFatigue, estimateCognitiveLoad } from "../src/cognition/cognitiveLoad.js";
 import {
-  ViolationStreak,
   buildExpectation,
   scoreExpectation,
+  ViolationStreak,
 } from "../src/cognition/expectation.js";
 import type { Percept, PredictionOutcome, VisibleElement } from "../src/core/types.js";
 import { TrustModel } from "../src/emotion/trust.js";

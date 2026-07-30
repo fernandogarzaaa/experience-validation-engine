@@ -4,14 +4,14 @@
  * from a population study's observed behaviour.
  */
 
-export { inferProductIntelligence } from "./intelligence.js";
-export { renderProductIntelligenceMarkdown } from "./report.js";
 export type {
-  ProductIntelligence,
-  InferredPersona,
   BusinessGoal,
-  Workflow,
+  DropoffCause,
   FeatureImportance,
   FrictionPage,
-  DropoffCause,
+  InferredPersona,
+  ProductIntelligence,
+  Workflow,
 } from "./intelligence.js";
+export { inferProductIntelligence } from "./intelligence.js";
+export { renderProductIntelligenceMarkdown } from "./report.js";

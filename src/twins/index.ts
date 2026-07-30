@@ -4,15 +4,15 @@
  * more expert and confident across sessions.
  */
 
-export {
-  createTwin,
-  twinPersona,
-  evolveTwin,
-  runTwinSession,
-  type CreateTwinSpec,
-  type TwinSessionConfig,
-  type TwinSessionResult,
-} from "./twin.js";
 export { renderTwinMarkdown } from "./report.js";
 export { FileTwinStore, InMemoryTwinStore, type TwinStore } from "./store.js";
-export type { TwinProfile, TwinEvolution, TwinSessionOutcome } from "./types.js";
+export {
+  type CreateTwinSpec,
+  createTwin,
+  evolveTwin,
+  runTwinSession,
+  type TwinSessionConfig,
+  type TwinSessionResult,
+  twinPersona,
+} from "./twin.js";
+export type { TwinEvolution, TwinProfile, TwinSessionOutcome } from "./types.js";

@@ -1,8 +1,16 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
   "files": {
-    "include": ["src/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "*.ts"],
-    "ignore": ["dist", "coverage", "node_modules", ".eve-output"]
+    "includes": [
+      "**/src/**/*.ts",
+      "**/tests/**/*.ts",
+      "**/examples/**/*.ts",
+      "**/*.ts",
+      "!**/dist",
+      "!**/coverage",
+      "!**/node_modules",
+      "!**/.eve-output"
+    ]
   },
   "vcs": {
     "enabled": true,
@@ -23,13 +31,11 @@
       "arrowParentheses": "always"
     }
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "noUnusedVariables": "error",
         "noUnusedImports": "error",
@@ -38,7 +44,7 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConsoleLog": "off"
+        "noConsole": { "level": "off", "options": { "allow": ["log"] } }
       },
       "style": {
         // `noUncheckedIndexedAccess` makes `arr[i]` possibly-undefined, so `!` after an

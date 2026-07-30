@@ -1,6 +1,5 @@
 import { clamp01 } from "../core/random.js";
-import type { StrategyWeights } from "../planning/strategies.js";
-import type { ExplorationStrategy } from "../planning/strategies.js";
+import type { ExplorationStrategy, StrategyWeights } from "../planning/strategies.js";
 import type { CognitiveContext, Decision } from "./cognition.js";
 import { HeuristicCognition } from "./heuristicCognition.js";
 import { predictInteraction } from "./mentalModel.js";

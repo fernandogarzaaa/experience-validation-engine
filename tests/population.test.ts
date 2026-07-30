@@ -9,10 +9,10 @@ import type { EmotionVector } from "../src/emotion/emotionalState.js";
 import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
 import { runUsabilityStudy } from "../src/mcp/tools.js";
 import {
-  type PopulationStudy,
   classifySegment,
   histogram,
   mean,
+  type PopulationStudy,
   pearson,
   quantile,
   sampleOperators,

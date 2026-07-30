@@ -1,6 +1,6 @@
 import type { Percept } from "../core/types.js";
-import { cultureOf } from "../personas/culture.js";
 import type { CultureProfile } from "../personas/culture.js";
+import { cultureOf } from "../personas/culture.js";
 import type { EvePlugin, PluginContext } from "./plugin.js";
 
 /**

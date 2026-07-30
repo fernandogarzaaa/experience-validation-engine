@@ -1,12 +1,12 @@
-export type { BrowserAdapter, RawSnapshot, AdapterOptions } from "./adapter.js";
+export type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
+export type { Gesture, TypingPlan } from "./humanizer.js";
+export { hesitationMs, planClick, planTyping } from "./humanizer.js";
+export type { MockAppSpec, MockElementSpec, MockScreenSpec } from "./mock.js";
+export { DEMO_APP, MockAdapter } from "./mock.js";
+export { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 export { PlaywrightAdapter } from "./playwright.js";
 export { PuppeteerAdapter } from "./puppeteer.js";
 export { SeleniumAdapter } from "./selenium.js";
-export { MockAdapter, DEMO_APP } from "./mock.js";
-export type { MockAppSpec, MockScreenSpec, MockElementSpec } from "./mock.js";
-export { planClick, planTyping, hesitationMs } from "./humanizer.js";
-export type { Gesture, TypingPlan } from "./humanizer.js";
-export { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
 import type { AdapterOptions, BrowserAdapter } from "./adapter.js";
 import { MockAdapter } from "./mock.js";

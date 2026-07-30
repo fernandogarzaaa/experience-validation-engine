@@ -7,13 +7,13 @@ import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
 import { TwinSessionSchema } from "../src/mcp/schemas.js";
 import { runTwinSessionTool } from "../src/mcp/tools.js";
 import {
-  FileTwinStore,
-  InMemoryTwinStore,
-  type TwinProfile,
   createTwin,
   evolveTwin,
+  FileTwinStore,
+  InMemoryTwinStore,
   renderTwinMarkdown,
   runTwinSession,
+  type TwinProfile,
   twinPersona,
 } from "../src/twins/index.js";
 

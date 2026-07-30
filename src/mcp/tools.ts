@@ -15,10 +15,10 @@ import { join } from "node:path";
 
 import { buildApplicationMap, renderApplicationMapMarkdown } from "../appmap/index.js";
 import { validateBenchmarks } from "../benchmarks/index.js";
-import { createAdapter } from "../browser/index.js";
 import type { AdapterName, BrowserAdapter } from "../browser/index.js";
-import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
+import { createAdapter } from "../browser/index.js";
 import type { HumanStudy } from "../calibration/index.js";
+import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
 import type { DecisionPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
@@ -27,7 +27,6 @@ import { renderEveBenchMarkdown, runEveBench } from "../evebench/index.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { analyzeMultimodal, renderMultimodalMarkdown } from "../multimodal/index.js";
 import {
-  type Persona,
   applyProfession,
   getCulture,
   getPersona,
@@ -35,6 +34,7 @@ import {
   listCultures,
   listPersonas,
   listProfessions,
+  type Persona,
 } from "../personas/index.js";
 import { simulatePopulation } from "../population/index.js";
 import { predictUX, renderUXPredictionMarkdown } from "../predict/index.js";
@@ -43,7 +43,7 @@ import { writeReports } from "../reporting/index.js";
 import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
 import { analyzeTrends, renderTrendReportMarkdown } from "../trends/index.js";
-import { FileTwinStore, createTwin, renderTwinMarkdown, runTwinSession } from "../twins/index.js";
+import { createTwin, FileTwinStore, renderTwinMarkdown, runTwinSession } from "../twins/index.js";
 import type {
   ApplicationMapInput,
   BenchmarkInput,

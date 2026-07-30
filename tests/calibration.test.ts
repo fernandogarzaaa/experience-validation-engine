@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
-  type HumanStudy,
   calibrate,
+  type HumanStudy,
   importHumanStudy,
   renderCalibrationMarkdown,
 } from "../src/calibration/index.js";

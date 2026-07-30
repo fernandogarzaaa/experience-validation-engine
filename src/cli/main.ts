@@ -10,7 +10,6 @@ import { EveSession, type SessionResult } from "../engine/session.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { runPanel } from "../panel/index.js";
 import {
-  type Persona,
   applyProfession,
   definePersona,
   getCulture,
@@ -19,6 +18,7 @@ import {
   listCultures,
   listPersonas,
   listProfessions,
+  type Persona,
   registerPersona,
 } from "../personas/index.js";
 import {

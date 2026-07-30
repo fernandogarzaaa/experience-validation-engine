@@ -18,14 +18,14 @@ import { UtilityCognition } from "../cognition/utilityCognition.js";
 import { EMOTION_KEYS, type EmotionVector } from "../emotion/emotionalState.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
 import {
-  type Persona,
   applyProfession,
   getCulture,
   getPersona,
   getProfession,
   listPersonas,
+  type Persona,
 } from "../personas/index.js";
-import { type Segment, classifySegment, segmentPopulation } from "./segments.js";
+import { classifySegment, type Segment, segmentPopulation } from "./segments.js";
 import { type Distribution, type Histogram, histogram, summarize } from "./stats.js";
 
 /** One operator sampled into the population. */

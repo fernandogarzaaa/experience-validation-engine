@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PredictionOutcome } from "../src/core/types.js";
-import { EmotionalState, appraise } from "../src/emotion/index.js";
+import { appraise, EmotionalState } from "../src/emotion/index.js";
 import { getPersona } from "../src/personas/index.js";
 
 function outcome(overrides: Partial<PredictionOutcome> = {}): PredictionOutcome {

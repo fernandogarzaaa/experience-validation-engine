@@ -4,9 +4,9 @@ import { RunUsabilityStudySchema } from "../src/mcp/schemas.js";
 import { runPredictUX } from "../src/mcp/tools.js";
 import { type PopulationStudy, simulatePopulation } from "../src/population/index.js";
 import {
-  type UXPrediction,
   predictUX,
   renderUXPredictionMarkdown,
+  type UXPrediction,
   wilsonInterval,
 } from "../src/predict/index.js";
 

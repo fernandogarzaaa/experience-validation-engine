@@ -8,24 +8,24 @@
 export { moderateStudy } from "./moderator.js";
 export { renderModeratedStudyMarkdown } from "./report.js";
 export {
+  accessibilitySpecialist,
+  behavioralPsychologist,
+  interactionDesigner,
+  productManager,
+  qaEngineer,
   runSpecialists,
   SPECIALISTS,
   uxResearcher,
-  interactionDesigner,
-  accessibilitySpecialist,
-  qaEngineer,
-  behavioralPsychologist,
-  productManager,
 } from "./specialists.js";
 export type {
-  ExecutiveStudyReport,
-  SpecialistReport,
-  StudyObservation,
-  Recommendation,
-  ConsensusPoint,
   Conflict,
+  ConsensusPoint,
+  ExecutiveStudyReport,
   PriorityItem,
+  Recommendation,
   Severity,
+  SpecialistReport,
   Stance,
+  StudyObservation,
   Verdict,
 } from "./types.js";

@@ -4,8 +4,13 @@
  *   npm install playwright && npx playwright install chromium
  *   npx tsx examples/real-browser.ts https://your-app.example.com
  */
-import { EveSession, PlaywrightAdapter, writeReports } from "../src/index.js";
-import { AccessibilityPlugin, PerformancePlugin } from "../src/index.js";
+import {
+  AccessibilityPlugin,
+  EveSession,
+  PerformancePlugin,
+  PlaywrightAdapter,
+  writeReports,
+} from "../src/index.js";
 
 const url = process.argv[2];
 if (!url) {
