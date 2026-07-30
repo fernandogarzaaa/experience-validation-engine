@@ -31,6 +31,18 @@ updates:
       - dependency-name: puppeteer
       - dependency-name: selenium-webdriver
       - dependency-name: "@anthropic-ai/sdk"
+      # @types/node's major is the primary runtime-compatibility boundary
+      # with engines.node's floor — it must track that floor, not the latest
+      # release. (Minor/patch releases can add typings for newer Node APIs
+      # too, but those stay in scope for the dev-tooling group above, same
+      # as any other dependency, since they don't redefine the floor.) Left
+      # to auto-update, major and floor drift apart silently: tsc keeps
+      # passing because newer types are typically additive, but nothing then
+      # stops code from using an API the floor doesn't actually have. Bump
+      # the major only by hand, in the same commit that moves engines.node
+      # and the CI matrix — never as an independent Dependabot PR.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
