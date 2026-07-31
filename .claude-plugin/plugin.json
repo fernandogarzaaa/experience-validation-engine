@@ -1,6 +1,6 @@
 {
   "name": "eve",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "EVE — validate software the way a human experiences it. Simulates realistic personas (attention, memory, emotion, patience) using a web app through a browser and returns an evidence-backed experience report: scores, findings, and a first-person journal.",
   "author": {
     "name": "fernandogarzaaa",
@@ -9,11 +9,19 @@
   "homepage": "https://github.com/fernandogarzaaa/experience-validation-engine",
   "repository": "https://github.com/fernandogarzaaa/experience-validation-engine",
   "license": "MIT",
-  "keywords": ["ux", "usability", "experience-validation", "cognitive-simulation", "mcp"],
+  "keywords": [
+    "ux",
+    "usability",
+    "experience-validation",
+    "cognitive-simulation",
+    "mcp"
+  ],
   "mcpServers": {
     "eve": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/eve-mcp.js"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/eve-mcp.js"
+      ]
     }
   }
 }
