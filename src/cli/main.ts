@@ -59,7 +59,9 @@ Options for "run":
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --culture <locale>    Cultural profile (en-US, de-DE, ja-JP, ar-SA, ...)
   --goal <text>         Task for the operator (default: open-ended exploration)
-  --browser <name>      playwright | puppeteer | selenium | mock
+  --browser <name>      playwright | puppeteer | selenium | mobile | mock
+  --device <name>       Device to emulate when --browser mobile (default
+                        "iPhone 14"): iPhone 14 | iPhone SE | Pixel 7 | iPad Mini
   --steps <n>           Max loop iterations (default 60)
   --minutes <n>         Max wall-clock minutes (default 10)
   --seed <value>        Reproducibility seed (number or string)
@@ -165,6 +167,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       persona: { type: "string" },
       goal: { type: "string" },
       browser: { type: "string" },
+      device: { type: "string" },
       steps: { type: "string" },
       minutes: { type: "string" },
       seed: { type: "string" },
@@ -201,6 +204,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     if (values.persona) config.persona = values.persona;
     if (values.goal) config.goal = values.goal;
     if (values.browser) config = resolveConfig({ ...configToRaw(config), browser: values.browser });
+    if (values.device) config.device = values.device;
     if (values.steps) config.maxSteps = parsePositiveInt(values.steps, "--steps");
     if (values.minutes) config.maxDurationMinutes = parsePositiveInt(values.minutes, "--minutes");
     if (values.seed) config.seed = /^\d+$/.test(values.seed) ? Number(values.seed) : values.seed;
@@ -261,7 +265,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   );
 
   const session = new EveSession({
-    adapter: createAdapter(config.browser, { headless: config.headless }),
+    adapter: createAdapter(config.browser, { headless: config.headless, device: config.device }),
     startUrl: config.url,
     persona,
     policy,
@@ -460,6 +464,7 @@ function configToRaw(config: EveConfig): Record<string, unknown> {
     url: config.url,
     persona: typeof config.persona === "string" ? config.persona : undefined,
     browser: config.browser,
+    device: config.device,
     headless: config.headless,
     viewport: config.viewport,
     goal: config.goal,

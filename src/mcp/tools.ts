@@ -170,7 +170,7 @@ export async function runSession(input: RunSessionInput): Promise<ToolOutput> {
 
   let adapter: BrowserAdapter;
   try {
-    adapter = createAdapter(browser, { headless: true });
+    adapter = createAdapter(browser, { headless: true, device: input.device });
   } catch (err) {
     throw new ToolInputError(
       `Could not start the "${browser}" browser backend: ` +

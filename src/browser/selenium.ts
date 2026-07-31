@@ -40,7 +40,7 @@ export class SeleniumAdapter implements BrowserAdapter {
   private driver: SeleniumDriver | null = null;
   private origin: unknown = null;
   private keyMap: Record<string, string> = {};
-  private readonly options: Required<AdapterOptions>;
+  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
   private readonly browserName: string;
 
   constructor(options: AdapterOptions & { browser?: string } = {}) {

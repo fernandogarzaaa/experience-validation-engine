@@ -81,9 +81,12 @@ Three principles make it a simulation rather than automation:
   heatmap, screenshots, session journal with first-person rationale),
   Markdown and JSON. Exit codes make `eve run` a CI gate.
 - **Pluggable everything** — browser adapters (Playwright, Puppeteer,
-  Selenium, offline mock), decision policies (offline heuristic mind or an
-  optional Anthropic-powered one), and passive plugins (accessibility,
-  performance, LLM design critic, your own).
+  Selenium, mobile device emulation, offline mock), decision policies
+  (offline heuristic mind or an optional Anthropic-powered one), and passive
+  plugins (accessibility, performance, LLM design critic, your own).
+- **Mobile web** — real device emulation with genuine touch actuation (fat-
+  finger tap scatter, swipe momentum, soft-keyboard cadence and occlusion),
+  not just a resized viewport. See [docs/mobile-web.md](docs/mobile-web.md).
 
 ## Quick start
 

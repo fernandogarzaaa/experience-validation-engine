@@ -11,9 +11,10 @@ url: https://staging.your-app.example.com   # required
 persona: first-time-user
 goal: "sign up and create my first project"
 goalSuccessSignals: ["project created"]
-browser: playwright        # playwright | puppeteer | selenium | mock
+browser: playwright        # playwright | puppeteer | selenium | mobile | mock
+device: iPhone 14          # only used when browser: mobile — see docs/mobile-web.md
 headless: true
-viewport: { width: 1280, height: 800 }
+viewport: { width: 1280, height: 800 }   # ignored when browser: mobile (uses the device's own viewport)
 maxSteps: 60
 maxDurationMinutes: 10
 explorationStrategy: curious   # curious | systematic | goal-directed

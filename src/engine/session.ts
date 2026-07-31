@@ -1,5 +1,12 @@
 import type { BrowserAdapter } from "../browser/adapter.js";
-import { hesitationMs, planClick, planTyping } from "../browser/humanizer.js";
+import {
+  hesitationMs,
+  planClick,
+  planSoftKeyType,
+  planSwipe,
+  planTap,
+  planTyping,
+} from "../browser/humanizer.js";
 import type { Decision, DecisionPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import {
@@ -706,26 +713,48 @@ export class EveSession {
         const risk = riskOf(action.target);
         const hesitate = hesitationMs(risk, this.persona, this.rng);
         await this.pace(hesitate);
-        const gesture = planClick(action.target, this.persona, this.rng);
+        const touch = adapter.capabilities.pointer === "touch";
+        const gesture = touch
+          ? planTap(action.target, this.persona, this.rng, this.options.viewport)
+          : planClick(action.target, this.persona, this.rng);
         await this.pace(gesture.durationMs);
-        await adapter.moveMouse(gesture.point);
+        // A touch has no persistent pointer to move ahead of the tap landing.
+        if (!touch) await adapter.moveMouse(gesture.point);
         if (action.kind === "doubleClick") await adapter.doubleClickAt(gesture.point);
         else await adapter.clickAt(gesture.point);
-        if (gesture.missed) this.log("(the click slipped and needed a correction)");
+        if (gesture.missed) {
+          this.log(
+            touch
+              ? "(the tap missed and needed a correction)"
+              : "(the click slipped and needed a correction)",
+          );
+        }
         return gesture.point;
       }
       case "hover": {
+        if (!adapter.capabilities.canHover) {
+          // No persistent pointer on this surface: hovering is not merely
+          // awkward, it is unreachable. Don't fake a pointer move — the
+          // accessibility plugin turns the attempt itself into a finding.
+          this.log("(this surface has no hover — the affordance is unreachable)");
+          return null;
+        }
         const gesture = planClick(action.target, this.persona, this.rng);
         await this.pace(gesture.durationMs);
         await adapter.moveMouse(gesture.point);
         return gesture.point;
       }
       case "type": {
-        const gesture = planClick(action.target, this.persona, this.rng);
+        const touch = adapter.capabilities.pointer === "touch";
+        const gesture = touch
+          ? planTap(action.target, this.persona, this.rng, this.options.viewport)
+          : planClick(action.target, this.persona, this.rng);
         await this.pace(gesture.durationMs);
-        await adapter.moveMouse(gesture.point);
+        if (!touch) await adapter.moveMouse(gesture.point);
         await adapter.clickAt(gesture.point);
-        const plan = planTyping(action.text, this.persona, this.rng);
+        const plan = touch
+          ? planSoftKeyType(action.text, this.persona, this.rng)
+          : planTyping(action.text, this.persona, this.rng);
         // Real keystrokes: adapters handle per-char pacing; we simulate
         // corrections by sending Backspace for the "\b" marker.
         for (const key of plan.keystrokes) {
@@ -740,10 +769,20 @@ export class EveSession {
         await this.pace(200);
         await adapter.pressKey(action.key);
         return null;
-      case "scroll":
-        await this.pace(300);
-        await adapter.scrollBy(action.deltaY);
+      case "scroll": {
+        if (adapter.capabilities.pointer === "touch") {
+          // A swipe is a flick plus decaying momentum, not one atomic jump.
+          const swipe = planSwipe(action.deltaY, this.persona, this.rng);
+          for (const segment of swipe.segments) {
+            await this.pace(segment.durationMs);
+            await adapter.scrollBy(segment.deltaY);
+          }
+        } else {
+          await this.pace(300);
+          await adapter.scrollBy(action.deltaY);
+        }
         return null;
+      }
       case "navigate":
         await this.pace(800);
         await adapter.navigate(action.url);

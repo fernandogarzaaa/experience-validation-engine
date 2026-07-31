@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { parse } from "yaml";
 import type { AdapterName } from "../browser/index.js";
+import { DEVICE_PRESETS } from "../browser/mobile.js";
 import type { Viewport } from "../core/types.js";
 import { getPersona } from "../personas/library.js";
 import { definePersona, type Persona, type PersonaSpec } from "../personas/persona.js";
@@ -15,6 +16,8 @@ export interface EveConfig {
   url: string;
   persona: string | Persona;
   browser: AdapterName;
+  /** Device to emulate when browser is "mobile" (e.g. "iPhone 14"). */
+  device?: string;
   headless: boolean;
   viewport: Viewport;
   goal?: string;
@@ -68,7 +71,7 @@ export const DEFAULT_CONFIG: Omit<EveConfig, "url"> = {
   utilityDecisions: false,
 };
 
-const ADAPTERS: readonly AdapterName[] = ["playwright", "puppeteer", "selenium", "mock"];
+const ADAPTERS: readonly AdapterName[] = ["playwright", "puppeteer", "selenium", "mobile", "mock"];
 const STRATEGIES: readonly ExplorationStrategy[] = ["curious", "systematic", "goal-directed"];
 
 /** Validate and normalize a raw (parsed-YAML or object) configuration. */
@@ -91,6 +94,15 @@ export function resolveConfig(raw: unknown): EveConfig {
       throw new ConfigError(`browser must be one of ${ADAPTERS.join(", ")}; got "${browser}"`);
     }
     config.browser = browser;
+  }
+  if (input.device !== undefined) {
+    const device = expectString(input, "device");
+    if (!Object.hasOwn(DEVICE_PRESETS, device)) {
+      throw new ConfigError(
+        `device must be one of ${Object.keys(DEVICE_PRESETS).join(", ")}; got "${device}"`,
+      );
+    }
+    config.device = device;
   }
   if (input.headless !== undefined) config.headless = expectBoolean(input, "headless");
   if (input.viewport !== undefined) {
