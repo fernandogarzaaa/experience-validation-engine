@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "The Experience Validation Engine (EVE) — AI that experiences software like a human.",
-    "version": "0.3.1"
+    "version": "0.3.2"
   },
   "plugins": [
     {
@@ -14,7 +14,12 @@
       "source": "./",
       "description": "Validate software the way a human experiences it: simulate a persona using your app and get an evidence-backed experience report (scores, findings, first-person journal). Adds the EVE MCP tools (eve_run_session, eve_list_personas, eve_benchmark, …) plus the /eve skill.",
       "category": "testing",
-      "keywords": ["ux", "usability", "experience-validation", "mcp"]
+      "keywords": [
+        "ux",
+        "usability",
+        "experience-validation",
+        "mcp"
+      ]
     }
   ]
 }

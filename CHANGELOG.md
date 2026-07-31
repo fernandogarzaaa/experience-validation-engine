@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.3.1...v0.3.2) (2026-07-31)
+
+
+### Build and tooling
+
+* adopt Biome for linting and formatting ([#11](https://github.com/fernandogarzaaa/experience-validation-engine/issues/11)) ([0e74b72](https://github.com/fernandogarzaaa/experience-validation-engine/commit/0e74b726e327971daff1019120a1c75fbde5ef46))
+
 ## 0.3.1 — Dogfooding fixes
 
 Quality fixes surfaced by running EVE's own Phase-3 analysis against a model of
