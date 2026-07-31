@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { parse } from "yaml";
 import type { AdapterName } from "../browser/index.js";
+import { DEVICE_PRESETS } from "../browser/mobile.js";
 import type { Viewport } from "../core/types.js";
 import { getPersona } from "../personas/library.js";
 import { definePersona, type Persona, type PersonaSpec } from "../personas/persona.js";
@@ -94,7 +95,15 @@ export function resolveConfig(raw: unknown): EveConfig {
     }
     config.browser = browser;
   }
-  if (input.device !== undefined) config.device = expectString(input, "device");
+  if (input.device !== undefined) {
+    const device = expectString(input, "device");
+    if (!Object.hasOwn(DEVICE_PRESETS, device)) {
+      throw new ConfigError(
+        `device must be one of ${Object.keys(DEVICE_PRESETS).join(", ")}; got "${device}"`,
+      );
+    }
+    config.device = device;
+  }
   if (input.headless !== undefined) config.headless = expectBoolean(input, "headless");
   if (input.viewport !== undefined) {
     const v = input.viewport as Record<string, unknown>;

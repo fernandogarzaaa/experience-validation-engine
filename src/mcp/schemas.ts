@@ -69,7 +69,7 @@ export const RunSessionSchema = z
           "Use eve_list_cultures for the catalog.",
       ),
     browser: z
-      .nativeEnum(BrowserBackend)
+      .enum(BrowserBackend)
       .optional()
       .describe(
         "Browser backend. Defaults to `mock` for `mock:` URLs and `playwright` " +
@@ -194,7 +194,7 @@ export const RunUsabilityStudySchema = z
     cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
     utility: z.boolean().default(false).describe("Use utility-based decisions."),
     browser: z
-      .nativeEnum(BrowserBackend)
+      .enum(BrowserBackend)
       .optional()
       .describe("Browser backend (defaults to mock for `mock:` URLs, else playwright)."),
     concurrency: z
@@ -242,10 +242,7 @@ export const MultimodalScanSchema = z
     persona: z.string().default("curious-explorer").describe("Persona used to explore the app."),
     seed: z.union([z.number(), z.string()]).optional().describe("Seed for reproducibility."),
     max_steps: z.number().int().min(1).max(500).default(50).describe("Max exploration steps."),
-    browser: z
-      .nativeEnum(BrowserBackend)
-      .optional()
-      .describe("Browser backend (default inferred)."),
+    browser: z.enum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
     response_format: z
       .nativeEnum(ResponseFormat)
       .default(ResponseFormat.MARKDOWN)
@@ -301,10 +298,7 @@ export const TwinSessionSchema = z
     seed: z.union([z.number(), z.string()]).optional().describe("Seed for this session."),
     max_steps: z.number().int().min(1).max(500).default(60).describe("Max steps this session."),
     cognitive: z.boolean().default(false).describe("Enable the enhanced cognitive suite."),
-    browser: z
-      .nativeEnum(BrowserBackend)
-      .optional()
-      .describe("Browser backend (default inferred)."),
+    browser: z.enum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
     response_format: z
       .nativeEnum(ResponseFormat)
       .default(ResponseFormat.MARKDOWN)
@@ -335,10 +329,7 @@ export const ApplicationMapSchema = z
       .max(500)
       .default(50)
       .describe("Max exploration steps per operator."),
-    browser: z
-      .nativeEnum(BrowserBackend)
-      .optional()
-      .describe("Browser backend (default inferred)."),
+    browser: z.enum(BrowserBackend).optional().describe("Browser backend (default inferred)."),
     output_dir: z.string().optional().describe("If set, write application-map.md here."),
     response_format: z
       .nativeEnum(ResponseFormat)

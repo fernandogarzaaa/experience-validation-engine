@@ -94,7 +94,13 @@ export class MobileAdapter implements BrowserAdapter {
 
   constructor(options: AdapterOptions = {}) {
     this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
-    this.deviceName = isDeviceName(options.device) ? options.device : DEFAULT_DEVICE;
+    if (options.device !== undefined && !isDeviceName(options.device)) {
+      throw new Error(
+        `MobileAdapter: unknown device "${options.device}". Supported devices: ` +
+          `${Object.keys(DEVICE_PRESETS).join(", ")}.`,
+      );
+    }
+    this.deviceName = options.device ?? DEFAULT_DEVICE;
     this.deviceMetrics = {
       softKeyboardHeightPx: DEVICE_PRESETS[this.deviceName].softKeyboardHeightPx,
     };

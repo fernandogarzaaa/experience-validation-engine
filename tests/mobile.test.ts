@@ -1,8 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { BrowserAdapter, RawSnapshot } from "../src/browser/adapter.js";
-import { planClick, planSwipe, planTap } from "../src/browser/humanizer.js";
+import {
+  planClick,
+  planSoftKeyType,
+  planSwipe,
+  planTap,
+  planTyping,
+} from "../src/browser/humanizer.js";
+import { MockAdapter } from "../src/browser/mock.js";
 import { createRng } from "../src/core/random.js";
-import type { Finding, LoopIteration, Percept, VisibleElement } from "../src/core/types.js";
+import type {
+  Finding,
+  LoopIteration,
+  Percept,
+  Point,
+  Viewport,
+  VisibleElement,
+} from "../src/core/types.js";
+import { EveSession } from "../src/engine/session.js";
 import { Observer } from "../src/observation/perception.js";
 import { getPersona } from "../src/personas/index.js";
 import { AccessibilityPlugin } from "../src/plugins/accessibility.js";
@@ -179,6 +194,26 @@ describe("swipe planning", () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* Soft-keyboard typing                                                */
+/* ------------------------------------------------------------------ */
+
+describe("soft-keyboard typing", () => {
+  it("types slower and with no fewer typos than a physical keyboard, for the same persona and seed", () => {
+    const persona = getPersona("impatient-user");
+    const text = "the quick brown fox jumps over the lazy dog ".repeat(6);
+    // Same seed on two independent Rngs: both plans consume rng.chance() in
+    // lockstep (once per neighbor-keyed character, regardless of typoP), so
+    // whichever draws trigger the lower physical-keyboard threshold also
+    // trigger the higher soft-keyboard one. The comparison is deterministic,
+    // not probabilistic.
+    const physical = planTyping(text, persona, createRng(3));
+    const soft = planSoftKeyType(text, persona, createRng(3));
+    expect(soft.perCharIntervalMs).toBeGreaterThan(physical.perCharIntervalMs);
+    expect(soft.typoCount).toBeGreaterThanOrEqual(physical.typoCount);
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* Keyboard occlusion                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -318,5 +353,94 @@ describe("accessibility plugin on a touch surface", () => {
     const { findings, ctx } = context(TOUCH_VISUAL_SURFACE);
     await new AccessibilityPlugin().onSessionEnd(ctx as never, [loopIteration()]);
     expect(findings).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Session-level touch execution path                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Wraps MockAdapter (a full, working BrowserAdapter over a real screen graph)
+ * but declares touch capabilities and records every call, so a real
+ * EveSession.run() can exercise engine.ts's touch branches end to end without
+ * a real browser.
+ */
+class RecordingTouchAdapter implements BrowserAdapter {
+  readonly name = "mock";
+  readonly capabilities = TOUCH_VISUAL_SURFACE;
+  readonly deviceMetrics = { softKeyboardHeightPx: 300 };
+  readonly calls: string[] = [];
+  private readonly inner = new MockAdapter();
+
+  async open(url: string, viewport: Viewport): Promise<void> {
+    this.calls.push("open");
+    return this.inner.open(url, viewport);
+  }
+  async snapshot() {
+    return this.inner.snapshot();
+  }
+  async screenshot() {
+    return this.inner.screenshot();
+  }
+  async moveMouse(point: Point): Promise<void> {
+    this.calls.push("moveMouse");
+    return this.inner.moveMouse(point);
+  }
+  async clickAt(point: Point): Promise<void> {
+    this.calls.push("clickAt");
+    return this.inner.clickAt(point);
+  }
+  async doubleClickAt(point: Point): Promise<void> {
+    this.calls.push("doubleClickAt");
+    return this.inner.doubleClickAt(point);
+  }
+  async typeText(text: string, perCharIntervalMs: number): Promise<void> {
+    this.calls.push("typeText");
+    return this.inner.typeText(text, perCharIntervalMs);
+  }
+  async pressKey(key: string): Promise<void> {
+    this.calls.push("pressKey");
+    return this.inner.pressKey(key);
+  }
+  async scrollBy(deltaY: number): Promise<void> {
+    this.calls.push("scrollBy");
+    return this.inner.scrollBy(deltaY);
+  }
+  async goBack(): Promise<void> {
+    this.calls.push("goBack");
+    return this.inner.goBack();
+  }
+  async navigate(url: string): Promise<void> {
+    this.calls.push("navigate");
+    return this.inner.navigate(url);
+  }
+  async close(): Promise<void> {
+    this.calls.push("close");
+    return this.inner.close();
+  }
+}
+
+describe("session-level touch execution path", () => {
+  it("never moves a mouse pointer and does actuate taps, on a touch-capable adapter", async () => {
+    const adapter = new RecordingTouchAdapter();
+    const result = await new EveSession({
+      adapter,
+      startUrl: "mock:",
+      persona: "impatient-user",
+      seed: 7,
+      maxSteps: 10,
+      paceScale: 0,
+    }).run();
+
+    expect(result.usage.steps).toBeGreaterThan(0);
+    // The one invariant this integration point exists to prove: a touch
+    // surface has no persistent pointer, so execute() must never call
+    // moveMouse — not for clicks (skipped ahead of the tap), and not for
+    // hover (skipped entirely, per capabilities.canHover).
+    expect(adapter.calls).not.toContain("moveMouse");
+    // The mock app's landing page is all clickable links/buttons; a curious
+    // explorer with 10 steps and no goal reliably clicks at least one.
+    expect(adapter.calls).toContain("clickAt");
   });
 });
