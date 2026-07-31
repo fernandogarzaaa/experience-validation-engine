@@ -22,11 +22,30 @@ export interface RawSnapshot {
   loadingIndicator: boolean;
 }
 
+/**
+ * Concrete physical measurements of a surface that `SurfaceCapabilities`
+ * deliberately doesn't carry — capabilities describe a *kind* of surface
+ * shared across many adapters/devices; these numbers are specific to one
+ * device and would force a bespoke capabilities object per phone model.
+ */
+export interface DeviceMetrics {
+  /**
+   * Height, in CSS pixels, of the band at the bottom of the viewport a soft
+   * keyboard covers while a text input has focus. Headless browsers render
+   * no real IME, so this is a modeled approximation of the device's on-screen
+   * keyboard, not something perceived from the page.
+   */
+  readonly softKeyboardHeightPx: number;
+}
+
 export interface BrowserAdapter {
   readonly name: string;
 
   /** Which perceptual dimensions this surface actually has. */
   readonly capabilities: SurfaceCapabilities;
+
+  /** Physical measurements of this surface, when it has any worth modeling. */
+  readonly deviceMetrics?: DeviceMetrics;
 
   /** Launch/attach and navigate to the starting URL. */
   open(url: string, viewport: Viewport): Promise<void>;
@@ -69,6 +88,8 @@ export interface AdapterOptions {
   headless?: boolean;
   /** Extra ms to wait after navigation for the page to settle. */
   settleMs?: number;
+  /** Device to emulate (mobile adapter only), e.g. "iPhone 14". */
+  device?: string;
 }
 
 /** Adapters are not browser-specific; this alias names the general contract. */

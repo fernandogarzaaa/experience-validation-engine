@@ -1,11 +1,19 @@
 import type { BrowserAdapter } from "../browser/adapter.js";
-import type { Percept } from "../core/types.js";
+import type { BoundingBox, Percept, VisibleElement } from "../core/types.js";
 
 /**
  * The observation layer turns raw adapter snapshots into {@link Percept}s —
  * timestamped, immutable records of what the operator saw. It also measures
  * perceived latency: the wall-clock a human experiences between acting and
  * the screen settling.
+ *
+ * On touch surfaces it also models soft-keyboard occlusion. No headless
+ * browser renders a real on-screen keyboard, so this cannot be perceived from
+ * the page the way everything else in a `Percept` is — it is computed here,
+ * deterministically, from the adapter's declared `deviceMetrics` and whether
+ * a focused editable element is present. That keeps the modeling in one
+ * place, clearly attributed, rather than letting it masquerade as sensed data
+ * anywhere downstream (findings, reports).
  */
 
 export interface ObserveOptions {
@@ -47,6 +55,14 @@ export class Observer {
     const settleMs = Date.now() - start;
 
     const screenshot = options.withScreenshot ? await this.adapter.screenshot() : null;
+    const keyboardOcclusion = modelKeyboardOcclusion(this.adapter, snap.viewport, snap.elements);
+    const elements = keyboardOcclusion
+      ? snap.elements.map((el) =>
+          intersectsBottomBand(el.box, keyboardOcclusion)
+            ? { ...el, occludedByKeyboard: true }
+            : el,
+        )
+      : snap.elements;
     const percept: Percept = {
       timestamp: Date.now() - this.sessionStart,
       url: snap.url,
@@ -55,12 +71,36 @@ export class Observer {
       scrollY: snap.scrollY,
       scrollHeight: snap.scrollHeight,
       screenshot,
-      elements: snap.elements,
+      elements,
       dialogs: snap.dialogs,
       loadingIndicator: snap.loadingIndicator,
+      keyboardOcclusion,
     };
     return { percept, settleMs };
   }
+}
+
+/**
+ * A modeled soft-keyboard band, or null when none is up. Touch surfaces only,
+ * and only while a focused editable element is present — a keyboard has no
+ * reason to be showing otherwise.
+ */
+function modelKeyboardOcclusion(
+  adapter: BrowserAdapter,
+  viewport: Percept["viewport"],
+  elements: readonly VisibleElement[],
+): BoundingBox | null {
+  if (adapter.capabilities.pointer !== "touch") return null;
+  const heightPx = adapter.deviceMetrics?.softKeyboardHeightPx;
+  if (!heightPx) return null;
+  const focusedEditable = elements.some((el) => el.focused && el.editable);
+  if (!focusedEditable) return null;
+  const height = Math.min(heightPx, viewport.height);
+  return { x: 0, y: viewport.height - height, width: viewport.width, height };
+}
+
+function intersectsBottomBand(box: BoundingBox, band: BoundingBox): boolean {
+  return box.y + box.height > band.y;
 }
 
 function sleep(ms: number): Promise<void> {

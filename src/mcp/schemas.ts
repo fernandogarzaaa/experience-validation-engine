@@ -18,6 +18,7 @@ export enum BrowserBackend {
   PLAYWRIGHT = "playwright",
   PUPPETEER = "puppeteer",
   SELENIUM = "selenium",
+  MOBILE = "mobile",
 }
 
 /** `eve_run_session` — run one simulated-human session. */
@@ -72,7 +73,15 @@ export const RunSessionSchema = z
       .optional()
       .describe(
         "Browser backend. Defaults to `mock` for `mock:` URLs and `playwright` " +
-          "for real URLs. Real backends must be installed as peer dependencies.",
+          "for real URLs. Real backends must be installed as peer dependencies. " +
+          "Use `mobile` to emulate a touch device (see `device`).",
+      ),
+    device: z
+      .string()
+      .optional()
+      .describe(
+        'Device to emulate when browser is "mobile" (default "iPhone 14"): ' +
+          "iPhone 14 | iPhone SE | Pixel 7 | iPad Mini. Ignored for other backends.",
       ),
     max_steps: z
       .number()

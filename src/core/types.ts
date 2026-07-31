@@ -78,6 +78,16 @@ export interface VisibleElement {
   readonly focused: boolean;
   /** Whether the element is fully inside the viewport (vs partially clipped). */
   readonly clippedByViewport: boolean;
+  /**
+   * True when a modeled soft-keyboard band covers this element (see
+   * {@link Percept.keyboardOcclusion}). A distinct fact from
+   * `clippedByViewport`: that flag is horizontal CSS overflow computed by the
+   * perception script from real layout; this one is a vertical, dynamic
+   * overlay modeled by the observation layer for touch surfaces, not
+   * perceived from the page. Absent (not merely false) on adapters that never
+   * compute it.
+   */
+  readonly occludedByKeyboard?: boolean;
   /** Perceived foreground/background colors when resolvable, as #rrggbb. */
   readonly color?: string;
   readonly backgroundColor?: string;
@@ -110,6 +120,15 @@ export interface Percept {
   readonly dialogs: readonly VisibleDialog[];
   /** A visible loading indicator (spinner, skeleton, progress bar) is present. */
   readonly loadingIndicator: boolean;
+  /**
+   * Viewport-relative rect a modeled soft keyboard covers, or null when none
+   * is up. Only ever set on touch surfaces with a focused editable element;
+   * modeled from the device's `softKeyboardHeightPx`, not perceived — no
+   * headless browser renders a real IME. Optional (not just nullable) so
+   * every existing `Percept` literal in tests and non-touch adapters is
+   * unaffected.
+   */
+  readonly keyboardOcclusion?: BoundingBox | null;
 }
 
 /* ------------------------------------------------------------------ */

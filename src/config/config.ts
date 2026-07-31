@@ -15,6 +15,8 @@ export interface EveConfig {
   url: string;
   persona: string | Persona;
   browser: AdapterName;
+  /** Device to emulate when browser is "mobile" (e.g. "iPhone 14"). */
+  device?: string;
   headless: boolean;
   viewport: Viewport;
   goal?: string;
@@ -68,7 +70,7 @@ export const DEFAULT_CONFIG: Omit<EveConfig, "url"> = {
   utilityDecisions: false,
 };
 
-const ADAPTERS: readonly AdapterName[] = ["playwright", "puppeteer", "selenium", "mock"];
+const ADAPTERS: readonly AdapterName[] = ["playwright", "puppeteer", "selenium", "mobile", "mock"];
 const STRATEGIES: readonly ExplorationStrategy[] = ["curious", "systematic", "goal-directed"];
 
 /** Validate and normalize a raw (parsed-YAML or object) configuration. */
@@ -92,6 +94,7 @@ export function resolveConfig(raw: unknown): EveConfig {
     }
     config.browser = browser;
   }
+  if (input.device !== undefined) config.device = expectString(input, "device");
   if (input.headless !== undefined) config.headless = expectBoolean(input, "headless");
   if (input.viewport !== undefined) {
     const v = input.viewport as Record<string, unknown>;

@@ -42,7 +42,7 @@ export class PuppeteerAdapter implements BrowserAdapter {
   private browser: PuppeteerBrowser | null = null;
   private page: PuppeteerPage | null = null;
   private pendingNativeDialogs: string[] = [];
-  private readonly options: Required<AdapterOptions>;
+  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
 
   constructor(options: AdapterOptions = {}) {
     this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
