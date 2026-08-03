@@ -120,6 +120,11 @@ jobs:
         run: node bin/eve.js benchmark
       - name: Smoke-test the MCP server (stdio handshake + tools/list)
         run: npm run mcp:smoke
+      # The unit tests call handleEnvelope directly. This spawns the endpoint
+      # exactly as ADAM does, so the built dist/ layout, the bin shim's import
+      # path and stdout framing are covered too.
+      - name: Smoke-test the CP/1 validation endpoint (ADAM's entry point)
+        run: npm run cp1:smoke
       - uses: actions/upload-artifact@v7
         with:
           name: eve-demo-report
