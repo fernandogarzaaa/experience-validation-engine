@@ -130,7 +130,11 @@ function parseIntensity(value: string | undefined): number | null {
   if (value === undefined) return null;
   const normalized = value.trim().toLowerCase();
   if (normalized === "") return null;
-  if (normalized in ORDINALS) return ORDINALS[normalized] as number;
+  // `Object.hasOwn`, not `in`: these tables are plain object literals, so `in`
+  // and bracket access resolve inherited names. A proposed value of
+  // "constructor" would otherwise yield a function where a number is expected
+  // and propagate as NaN through every trait delta.
+  if (Object.hasOwn(ORDINALS, normalized)) return ORDINALS[normalized] as number;
   const numeric = Number(normalized);
   if (Number.isFinite(numeric) && numeric >= 0 && numeric <= 1) return numeric;
   return null;
@@ -166,7 +170,10 @@ function projectGenomeAmendment(mutation: Mutation): Projection | null {
   const suffix = rest.join(".");
 
   if (field === "preferences") {
-    const traits = TRAIT_PROJECTIONS[suffix];
+    // Own-property check for the same reason as in `parseIntensity`: a target
+    // of "preferences.constructor" would otherwise return the Object
+    // constructor and throw when `.map` is called on it.
+    const traits = Object.hasOwn(TRAIT_PROJECTIONS, suffix) ? TRAIT_PROJECTIONS[suffix] : undefined;
     if (!traits) return null;
 
     const after = parseIntensity(mutation.proposed_value);
@@ -182,7 +189,7 @@ function projectGenomeAmendment(mutation: Mutation): Projection | null {
     return {
       deltas: traits.map((trait) => ({ trait, amount })),
       explanation:
-        `preference "${suffix}" ${before === null ? "set to" : `moved ${before} → `}` +
+        `preference "${suffix}" ${before === null ? "set to " : `moved ${before} → `}` +
         `${after}, projected onto ${traits.join(", ")} (${amount >= 0 ? "+" : ""}${amount.toFixed(2)})`,
     };
   }
@@ -229,7 +236,7 @@ export function explainUnprojectable(mutation: Mutation): string {
       const [field, ...rest] = mutation.target.split(".");
       const suffix = rest.join(".");
       if (field === "preferences") {
-        return TRAIT_PROJECTIONS[suffix]
+        return Object.hasOwn(TRAIT_PROJECTIONS, suffix)
           ? `preference "${suffix}" has a projection but its value ${JSON.stringify(mutation.proposed_value ?? "")} is not an intensity in [0,1] or one of ${Object.keys(ORDINALS).join(", ")}`
           : `preference "${suffix}" has no declared operational projection; add one to TRAIT_PROJECTIONS if it changes observable behavior`;
       }

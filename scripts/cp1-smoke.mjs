@@ -66,6 +66,11 @@ const child = spawn(process.execPath, [`${ROOT}/bin/eve-cp1.js`], {
 
 let stdout = "";
 let stderr = "";
+// Without an explicit encoding these handlers receive Buffers, and `+=` would
+// decode each chunk separately — splitting a multi-byte character that lands on
+// a chunk boundary into two replacement characters.
+child.stdout.setEncoding("utf8");
+child.stderr.setEncoding("utf8");
 child.stdout.on("data", (chunk) => {
   stdout += chunk;
 });
@@ -76,7 +81,12 @@ child.stderr.on("data", (chunk) => {
 child.stdin.write(`${JSON.stringify(sealEnvelope(request))}\n`);
 child.stdin.end();
 
-const code = await new Promise((done) => child.on("close", done));
+// A spawn that fails — no `dist/`, no executable — emits `error` and never
+// emits `close`, so awaiting `close` alone hangs until the CI job times out.
+const code = await new Promise((done, fail) => {
+  child.on("error", fail);
+  child.on("close", done);
+});
 
 const fail = (message) => {
   console.error(`✗ ${message}`);

@@ -13,7 +13,7 @@ import {
   validateMutation,
 } from "../src/fitness/index.js";
 import { BASELINE_TRAITS } from "../src/personas/persona.js";
-import { seal } from "../src/protocol/canonical.js";
+import { seal, sha256Hex } from "../src/protocol/canonical.js";
 import { openEnvelope, sealEnvelope } from "../src/protocol/envelope.js";
 import type { FitnessResult, Mutation, ValidationRequest } from "../src/protocol/types.js";
 
@@ -148,6 +148,44 @@ describe("mutation projection", () => {
       const m = mutation({ kind, target: "some statement" });
       expect(project(m), kind).toBeNull();
       expect(explainUnprojectable(m)).toContain("advisory");
+    }
+  });
+
+  it("declines a preference name inherited from Object.prototype", () => {
+    // `TRAIT_PROJECTIONS` is a plain object literal, so an `in` test or a bare
+    // bracket lookup resolves "constructor", "valueOf", "toString" and friends.
+    // Before the own-property check, `traits.map` was called on a function and
+    // threw a TypeError out of the endpoint instead of returning a verdict.
+    for (const name of ["constructor", "valueOf", "toString", "hasOwnProperty", "__proto__"]) {
+      const m = mutation({ target: `preferences.${name}`, proposed_value: "high" });
+      expect(project(m), name).toBeNull();
+      expect(explainUnprojectable(m), name).toContain("no declared operational projection");
+    }
+  });
+
+  it("declines a preference value inherited from Object.prototype", () => {
+    // Same table hazard on the value side: `ORDINALS["constructor"]` is a
+    // function, which produced NaN deltas on every projected trait — a
+    // measurement that looks real and means nothing.
+    for (const value of ["constructor", "valueOf", "toString", "__proto__"]) {
+      const m = mutation({ target: "preferences.thoroughness", proposed_value: value });
+      expect(project(m), value).toBeNull();
+      expect(explainUnprojectable(m), value).toContain("not an intensity");
+    }
+  });
+
+  it("never yields a NaN delta for any accepted value", () => {
+    for (const value of ["0.9", "high", "maximum", "0"]) {
+      const projection = project(
+        mutation({
+          target: "preferences.thoroughness",
+          current_value: "0.5",
+          proposed_value: value,
+        }),
+      );
+      for (const delta of projection?.deltas ?? []) {
+        expect(Number.isFinite(delta.amount), `${value} → ${delta.trait}`).toBe(true);
+      }
     }
   });
 
@@ -325,6 +363,78 @@ describe("CP/1 validation endpoint", () => {
       }),
     );
     expect((response as { detail: string }).detail).toContain("seed must be an integer");
+  });
+
+  it("refuses a mutation kind CP/1 does not define", async () => {
+    // `project` switches on `kind` with no default, so an unrecognised value
+    // used to reach ADAM as a sealed verdict whose stated reason was the
+    // string "undefined".
+    const bad = unmeasurable();
+    const response = await handleEnvelope(
+      sealEnvelope({
+        ...(bad as unknown as Record<string, unknown>),
+        mutation: { ...bad.mutation, kind: "rewrite_everything" },
+      }),
+    );
+    expect(response).toMatchObject({ type: "ProtocolError" });
+    expect((response as { detail: string }).detail).toContain("is not a CP/1 mutation kind");
+  });
+
+  it("refuses a request whose scenario_ids is not an array", async () => {
+    const response = await handleEnvelope(
+      sealEnvelope({
+        ...(unmeasurable() as unknown as Record<string, unknown>),
+        scenario_ids: "excellent",
+      }),
+    );
+    expect((response as { detail: string }).detail).toContain("must be an array");
+  });
+
+  it("refuses a trials count outside the bound the endpoint can serve", async () => {
+    // trials multiplies with scenarios and panel size into full browser
+    // sessions on an endpoint that handles requests strictly in order, so an
+    // unbounded value blocks every later request behind it.
+    for (const trials of [0, -1, 65, 1e9, "4"]) {
+      const response = await handleEnvelope(
+        sealEnvelope({
+          ...(unmeasurable() as unknown as Record<string, unknown>),
+          trials,
+        }),
+      );
+      expect(response, String(trials)).toMatchObject({ type: "ProtocolError" });
+      expect((response as { detail: string }).detail, String(trials)).toContain(
+        "trials must be an integer in [1, 64]",
+      );
+    }
+  });
+
+  it("refuses a fractional trials count at the canonical layer, before the bound", async () => {
+    // A float cannot be sealed at all, so this one can only arrive hand-crafted
+    // — and it is caught one layer further out than the range check, by the
+    // canonical re-encoding. Asserting it here records which layer owns it.
+    const sealed = sealEnvelope(unmeasurable() as unknown as Record<string, unknown>);
+    const payload = sealed.payload.replace('"trials":1', '"trials":1.5');
+    expect(payload).not.toBe(sealed.payload);
+
+    const response = await handleEnvelope({
+      ...sealed,
+      payload,
+      sha256: sha256Hex(payload),
+    });
+    expect(response).toMatchObject({ type: "ProtocolError" });
+    expect((response as { detail: string }).detail).toContain("not in CP/1 canonical form");
+  });
+
+  it("accepts trials at both ends of that bound", async () => {
+    for (const trials of [1, 64]) {
+      const response = await handleEnvelope(
+        sealEnvelope({
+          ...(unmeasurable() as unknown as Record<string, unknown>),
+          trials,
+        }),
+      );
+      expect("payload" in response, String(trials)).toBe(true);
+    }
   });
 
   it("reports a failed measurement as a protocol error, not a verdict", async () => {

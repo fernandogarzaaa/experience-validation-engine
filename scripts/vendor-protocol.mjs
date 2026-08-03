@@ -23,10 +23,17 @@ import { fileURLToPath } from "node:url";
 const EVE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_SOURCE = resolve(EVE_ROOT, "..", "AXIOM-AETHER");
 
-/** Files a binding must carry verbatim. Mirrors MANIFEST.sha256's entries. */
+/**
+ * Files a binding must carry verbatim. Mirrors MANIFEST.sha256's entries.
+ *
+ * `SPEC.md` is here because the manifest hashes it: the normative text is part
+ * of what a binding claims to conform to, and a copy that drifts from the
+ * source would let this repository cite a specification nobody else is reading.
+ */
 const VENDORED = [
   "VERSION",
   "MANIFEST.sha256",
+  "SPEC.md",
   "schema/cp1.schema.json",
   "fixtures/canonical.jsonl",
 ];

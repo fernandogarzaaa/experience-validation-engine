@@ -2,7 +2,8 @@
  * CP/1 — the Cognitive Protocol, version 1.
  *
  * EVE, AXIOM-AETHER and ADAM are one organism. CP/1 is the stable wire contract
- * between them: twelve canonical types each with exactly one owning repository,
+ * between them: twelve canonical types each with exactly one owning repository
+ * (plus `ValidationRequest`, a protocol message rather than a canonical type),
  * a closed set of fourteen events, mandatory chained provenance, and a
  * canonical byte encoding with no floating point on the wire.
  *
@@ -31,6 +32,7 @@
 export {
   CanonicalError,
   type CanonicalValue,
+  compareUtf8,
   contentHash,
   fromBasisPoints,
   isTimestamp,

@@ -48,8 +48,13 @@ const registry = new Map<string, Scenario>(
   ]),
 );
 
-/** The scenario ids measured when a request names none. */
-export const DEFAULT_SCENARIO_IDS: readonly string[] = ["excellent", "average", "bad"];
+/**
+ * The scenario ids measured when a request names none.
+ *
+ * Derived from `BENCHMARK_APPS` rather than restated, so adding a reference app
+ * extends the default suite instead of silently leaving it behind.
+ */
+export const DEFAULT_SCENARIO_IDS: readonly string[] = Object.keys(BENCHMARK_APPS);
 
 /**
  * Register a scenario, making it addressable by id in a `ValidationRequest`.

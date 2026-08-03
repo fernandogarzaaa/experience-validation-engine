@@ -217,8 +217,22 @@ export const SUBJECT_TYPES = [
 
 export type SubjectType = (typeof SUBJECT_TYPES)[number];
 
-/** Payload members are scalars, so an event log stays cheap enough to always be on. */
+/**
+ * A payload member. Scalars only, so an event log stays cheap enough to always
+ * be on.
+ *
+ * The schema declares `["string", "integer", "boolean"]`, and the canonical
+ * encoder rejects non-integer numbers — so a `number` here is only ever valid
+ * when it is a safe integer. TypeScript cannot express that as a type, so the
+ * alias is named to say it and {@link isPayloadValue} checks it at runtime.
+ */
 export type PayloadValue = string | number | boolean;
+
+/** Whether a value is a payload member the canonical encoder will accept. */
+export function isPayloadValue(value: unknown): value is PayloadValue {
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
 
 /** One announced fact. */
 export interface CpEvent {

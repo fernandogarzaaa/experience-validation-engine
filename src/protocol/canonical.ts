@@ -2,7 +2,8 @@
  * CP/1 canonical form — the byte-exact encoding every document hashes over.
  *
  * `JSON.stringify` is close but not canonical: it emits members in insertion
- * order, and CP/1 requires them sorted by UTF-16 code unit. This module imposes
+ * order, and CP/1 requires them sorted by **UTF-8 bytes** — which is not what
+ * `Array.prototype.sort()` gives (see {@link compareUtf8}). This module imposes
  * that ordering, reusing `JSON.stringify` only for scalar rendering, whose
  * escaping rules (escape `"`, `\` and `U+0000`–`U+001F`, using `\b \f \n \r \t`
  * where they exist, leaving non-ASCII literal) already match the specification.
@@ -81,7 +82,7 @@ function write(value: unknown, path: string): string {
         return `[${value.map((item, i) => write(item, `${path}[${i}]`)).join(",")}]`;
       }
       const record = value as Record<string, unknown>;
-      const keys = Object.keys(record).sort();
+      const keys = Object.keys(record).sort(compareUtf8);
       const members = keys.map(
         (key) => `${JSON.stringify(key)}:${write(record[key], `${path}.${key}`)}`,
       );
@@ -91,6 +92,23 @@ function write(value: unknown, path: string): string {
     default:
       throw new CanonicalError(`${typeof value} cannot be encoded as JSON`, path);
   }
+}
+
+/**
+ * Order two strings by their UTF-8 bytes, as CP/1 requires.
+ *
+ * `Array.prototype.sort()` compares UTF-16 code units, which is **not** the
+ * same ordering beyond the BMP: a leading surrogate (`D800`–`DBFF`) sorts below
+ * `U+FFFD`, while the corresponding UTF-8 lead byte `F0` sorts above `EF`. A
+ * binding using the default comparator therefore produces different canonical
+ * bytes — and a different `content_hash` — than the Rust and Python bindings
+ * for the same document.
+ *
+ * The fixture corpus carries a `Genome` whose `preferences` include `U+FFFD`
+ * and `U+1D11E` precisely so this cannot regress unnoticed.
+ */
+export function compareUtf8(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
 export function sha256Hex(input: string): string {
@@ -121,11 +139,22 @@ function stripHash(document: Record<string, unknown>): Record<string, unknown> {
  * Return a copy of `document` with `provenance.content_hash` set to its true
  * value. Sealing is idempotent: a previously recorded hash is stripped before
  * the new one is computed.
+ *
+ * @throws {CanonicalError} when the document carries no `provenance` object.
+ * Returning an unsealed copy would let {@link sealEnvelope} wrap, hash, sign and
+ * transmit it, and the *receiver* would reject it with `seal-broken` — surfacing
+ * the fault on the wrong side of the boundary, when the producer had everything
+ * needed to refuse it.
  */
 export function seal<T extends Record<string, unknown>>(document: T): T {
-  const hash = contentHash(document);
   const provenance = document.provenance;
-  if (typeof provenance !== "object" || provenance === null) return { ...document };
+  if (typeof provenance !== "object" || provenance === null) {
+    throw new CanonicalError(
+      "a CP/1 document must carry a `provenance` object before it can be sealed",
+      "$.provenance",
+    );
+  }
+  const hash = contentHash(document);
   return {
     ...document,
     provenance: { ...(provenance as Record<string, unknown>), content_hash: hash },

@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { MockAdapter } from "../browser/index.js";
 import { EveSession } from "../engine/session.js";
 import { definePersona, getPersona, type Persona } from "../personas/index.js";
-import { seal, toBasisPoints, toSignedBasisPoints } from "../protocol/canonical.js";
+import { seal, toBasisPoints } from "../protocol/canonical.js";
 import { provenance } from "../protocol/documents.js";
 import type {
   FitnessResult,
@@ -110,7 +110,9 @@ export async function validateMutation(
   const panel = options.panel ?? DEFAULT_PANEL;
   const maxSteps = options.maxSteps ?? 40;
   const thresholds = { ...DEFAULT_THRESHOLDS, ...options.thresholds };
-  const trials = Math.max(1, request.trials);
+  // Defence in depth: the service boundary already enforces the schema's
+  // [1, 64] bound, but `validateMutation` is also callable directly.
+  const trials = Math.min(64, Math.max(1, Math.trunc(request.trials)));
 
   const projection = project(request.mutation);
 
@@ -338,7 +340,9 @@ function unmeasurable(
   reason: string,
 ): FitnessResult {
   // Both sides are zero and identical: nothing was run, and reporting anything
-  // else would imply a measurement took place.
+  // else would imply a measurement took place. `runs` is 1 rather than 0 only
+  // because the schema floors it at 1 — the evidence line below records
+  // `runs=0`, which is the truth, and the two must be read together.
   const nothing: Measurement = {
     composite_bp: 0,
     task_success_bp: 0,
@@ -381,9 +385,12 @@ function build(input: {
     trials: input.trials,
     baseline: input.baseline,
     candidate: input.candidate,
-    // Recomputed through the signed encoder so the wire value is always in
-    // range even if a caller-visible delta were ever computed differently.
-    delta_bp: toSignedBasisPoints(input.deltaBp / 10000),
+    // The plain difference, bounded. Both composites are already basis points
+    // in [0, 10000], so their difference is in [-10000, 10000] by construction;
+    // round-tripping it through `toSignedBasisPoints` would divide and
+    // re-multiply for no gain and would clamp anything unexpected to a
+    // plausible-looking value instead of preserving it.
+    delta_bp: Math.max(-10000, Math.min(10000, input.deltaBp)),
     recommendation: input.recommendation,
     reason: input.reason,
     provenance: provenance({

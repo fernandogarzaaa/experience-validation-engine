@@ -17,7 +17,7 @@
 
 import { createInterface } from "node:readline";
 import { openEnvelope, type SignedEnvelope, sealEnvelope } from "../protocol/envelope.js";
-import type { FitnessResult, ValidationRequest } from "../protocol/types.js";
+import type { FitnessResult, MutationKind, ValidationRequest } from "../protocol/types.js";
 import { type ValidateOptions, validateMutation } from "./fitness.js";
 
 export interface ServiceOptions extends ValidateOptions {
@@ -76,6 +76,22 @@ export async function handleEnvelope(
   return sealEnvelope(result as unknown as Record<string, unknown>, options.fleetKey);
 }
 
+/** The CP/1 mutation kinds. Anything else is a request EVE cannot interpret. */
+const MUTATION_KINDS: ReadonlySet<string> = new Set<MutationKind>([
+  "amend_genome",
+  "retire_skill",
+  "reconcile_belief",
+  "investigate_conflict",
+]);
+
+/**
+ * The largest trial count this endpoint will accept.
+ *
+ * Also asserted by the schema, but enforced here too: the schema bound protects
+ * the corpus, and this one protects the process actually doing the work.
+ */
+const MAX_TRIALS = 64;
+
 /**
  * Validate the shape EVE depends on, before the measurement machinery sees it.
  *
@@ -107,12 +123,37 @@ function rejectIfNotAValidationRequest(document: Record<string, unknown>): Proto
     );
   }
 
+  // `project` switches on `kind` with no default, so an unrecognised value
+  // returns undefined, `explainUnprojectable` falls through the same way, and
+  // ADAM receives a sealed verdict whose stated reason is the string
+  // "undefined". Reject it where the value arrives.
+  if (typeof mutation.kind !== "string" || !MUTATION_KINDS.has(mutation.kind)) {
+    return fail(
+      `ValidationRequest.mutation.kind ${JSON.stringify(mutation.kind)} is not a CP/1 mutation kind`,
+    );
+  }
+
+  // Without this, `request.scenario_ids.length` throws and the caller is told
+  // "measurement failed: Cannot read properties of undefined", which hides the
+  // real cause.
+  if (!Array.isArray(document.scenario_ids)) {
+    return fail("ValidationRequest.scenario_ids must be an array of scenario ids");
+  }
+
   if (typeof document.seed !== "number" || !Number.isInteger(document.seed)) {
     return fail("ValidationRequest.seed must be an integer; determinism depends on it");
   }
 
-  if (typeof document.trials !== "number" || document.trials < 1) {
-    return fail("ValidationRequest.trials must be at least 1");
+  // The upper bound matters: trials multiplies with scenarios and panel size
+  // into full browser sessions on a CPU-bound endpoint that handles requests
+  // strictly in order, so an unbounded value blocks every later request.
+  if (
+    typeof document.trials !== "number" ||
+    !Number.isInteger(document.trials) ||
+    document.trials < 1 ||
+    document.trials > MAX_TRIALS
+  ) {
+    return fail(`ValidationRequest.trials must be an integer in [1, ${MAX_TRIALS}]`);
   }
 
   return null;
@@ -133,6 +174,16 @@ export async function serve(
   const input = options.input ?? process.stdin;
   const output = options.output ?? process.stdout;
   const log = options.onLog ?? (() => {});
+
+  // A parent that exits mid-response closes the pipe. That is a normal end of
+  // service for a subprocess endpoint, not a crash — without a listener the
+  // EPIPE surfaces as an unhandled `error` event and takes the process down
+  // with a stack trace.
+  output.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EPIPE") return;
+    log(`output stream error: ${err.message}`);
+  });
+  input.on("error", (err: Error) => log(`input stream error: ${err.message}`));
 
   const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
 

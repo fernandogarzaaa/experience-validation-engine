@@ -159,6 +159,15 @@ function structuralProblems(document: Record<string, unknown>): string[] {
 }
 
 /**
+ * The only members the schema declares as `signedBasisPoints`.
+ *
+ * Everything else ending in `_bp` is a plain `basisPoints`, whose range starts
+ * at zero. A range wider than the schema's would let this binding accept a
+ * document the contract forbids, and only the normative repository would notice.
+ */
+const SIGNED_BASIS_POINT_MEMBERS: ReadonlySet<string> = new Set(["delta_bp"]);
+
+/**
  * Every member whose name ends in `_bp` must be an integer in range.
  *
  * Checked by name rather than by schema position so a new basis-point member is
@@ -177,10 +186,11 @@ function walkBasisPoints(value: unknown, path: string, problems: string[]): void
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const childPath = `${path}.${key}`;
     if (key.endsWith("_bp")) {
+      const low = SIGNED_BASIS_POINT_MEMBERS.has(key) ? -10000 : 0;
       if (typeof child !== "number" || !Number.isInteger(child)) {
         problems.push(`${childPath} ends in \`_bp\` and must be an integer, found ${child}`);
-      } else if (child < -10000 || child > 10000) {
-        problems.push(`${childPath} is ${child}, outside the basis-point range [-10000, 10000]`);
+      } else if (child < low || child > 10000) {
+        problems.push(`${childPath} is ${child}, outside the basis-point range [${low}, 10000]`);
       }
     }
     walkBasisPoints(child, childPath, problems);
@@ -199,8 +209,14 @@ export function checkManifest(manifest: string, files: Readonly<Record<string, s
   let matched = 0;
 
   for (const line of manifest.split("\n")) {
+    if (line.trim() === "") continue;
     const separator = line.indexOf("  ");
-    if (separator < 0) continue;
+    if (separator < 0) {
+      // A manifest is an integrity control; silently skipping a line we cannot
+      // parse would let a truncated manifest report success.
+      failures.push(`malformed manifest line (expected \`<sha256>  <path>\`): ${line}`);
+      continue;
+    }
     const expected = line.slice(0, separator);
     const path = line.slice(separator + 2);
     const contents = files[path];

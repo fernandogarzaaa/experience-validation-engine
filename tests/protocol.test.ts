@@ -3,8 +3,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   CanonicalError,
+  CP1_VERSION,
   checkCorpus,
   checkManifest,
+  compareUtf8,
   contentHash,
   describeFailures,
   EnvelopeError,
@@ -13,6 +15,7 @@ import {
   openEnvelope,
   seal,
   sealEnvelope,
+  sha256Hex,
   timestamp,
   toBasisPoints,
   toCanonical,
@@ -40,13 +43,25 @@ describe("CP/1 conformance", () => {
   it("verifies the vendored corpus against the normative manifest", () => {
     // This is what catches a stale vendored copy. Without it the round-trip
     // checks above would pass happily against the wrong contract.
+    //
+    // Every manifest entry is supplied, `SPEC.md` included: an entry with no
+    // matching vendored file is reported as drift, so omitting one here would
+    // be a failure, not a silent skip.
     expect(
       checkManifest(MANIFEST, {
         "fixtures/canonical.jsonl": CORPUS,
         VERSION: vendored("VERSION"),
+        "SPEC.md": vendored("SPEC.md"),
         "schema/cp1.schema.json": vendored("schema/cp1.schema.json"),
       }),
     ).toEqual([]);
+  });
+
+  it("declares the protocol version the vendored copy actually carries", () => {
+    // `CP1_VERSION` is what EVE reports to a peer negotiating the protocol. If
+    // it drifted from the vendored VERSION, EVE would claim conformance to a
+    // revision it does not implement.
+    expect(CP1_VERSION).toBe(vendored("VERSION").trim());
   });
 
   it("has a non-empty corpus", () => {
@@ -118,6 +133,34 @@ describe("canonical form", () => {
 
   it("rejects an integer outside the safe range", () => {
     expect(() => toCanonical({ n: 2 ** 53 })).toThrow("outside the safe range");
+  });
+
+  it("orders keys by UTF-8 bytes, not UTF-16 code units", () => {
+    // The two orderings disagree beyond the BMP. U+1D11E is a surrogate pair
+    // (D834 DD1E) in UTF-16, so the default comparator sorts it *below*
+    // U+FFFD; in UTF-8 its lead byte is F0, which sorts *above* EF. A binding
+    // that used `.sort()` would emit different bytes — and a different
+    // content_hash — than the Rust and Python bindings for this document.
+    const document = { "\u{1d11e}": 1, "�": 2, tone: 3 };
+    // The default comparator and the CP/1 one disagree, and this is where.
+    expect(Object.keys(document).sort()).toEqual(["tone", "\u{1d11e}", "�"]);
+    expect(Object.keys(document).sort(compareUtf8)).toEqual(["tone", "�", "\u{1d11e}"]);
+    expect(toCanonical(document)).toBe(`{"tone":3,"�":2,"\u{1d11e}":1}`);
+  });
+
+  it("compares strings byte-wise, including across the BMP boundary", () => {
+    expect(compareUtf8("�", "\u{1d11e}")).toBeLessThan(0);
+    expect(compareUtf8("\u{1d11e}", "�")).toBeGreaterThan(0);
+    expect(compareUtf8("a", "a")).toBe(0);
+    // ASCII, where the two orderings agree, must be unaffected.
+    expect(compareUtf8("a", "b")).toBeLessThan(0);
+    expect(compareUtf8("Z", "a")).toBeLessThan(0);
+  });
+
+  it("the vendored corpus exercises that ordering", () => {
+    // A rule with no fixture behind it is a rule the next binding can get
+    // wrong silently. Assert the astral key is actually in the corpus.
+    expect(CORPUS).toContain("\u{1d11e}");
   });
 });
 
@@ -246,12 +289,18 @@ describe("signed envelope", () => {
 
   it("catches a consistently rehashed payload via the document seal", () => {
     // The interesting attack: edit the payload AND recompute the transport
-    // hash. The document's own content_hash is what stops it, which is why
-    // CP/1 has both.
+    // hash, which anyone can do on an unsigned envelope. The document's own
+    // content_hash is the layer that stops it, which is why CP/1 has both.
+    //
+    // The replacement is the same length as what it replaces, so the payload
+    // stays in canonical form and the `not-canonical` check does not fire
+    // first — the assertion has to reach the seal check to mean anything.
     const envelope = sealEnvelope(document());
     const payload = envelope.payload.replace("catch", "misss");
-    const rehashed = sealEnvelope({ ...JSON.parse(payload) });
-    expect(() => openEnvelope({ ...rehashed, payload, sha256: rehashed.sha256 })).toThrow();
+    expect(payload).not.toBe(envelope.payload);
+    expect(() => openEnvelope({ ...envelope, payload, sha256: sha256Hex(payload) })).toThrow(
+      "content_hash does not match its content",
+    );
   });
 
   it("round-trips over the line protocol without embedded newlines", () => {

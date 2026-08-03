@@ -108,6 +108,13 @@ export function openEnvelope(
   if (envelope?.cp !== "cp1" || envelope?.schema !== ENVELOPE_SCHEMA) {
     throw new EnvelopeError("bad-schema");
   }
+  // These arrive parsed from an untrusted transport line. Without the check,
+  // `sha256Hex` throws a TypeError from node:crypto rather than an
+  // EnvelopeError, breaking the documented contract and leaking a Node
+  // internal message into the ProtocolError the endpoint returns.
+  if (typeof envelope.payload !== "string" || typeof envelope.sha256 !== "string") {
+    throw new EnvelopeError("bad-schema");
+  }
   if (sha256Hex(envelope.payload) !== envelope.sha256) {
     throw new EnvelopeError("hash-mismatch");
   }
@@ -165,6 +172,8 @@ export function fromLine(line: string): SignedEnvelope {
   try {
     return JSON.parse(line) as SignedEnvelope;
   } catch {
-    throw new EnvelopeError("bad-schema");
+    // The line is not JSON at all, which `malformed-payload` describes and
+    // `bad-schema` ("not a CP/1 signed envelope") does not.
+    throw new EnvelopeError("malformed-payload");
   }
 }

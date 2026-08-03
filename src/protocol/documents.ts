@@ -80,13 +80,16 @@ export function observationFrom(options: {
     .filter((text) => text !== "")
     .slice(0, maxSignals);
 
+  // Bounded like `signals`: a dense page would otherwise produce an unbounded
+  // array inside a document that crosses the boundary and gets hashed.
   const affordances = percept.elements
     .filter((element) => element.interactive)
     .map((element) => ({
       label: element.text.trim().replace(/\s+/g, " ") || `${element.role}`,
       role: element.role,
       enabled: !element.disabled,
-    }));
+    }))
+    .slice(0, maxSignals);
 
   const document: Observation = {
     cp: "cp1",
