@@ -18,6 +18,13 @@
  * 4. **Manifest** — the vendored corpus hashes to what the normative source
  *    recorded. Catches running against a stale copy, which would make checks
  *    1–3 pass against the wrong contract.
+ * 5. **Provenance edges** — `derived_from` ids resolve within the corpus;
+ *    `baseline.runs` equals `candidate.runs`; and a measured `FitnessResult`
+ *    references a `SimulationCompleted` whose `subject_id` and reported run
+ *    counts match. Catches a measurement that cannot be chained back to the
+ *    specific run that produced it — including one that cites a real run for
+ *    the wrong mutation, or the wrong count — which is indistinguishable from
+ *    a fabricated one.
  */
 
 import { sha256Hex, toCanonical, verifySeal } from "./canonical.js";
@@ -130,6 +137,137 @@ export function checkCorpus(corpus: string): ConformanceFailure[] {
       documentType: "Event",
       detail: "no fixture covers the event envelope",
     });
+  }
+
+  failures.push(...provenanceEdgeProblems(corpus));
+  return failures;
+}
+
+/**
+ * Check 5: `derived_from` edges resolve, run counts agree, and a measured
+ * `FitnessResult` names — and matches — the run that produced it.
+ *
+ * See `protocol/cp1/SPEC.md` section 4.2. A `FitnessResult` asserts that
+ * baseline and candidate each ran n times at a given seed; without a reference
+ * to the `SimulationCompleted` that produced those runs, a measured result and
+ * a fabricated one are structurally identical and the receiver cannot tell
+ * them apart. This is the one place a component reports on work only it can
+ * see, which is where the chain has to be checkable rather than conventional.
+ *
+ * Naming *a* `SimulationCompleted` is not enough — it must be *the* one. A
+ * reference is checked three ways: it resolves within the corpus, its
+ * `subject_id` matches this result's `mutation_id` (a real event for a
+ * different mutation says nothing about this one), and its reported run
+ * counts match `baseline.runs`/`candidate.runs` (otherwise a result claiming
+ * 90 runs could cite a real event that ran once).
+ *
+ * Scoped to the corpus on purpose: a binding cannot resolve an id it was never
+ * given, so an edge pointing outside the supplied set is not a failure.
+ */
+function provenanceEdgeProblems(corpus: string): ConformanceFailure[] {
+  const failures: ConformanceFailure[] = [];
+  const docById = new Map<string, Record<string, unknown>>();
+  const rows: { line: number; documentType: string; id: string; derived: string[] }[] = [];
+
+  corpus.split("\n").forEach((line, index) => {
+    if (line.trim() === "") return;
+    let document: Record<string, unknown>;
+    try {
+      document = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      return; // Already reported by check 1.
+    }
+    const id = document.id;
+    if (typeof id !== "string") return;
+    docById.set(id, document);
+
+    const provenance = document.provenance as Record<string, unknown> | undefined;
+    const derivedFrom = provenance?.derived_from;
+    const derived = Array.isArray(derivedFrom)
+      ? derivedFrom.filter((v): v is string => typeof v === "string")
+      : [];
+    rows.push({
+      line: index + 1,
+      documentType: typeof document.type === "string" ? document.type : "?",
+      id,
+      derived,
+    });
+  });
+
+  for (const row of rows) {
+    if (row.derived.includes(row.id)) {
+      failures.push({
+        line: row.line,
+        documentType: row.documentType,
+        detail: "derives from itself, which is not a provenance edge",
+      });
+    }
+
+    if (row.documentType !== "FitnessResult") continue;
+    const document = docById.get(row.id) as Record<string, unknown>;
+
+    const baseline = document.baseline as Record<string, unknown> | undefined;
+    const candidate = document.candidate as Record<string, unknown> | undefined;
+    const baselineRuns = typeof baseline?.runs === "number" ? baseline.runs : 0;
+    const candidateRuns = typeof candidate?.runs === "number" ? candidate.runs : 0;
+
+    if (baselineRuns !== candidateRuns) {
+      failures.push({
+        line: row.line,
+        documentType: row.documentType,
+        detail:
+          `baseline.runs (${baselineRuns}) and candidate.runs (${candidateRuns}) disagree; ` +
+          "a counterfactual is valid only when both sides ran the same number of times " +
+          "(SPEC.md section 4.2)",
+      });
+    }
+
+    // A result reporting no runs is the honest encoding of "EVE declined to
+    // measure this". There is no simulation for it to name, and demanding one
+    // would force it to invent the very reference this rule exists to make
+    // meaningful.
+    if (baselineRuns === 0 && candidateRuns === 0) continue;
+
+    const run = row.derived
+      .map((ref) => docById.get(ref))
+      .find((doc): doc is Record<string, unknown> => doc?.type === "SimulationCompleted");
+
+    if (!run) {
+      failures.push({
+        line: row.line,
+        documentType: row.documentType,
+        detail:
+          "provenance.derived_from names no SimulationCompleted; a measurement that cannot " +
+          "be chained back to its run is indistinguishable from a fabricated one " +
+          "(SPEC.md section 4.2)",
+      });
+      continue;
+    }
+
+    if (run.subject_id !== document.mutation_id) {
+      failures.push({
+        line: row.line,
+        documentType: row.documentType,
+        detail:
+          "the referenced SimulationCompleted's subject_id does not match this result's " +
+          "mutation_id; a real run for a different mutation is not evidence about this one " +
+          "(SPEC.md section 4.2)",
+      });
+    }
+
+    const payload = run.payload as Record<string, unknown> | undefined;
+    const runBaseline = payload?.baseline_runs;
+    const runCandidate = payload?.candidate_runs;
+    if (runBaseline !== baselineRuns || runCandidate !== candidateRuns) {
+      failures.push({
+        line: row.line,
+        documentType: row.documentType,
+        detail:
+          `the referenced SimulationCompleted reports baseline_runs=${JSON.stringify(runBaseline)} ` +
+          `candidate_runs=${JSON.stringify(runCandidate)}, which does not match this result's ` +
+          `baseline.runs=${baselineRuns} candidate.runs=${candidateRuns} (SPEC.md section 4.2)`,
+      });
+    }
   }
 
   return failures;

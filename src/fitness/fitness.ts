@@ -22,8 +22,9 @@ import { MockAdapter } from "../browser/index.js";
 import { EveSession } from "../engine/session.js";
 import { definePersona, getPersona, type Persona } from "../personas/index.js";
 import { seal, toBasisPoints } from "../protocol/canonical.js";
-import { provenance } from "../protocol/documents.js";
+import { event, provenance } from "../protocol/documents.js";
 import type {
+  CpEvent,
   FitnessResult,
   Measurement,
   Mutation,
@@ -48,6 +49,18 @@ export interface ValidateOptions {
   readonly maxSteps?: number;
   /** Thresholds governing the recommendation. */
   readonly thresholds?: Partial<Thresholds>;
+  /**
+   * Receives the `SimulationCompleted` event a real measurement emits, before
+   * the `FitnessResult` that references it is returned.
+   *
+   * Nothing in the CP/1 wire contract requires the event to reach ADAM — the
+   * endpoint answers a `ValidationRequest` with exactly one response line, and
+   * changing that is a protocol version change (SPEC.md section 8). This is the
+   * seam a caller uses to persist the event anywhere that matters: a log, an
+   * event bus, a file. Without it, the `derived_from` edge on the result
+   * commits to a run that nothing durable ever recorded.
+   */
+  readonly onEvent?: (event: CpEvent) => void;
 }
 
 export interface Thresholds {
@@ -168,6 +181,27 @@ export async function validateMutation(
     explanation: projection.explanation,
   });
 
+  // SPEC.md section 4.2: a FitnessResult that reports runs must reference the
+  // SimulationCompleted whose runs it summarizes, or the result is structurally
+  // indistinguishable from a fabricated one. Constructed here rather than only
+  // implied by evidence text, so the edge is a real, checkable document id.
+  const simulationEvent = event({
+    kind: "SimulationCompleted",
+    subjectId: request.mutation.id,
+    subjectType: "Mutation",
+    correlationId: randomUUID(),
+    origin: "eve:cp1/simulate",
+    derivedFrom: [request.mutation.id],
+    payload: {
+      seed: request.seed,
+      scenarios: scenarioIds.join(","),
+      trials,
+      baseline_runs: baseline.runs,
+      candidate_runs: candidate.runs,
+    },
+  });
+  options.onEvent?.(simulationEvent);
+
   return build({
     request,
     scenarioIds,
@@ -177,12 +211,14 @@ export async function validateMutation(
     deltaBp,
     recommendation,
     reason,
+    derivedFrom: [request.mutation.id, simulationEvent.id],
     evidence: [
       `seed=${request.seed}`,
       `scenarios=${scenarioIds.join(",")}`,
       `trials=${trials}`,
       `panel=${panel.join(",")}`,
       `projection=${projection.explanation}`,
+      `simulation_event_id=${simulationEvent.id}`,
       ...candidateScores.map(
         (score, i) =>
           `${score.scenarioId}: ${(baselineScores[i] as ScenarioScore).composite.toFixed(3)} → ${score.composite.toFixed(3)}`,
@@ -340,16 +376,17 @@ function unmeasurable(
   reason: string,
 ): FitnessResult {
   // Both sides are zero and identical: nothing was run, and reporting anything
-  // else would imply a measurement took place. `runs` is 1 rather than 0 only
-  // because the schema floors it at 1 — the evidence line below records
-  // `runs=0`, which is the truth, and the two must be read together.
+  // else would imply a measurement took place. `runs: 0` is the honest wire
+  // encoding of that (SPEC.md section 4.2) — it is also what tells a receiver
+  // this FitnessResult has no SimulationCompleted to chain back to, because
+  // there is none: nothing ran for it to name.
   const nothing: Measurement = {
     composite_bp: 0,
     task_success_bp: 0,
     frustration_bp: 0,
     trust_bp: 0,
     cognitive_load_bp: 0,
-    runs: 1,
+    runs: 0,
   };
   return build({
     request,
@@ -374,6 +411,12 @@ function build(input: {
   recommendation: Recommendation;
   reason: string;
   evidence: readonly string[];
+  /**
+   * Defaults to just the mutation. A real measurement passes the mutation id
+   * plus its `SimulationCompleted` event id — the edge SPEC.md section 4.2
+   * requires whenever `baseline.runs > 0`.
+   */
+  derivedFrom?: readonly string[];
 }): FitnessResult {
   const document: FitnessResult = {
     cp: "cp1",
@@ -396,7 +439,7 @@ function build(input: {
     provenance: provenance({
       origin: "eve:cp1/validate",
       evidence: input.evidence,
-      derivedFrom: [input.request.mutation.id],
+      derivedFrom: input.derivedFrom ?? [input.request.mutation.id],
     }),
   };
   return seal(document as unknown as Record<string, unknown>) as unknown as FitnessResult;

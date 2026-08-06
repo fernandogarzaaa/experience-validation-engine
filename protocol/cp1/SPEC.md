@@ -228,6 +228,62 @@ belief from a fabricated one, excluding them from the hash would make the
 provenance chain unforgeable in the wrong direction — anyone could substitute
 evidence without changing the hash.
 
+### 4.2 Events are addressable in `derived_from`
+
+An entry in `derived_from` is the `id` of any CP/1 document — a canonical type
+**or an event**. Events carry an `id` of the same shape (§5) and are documents
+in their own right, so no schema distinction is needed; what follows is the
+semantics, which a schema cannot express.
+
+Referencing an event says *this document was computed from what that event
+announced*. That is the only way to chain a conclusion back to the run that
+produced it, because the run itself is not a canonical type — it is an event.
+
+**Run parity.** `baseline.runs` MUST equal `candidate.runs`. This is not a new
+constraint so much as a restatement of what §7.1 already requires: a
+counterfactual is valid only because baseline and candidate differ by nothing
+but the mutation, and a different number of runs is itself a difference. A
+`FitnessResult` is therefore either fully measured (`runs > 0` on both sides,
+equal) or fully declined (`runs = 0` on both sides) — there is no state in
+between where "measured" is a matter of degree on one side and not the other.
+
+**Required edge.** A `FitnessResult` whose `baseline.runs` is greater than zero
+MUST list, in its `derived_from`, the id of the `SimulationCompleted` event
+whose runs it summarizes, alongside the id of the `Mutation` it scores. Because
+of run parity, this condition is equivalently `candidate.runs > 0`; nothing can
+satisfy one side without the other.
+
+The edge is more than a reference to the right document type — it is a claim
+that can be checked. A conforming binding MUST verify:
+
+- The referenced document's `subject_id` equals the `FitnessResult`'s
+  `mutation_id`. A `SimulationCompleted` for a different mutation is a valid
+  event that says nothing about this result.
+- The referenced document's `payload.baseline_runs` and `payload.candidate_runs`
+  equal the `FitnessResult`'s `baseline.runs` and `candidate.runs`. Otherwise a
+  result claiming 90 runs could cite a real event that ran once.
+
+Without these checks the edge is a reference in name only: any
+`SimulationCompleted` for any mutation would satisfy it, which is not
+meaningfully different from requiring no edge at all. A fabricated result and a
+measured one are structurally identical unless the edge is bound to the
+specific claim it is supposed to back — this is the one place in the protocol
+where a component reports on work only it can see, which is exactly where the
+chain has to be checkable rather than merely conventional.
+
+The condition is `runs > 0` rather than unconditional because a result that
+reports no runs is the honest encoding of *EVE declined to measure this* (§3,
+`FitnessResult`; and `runs` in the schema). There is no simulation for it to
+name, and requiring one would force it to invent the very reference this rule
+exists to make meaningful. A result claiming runs it cannot chain, and a result
+claiming none, are the two consistent states; the gap between them is what check
+5 closes.
+
+Conformance check 5 (§9) enforces all of this over the corpus: it resolves
+every `derived_from` id against the documents present, rejects unequal
+`baseline.runs`/`candidate.runs`, and fails a `FitnessResult` that reports runs
+without naming a matching `SimulationCompleted`.
+
 ## 5. Events
 
 Everything important emits an event. Events are the organism's nervous system:
@@ -395,3 +451,23 @@ seeds is malformed, and bindings must reject it.
 conformance test verifies its copy against the manifest, so a change to the
 normative source that has not been propagated fails CI in the repositories that
 have not yet caught up — loudly, and before anything ships.
+
+## 9. Conformance
+
+Every binding, in every repository, runs the same checks against the same
+vendored corpus. That is the whole mechanism keeping three hand-written
+bindings in three languages agreeing about the wire — there is no code
+generation and no shared library, so this suite is load-bearing.
+
+| # | Check | The failure it catches |
+| - | ----- | ---------------------- |
+| 1 | **Round trip.** Parsing a fixture and re-encoding it in canonical form reproduces the exact bytes. | A binding whose key ordering, number rendering or string escaping differs from the normative source — the class of bug that silently produces documents other components reject. |
+| 2 | **Seal.** Each fixture's `provenance.content_hash` is the true hash of the document with that member removed. | A binding that hashes a different byte sequence than it transmits. |
+| 3 | **Structure.** Required members are present with the right shapes, and basis-point members are integers in range. | A binding that would accept a float where the protocol forbids one, or a magnitude where only a delta may be signed. |
+| 4 | **Manifest.** The vendored copy hashes to what the normative source recorded. | A binding running against a stale corpus, which would make checks 1–3 pass against the wrong contract. |
+| 5 | **Provenance edges.** `derived_from` ids resolve within the corpus; `baseline.runs` equals `candidate.runs`; and a measured `FitnessResult` references a `SimulationCompleted` whose `subject_id` and reported run counts match (§4.2). | A measurement that cannot be chained back to the specific run that produced it — including one that cites a real run for the wrong mutation, or the wrong count — which is indistinguishable from a fabricated one. |
+
+Check 5 is the only one that reads across documents rather than within one. It
+is deliberately scoped to the corpus: a binding cannot resolve an id it has
+never been given, so the check enforces the edges among documents actually
+present and says nothing about ids that point outside the set.

@@ -66,9 +66,11 @@ describe("CP/1 conformance", () => {
 
   it("has a non-empty corpus", () => {
     // A conformance suite that silently passes on an empty corpus is worse than
-    // no suite: it reports success while testing nothing.
+    // no suite: it reports success while testing nothing. Fifteen: one per
+    // covered type, plus a GenomeCommitted for the event envelope and a
+    // SimulationCompleted for the FitnessResult to chain back to.
     const documents = CORPUS.split("\n").filter((line) => line.trim() !== "");
-    expect(documents).toHaveLength(14);
+    expect(documents).toHaveLength(15);
   });
 
   it("reports a document whose bytes are not canonical", () => {
@@ -92,6 +94,109 @@ describe("CP/1 conformance", () => {
 
   it("reports missing coverage of a canonical type", () => {
     expect(checkCorpus("").some((f) => f.detail.includes("no fixture covers"))).toBe(true);
+  });
+
+  describe("check 5: provenance edges", () => {
+    it("rejects a FitnessResult with no SimulationCompleted to chain back to", () => {
+      // The fabricated-evidence case: a well-formed, correctly sealed
+      // FitnessResult that points only at the mutation it scores. Nothing
+      // about its bytes is wrong — it simply cannot be chained back to any
+      // work, which is the whole property check 5 exists to enforce.
+      const withoutTheRun = CORPUS.split("\n")
+        .filter((line) => !line.includes('"SimulationCompleted"'))
+        .join("\n");
+      const failures = checkCorpus(withoutTheRun);
+      expect(
+        failures.some(
+          (f) =>
+            f.documentType === "FitnessResult" && f.detail.includes("names no SimulationCompleted"),
+        ),
+      ).toBe(true);
+    });
+
+    it("does not require a declined measurement to name a run", () => {
+      // The other half of the rule: EVE reports an unmeasurable mutation with
+      // both sides zeroed, and there is no simulation for it to point at.
+      // Demanding one would force it to invent the reference.
+      const declined = seal({
+        cp: "cp1",
+        type: "FitnessResult",
+        id: "3b3b3b3b-3b3b-4b3b-8b3b-3b3b3b3b3b3b",
+        mutation_id: "88888888-8888-4888-8888-888888888888",
+        seed: 1337,
+        scenario_ids: ["excellent"],
+        trials: 1,
+        baseline: {
+          composite_bp: 0,
+          task_success_bp: 0,
+          frustration_bp: 0,
+          trust_bp: 0,
+          cognitive_load_bp: 0,
+          runs: 0,
+        },
+        candidate: {
+          composite_bp: 0,
+          task_success_bp: 0,
+          frustration_bp: 0,
+          trust_bp: 0,
+          cognitive_load_bp: 0,
+          runs: 0,
+        },
+        delta_bp: 0,
+        recommendation: "needs_review",
+        reason: "not measurable by simulation",
+        provenance: {
+          authored_by: "eve",
+          produced_at: "2026-01-01T00:00:00.000Z",
+          origin: "eve:cp1/validate",
+          evidence: ["runs=0"],
+          derived_from: ["88888888-8888-4888-8888-888888888888"],
+          content_hash: "",
+        },
+      } as unknown as Record<string, unknown>);
+      const failures = checkCorpus(toCanonical(declined));
+      expect(failures.some((f) => f.detail.includes("names no SimulationCompleted"))).toBe(false);
+    });
+
+    it("rejects an edge citing a SimulationCompleted for a different mutation", () => {
+      const old = '"subject_id":"88888888-8888-4888-8888-888888888888","subject_type":"Mutation"';
+      expect(CORPUS).toContain(old);
+      const mutated = CORPUS.replace(
+        old,
+        '"subject_id":"99999999-9999-4999-8999-999999999999","subject_type":"Mutation"',
+      );
+      const failures = checkCorpus(mutated);
+      expect(failures.some((f) => f.detail.includes("subject_id does not match"))).toBe(true);
+    });
+
+    it("rejects an edge whose reported run counts do not match", () => {
+      const old = '"payload":{"baseline_runs":9,"candidate_runs":9,';
+      expect(CORPUS).toContain(old);
+      const mutated = CORPUS.replace(old, '"payload":{"baseline_runs":1,"candidate_runs":1,');
+      const failures = checkCorpus(mutated);
+      expect(failures.some((f) => f.detail.includes("does not match this result's"))).toBe(true);
+    });
+
+    it("rejects a FitnessResult whose baseline and candidate ran different counts", () => {
+      const old =
+        '"baseline":{"cognitive_load_bp":4200,"composite_bp":6400,"frustration_bp":3100,"runs":9,"task_success_bp":6667,"trust_bp":6000}';
+      expect(CORPUS).toContain(old);
+      const mutated = CORPUS.replace(
+        old,
+        '"baseline":{"cognitive_load_bp":4200,"composite_bp":6400,"frustration_bp":3100,"runs":8,"task_success_bp":6667,"trust_bp":6000}',
+      );
+      const failures = checkCorpus(mutated);
+      expect(failures.some((f) => f.detail.includes("disagree"))).toBe(true);
+    });
+
+    it("rejects a document that derives from itself", () => {
+      const first = CORPUS.split("\n")[0] as string;
+      const id = (JSON.parse(first) as { id: string }).id;
+      expect(first).toContain('"derived_from":[]');
+      const mutated = first.replace('"derived_from":[]', `"derived_from":["${id}"]`);
+      const failures = checkCorpus(mutated);
+      expect(failures.some((f) => f.detail.includes("derives from itself"))).toBe(true);
+    });
   });
 
   it("detects a stale vendored copy", () => {

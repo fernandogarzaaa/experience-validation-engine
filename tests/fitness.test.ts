@@ -13,9 +13,10 @@ import {
   validateMutation,
 } from "../src/fitness/index.js";
 import { BASELINE_TRAITS } from "../src/personas/persona.js";
-import { seal, sha256Hex } from "../src/protocol/canonical.js";
+import { seal, sha256Hex, toCanonical } from "../src/protocol/canonical.js";
+import { checkCorpus } from "../src/protocol/conformance.js";
 import { openEnvelope, sealEnvelope } from "../src/protocol/envelope.js";
-import type { FitnessResult, Mutation, ValidationRequest } from "../src/protocol/types.js";
+import type { CpEvent, FitnessResult, Mutation, ValidationRequest } from "../src/protocol/types.js";
 
 function mutation(overrides: Partial<Mutation> = {}): Mutation {
   return seal({
@@ -230,6 +231,11 @@ describe("validateMutation", () => {
     // Nothing ran, so neither side may claim a measurement.
     expect(result.baseline).toEqual(result.candidate);
     expect(result.delta_bp).toBe(0);
+    // runs: 0 is the honest wire encoding of "declined" (CP/1 SPEC.md 4.2),
+    // and it is what tells a receiver this result has no SimulationCompleted
+    // to chain back to — because nothing ran for it to name.
+    expect(result.baseline.runs).toBe(0);
+    expect(result.provenance.derived_from).toEqual([result.mutation_id]);
   });
 
   it("produces a sealed, well-formed CP/1 document", async () => {
@@ -258,7 +264,12 @@ describe("validateMutation", () => {
     timeout: 180_000,
   }, async () => {
     const req = request({ scenario_ids: ["excellent"], seed: 99, trials: 1 });
-    const options = { panel: ["first-time-user"], maxSteps: 25 };
+    const events: CpEvent[] = [];
+    const options = {
+      panel: ["first-time-user"],
+      maxSteps: 25,
+      onEvent: (e: CpEvent) => events.push(e),
+    };
 
     const first = await validateMutation(req, options);
     const second = await validateMutation(req, options);
@@ -274,6 +285,27 @@ describe("validateMutation", () => {
     expect(first.delta_bp).toBe(first.candidate.composite_bp - first.baseline.composite_bp);
     expect(["approve", "needs_review", "reject"]).toContain(first.recommendation);
     expect(first.reason).toContain("seeded runs");
+
+    // A real measurement emits SimulationCompleted and binds it into
+    // derived_from (CP/1 SPEC.md 4.2): naming *a* run is not enough, it has to
+    // be the specific one this result summarizes.
+    expect(events).toHaveLength(2);
+    const [simulationEvent] = events;
+    expect(simulationEvent?.type).toBe("SimulationCompleted");
+    expect(simulationEvent?.subject_id).toBe(req.mutation.id);
+    expect(simulationEvent?.payload.baseline_runs).toBe(first.baseline.runs);
+    expect(simulationEvent?.payload.candidate_runs).toBe(first.candidate.runs);
+    expect(first.provenance.derived_from).toEqual([req.mutation.id, simulationEvent?.id]);
+
+    // The strongest proof this wiring is correct: run the emitted pair through
+    // the same conformance suite the shared corpus runs through. A result and
+    // an event that don't actually satisfy check 5 would fail here even though
+    // every assertion above passed.
+    const corpus = [req.mutation, simulationEvent, first]
+      .map((doc) => toCanonical(doc as unknown as Record<string, unknown>))
+      .join("\n");
+    const failures = checkCorpus(corpus).filter((f) => f.documentType === "FitnessResult");
+    expect(failures).toEqual([]);
   });
 
   it("withholds approval from a high-risk mutation even when it measures well", {
