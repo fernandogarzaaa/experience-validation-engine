@@ -46,8 +46,15 @@ const REQUIRED_PROVENANCE_MEMBERS = [
   "content_hash",
 ] as const;
 
-/** Every canonical type the corpus must cover. */
-const CANONICAL_TYPES = [
+/**
+ * Every document type the corpus must cover.
+ *
+ * Twelve of these are canonical types (SPEC.md section 3). `ValidationRequest`
+ * is not — it is a protocol message (section 3.0) — but it crosses the wire and
+ * must round-trip identically, so it is covered here alongside them. Naming
+ * this constant for canonical types alone would make it contradict the spec.
+ */
+const COVERED_TYPES = [
   "Identity",
   "Genome",
   "Capability",
@@ -122,12 +129,12 @@ export function checkCorpus(corpus: string): ConformanceFailure[] {
 
   // Coverage: a corpus missing a type would let that type's encoding drift in
   // every binding at once, undetected.
-  for (const expected of CANONICAL_TYPES) {
+  for (const expected of COVERED_TYPES) {
     if (!seenTypes.has(expected)) {
       failures.push({
         line: 0,
         documentType: expected,
-        detail: "no fixture covers this canonical type",
+        detail: "no fixture covers this document type",
       });
     }
   }
