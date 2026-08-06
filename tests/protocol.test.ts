@@ -166,7 +166,7 @@ describe("CP/1 conformance", () => {
         '"subject_id":"99999999-9999-4999-8999-999999999999","subject_type":"Mutation"',
       );
       const failures = checkCorpus(mutated);
-      expect(failures.some((f) => f.detail.includes("subject_id does not match"))).toBe(true);
+      expect(failures.some((f) => f.detail.includes("but none has subject_id"))).toBe(true);
     });
 
     it("rejects an edge whose reported run counts do not match", () => {
@@ -174,7 +174,49 @@ describe("CP/1 conformance", () => {
       expect(CORPUS).toContain(old);
       const mutated = CORPUS.replace(old, '"payload":{"baseline_runs":1,"candidate_runs":1,');
       const failures = checkCorpus(mutated);
-      expect(failures.some((f) => f.detail.includes("does not match this result's"))).toBe(true);
+      expect(failures.some((f) => f.detail.includes("but none has subject_id"))).toBe(true);
+    });
+
+    it("accepts a match when an unrelated SimulationCompleted is referenced first", () => {
+      // Order in derived_from carries no meaning. A decoy ahead of the real
+      // match must not block it — the first candidate failing is not evidence
+      // the edge itself is broken.
+      const decoy =
+        '{"actor":"eve","cp":"cp1","id":"4c4c4c4c-4c4c-4c4c-8c4c-4c4c4c4c4c4c",' +
+        '"occurred_at":"2026-01-01T00:00:02.000Z",' +
+        '"payload":{"baseline_runs":1,"candidate_runs":1,"scenarios":"x","seed":1,"trials":1},' +
+        '"provenance":{"authored_by":"eve","content_hash":"","derived_from":[],"evidence":[],' +
+        '"origin":"eve:cp1/simulate","produced_at":"2026-01-01T00:00:02.000Z"},' +
+        '"subject_id":"99999999-9999-4999-8999-999999999999","subject_type":"Mutation",' +
+        '"type":"SimulationCompleted"}';
+      const old =
+        '"derived_from":["88888888-8888-4888-8888-888888888888","2a2a2a2a-2a2a-4a2a-8a2a-2a2a2a2a2a2a"]';
+      expect(CORPUS).toContain(old);
+      const newDerivedFrom =
+        '"derived_from":["88888888-8888-4888-8888-888888888888",' +
+        '"4c4c4c4c-4c4c-4c4c-8c4c-4c4c4c4c4c4c","2a2a2a2a-2a2a-4a2a-8a2a-2a2a2a2a2a2a"]';
+      const mutated = `${CORPUS.replace(old, newDerivedFrom)}\n${decoy}`;
+
+      const failures = checkCorpus(mutated);
+      expect(
+        failures.some(
+          (f) =>
+            f.documentType === "FitnessResult" &&
+            (f.detail.includes("but none has subject_id") ||
+              f.detail.includes("names no SimulationCompleted")),
+        ),
+      ).toBe(false);
+    });
+
+    it("rejects a duplicate document id rather than resolving to whichever was seen last", () => {
+      const first = CORPUS.split("\n")[0] as string;
+      const duplicate = first.replace('"type":"Identity"', '"type":"Belief"');
+      const mutated = `${CORPUS}\n${duplicate}`;
+
+      const failures = checkCorpus(mutated);
+      expect(failures.some((f) => f.detail.includes("also used by an earlier document"))).toBe(
+        true,
+      );
     });
 
     it("rejects a FitnessResult whose baseline and candidate ran different counts", () => {

@@ -159,7 +159,14 @@ export function checkCorpus(corpus: string): ConformanceFailure[] {
  * `subject_id` matches this result's `mutation_id` (a real event for a
  * different mutation says nothing about this one), and its reported run
  * counts match `baseline.runs`/`candidate.runs` (otherwise a result claiming
- * 90 runs could cite a real event that ran once).
+ * 90 runs could cite a real event that ran once). Order in `derived_from`
+ * carries no meaning, so every referenced `SimulationCompleted` is a
+ * candidate, not just the first one found — the edge is satisfied the moment
+ * any of them matches.
+ *
+ * An `id` must be unique within the corpus: two documents sharing one make any
+ * reference to it ambiguous, so a duplicate is reported rather than silently
+ * resolved to whichever was seen last.
  *
  * Scoped to the corpus on purpose: a binding cannot resolve an id it was never
  * given, so an edge pointing outside the supplied set is not a failure.
@@ -179,6 +186,16 @@ function provenanceEdgeProblems(corpus: string): ConformanceFailure[] {
     }
     const id = document.id;
     if (typeof id !== "string") return;
+    const lineNumber = index + 1;
+
+    if (docById.has(id)) {
+      failures.push({
+        line: lineNumber,
+        documentType: typeof document.type === "string" ? document.type : "?",
+        detail: "id also used by an earlier document; a derived_from reference to it is ambiguous",
+      });
+      return;
+    }
     docById.set(id, document);
 
     const provenance = document.provenance as Record<string, unknown> | undefined;
@@ -187,7 +204,7 @@ function provenanceEdgeProblems(corpus: string): ConformanceFailure[] {
       ? derivedFrom.filter((v): v is string => typeof v === "string")
       : [];
     rows.push({
-      line: index + 1,
+      line: lineNumber,
       documentType: typeof document.type === "string" ? document.type : "?",
       id,
       derived,
@@ -228,11 +245,16 @@ function provenanceEdgeProblems(corpus: string): ConformanceFailure[] {
     // meaningful.
     if (baselineRuns === 0 && candidateRuns === 0) continue;
 
-    const run = row.derived
+    // Order in derived_from carries no meaning, and nothing forbids a result
+    // from also referencing an unrelated SimulationCompleted (a memory citing
+    // several runs, say). So every referenced completion is evaluated rather
+    // than stopping at the first one: the edge is satisfied the moment any of
+    // them matches both mutation_id and the reported run counts.
+    const completions = row.derived
       .map((ref) => docById.get(ref))
-      .find((doc): doc is Record<string, unknown> => doc?.type === "SimulationCompleted");
+      .filter((doc): doc is Record<string, unknown> => doc?.type === "SimulationCompleted");
 
-    if (!run) {
+    if (completions.length === 0) {
       failures.push({
         line: row.line,
         documentType: row.documentType,
@@ -244,28 +266,24 @@ function provenanceEdgeProblems(corpus: string): ConformanceFailure[] {
       continue;
     }
 
-    if (run.subject_id !== document.mutation_id) {
-      failures.push({
-        line: row.line,
-        documentType: row.documentType,
-        detail:
-          "the referenced SimulationCompleted's subject_id does not match this result's " +
-          "mutation_id; a real run for a different mutation is not evidence about this one " +
-          "(SPEC.md section 4.2)",
-      });
-    }
+    const satisfied = completions.some((run) => {
+      const payload = run.payload as Record<string, unknown> | undefined;
+      return (
+        run.subject_id === document.mutation_id &&
+        payload?.baseline_runs === baselineRuns &&
+        payload?.candidate_runs === candidateRuns
+      );
+    });
 
-    const payload = run.payload as Record<string, unknown> | undefined;
-    const runBaseline = payload?.baseline_runs;
-    const runCandidate = payload?.candidate_runs;
-    if (runBaseline !== baselineRuns || runCandidate !== candidateRuns) {
+    if (!satisfied) {
       failures.push({
         line: row.line,
         documentType: row.documentType,
         detail:
-          `the referenced SimulationCompleted reports baseline_runs=${JSON.stringify(runBaseline)} ` +
-          `candidate_runs=${JSON.stringify(runCandidate)}, which does not match this result's ` +
-          `baseline.runs=${baselineRuns} candidate.runs=${candidateRuns} (SPEC.md section 4.2)`,
+          `${completions.length} referenced SimulationCompleted event(s) exist, but none has ` +
+          `subject_id=${JSON.stringify(document.mutation_id)} with baseline_runs=${baselineRuns} ` +
+          `and candidate_runs=${candidateRuns}; a real run for a different mutation or count is ` +
+          "not evidence about this result (SPEC.md section 4.2)",
       });
     }
   }
