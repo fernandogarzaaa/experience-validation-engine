@@ -3,6 +3,17 @@
  * "AI that experiences software like a human."
  *
  * Public API surface. See docs/api-reference.md for the guided tour.
+ *
+ * Two subsystems are reached through their own subpath exports rather than
+ * this barrel, because both declare types whose names (`Observation`,
+ * `Experience`, `Provenance`, `Measurement`) are deliberately generic on the
+ * wire and would collide with EVE's own vocabulary if flattened into one
+ * namespace:
+ *
+ * - `experience-validation-engine/protocol` — the CP/1 binding, by which EVE,
+ *   ADAM and AXIOM-AETHER exchange documents as one organism.
+ * - `experience-validation-engine/fitness` — counterfactual fitness
+ *   measurement, EVE's role in the developmental lifecycle.
  */
 
 // Phase-3: autonomous exploration → application map

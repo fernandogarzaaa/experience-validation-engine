@@ -14,15 +14,25 @@
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "import": "./dist/mcp/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol/index.d.ts",
+      "import": "./dist/protocol/index.js"
+    },
+    "./fitness": {
+      "types": "./dist/fitness/index.d.ts",
+      "import": "./dist/fitness/index.js"
     }
   },
   "bin": {
     "eve": "./bin/eve.js",
-    "eve-mcp": "./bin/eve-mcp.js"
+    "eve-mcp": "./bin/eve-mcp.js",
+    "eve-cp1": "./bin/eve-cp1.js"
   },
   "files": [
     "dist",
     "bin",
+    "protocol",
     "README.md",
     "LICENSE"
   ],
@@ -35,6 +45,9 @@
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "mcp": "node bin/eve-mcp.js",
     "mcp:smoke": "node scripts/mcp-smoke.mjs",
+    "cp1": "node bin/eve-cp1.js",
+    "cp1:smoke": "node scripts/cp1-smoke.mjs",
+    "cp1:vendor": "node scripts/vendor-protocol.mjs",
     "lint": "biome check src tests examples",
     "lint:fix": "biome check --write src tests examples",
     "format": "biome format --write src tests examples"

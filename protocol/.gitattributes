@@ -1,0 +1,13 @@
+# The CP/1 corpus and manifest are byte-exact artifacts: every binding hashes
+# these files and compares against MANIFEST.sha256. A checkout that translated
+# line endings would append \r to every corpus line, and the conformance suite
+# would report a canonical-encoding failure for what is actually a checkout
+# setting. Pin them to LF on every platform.
+#
+# This file mirrors `protocol/.gitattributes` in AXIOM-AETHER, because the
+# vendored copy has to hash the same as the source it was copied from.
+cp1/fixtures/canonical.jsonl -text eol=lf
+cp1/MANIFEST.sha256          -text eol=lf
+cp1/SPEC.md                  -text eol=lf
+cp1/schema/cp1.schema.json   -text eol=lf
+cp1/VERSION                  -text eol=lf
