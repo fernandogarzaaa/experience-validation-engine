@@ -107,7 +107,9 @@ every binding. Values outside `[0, 1]` are clamped, not wrapped.
 
 Twelve types are canonical. Every concept in the organism is expressed in terms
 of them, and each has exactly one owning repository — the only component allowed
-to author (as opposed to read) documents of that type.
+to author (as opposed to read) documents of that type. `FitnessResult` is the
+single exception; the table below and the note after it say why, and why the
+exception does not weaken the rule ADAM depends on.
 
 | Type            | Owner | Meaning |
 | --------------- | ----- | ------- |
@@ -121,7 +123,7 @@ to author (as opposed to read) documents of that type.
 | `Reflection`    | ADAM  | A point-in-time self-assessment across subsystems. |
 | `Observation`   | EVE   | One perceived fact about an environment, at a point in time. |
 | `Experience`    | EVE   | An observation situated in intent: goal, action, outcome, affect. |
-| `FitnessResult` | EVE   | Evidence-backed measurement of a mutation against scenarios. |
+| `FitnessResult` | EVE, PCR | Evidence-backed measurement of a mutation. The one type with two owners, because there are two evaluators and each measures an objective the other cannot: EVE scores simulated experience, PCR scores the objective a real external workspace defines. Ownership stays exclusive of ADAM, which is the property that matters. |
 | `Context`       | AXIOM | A bounded, compressed, grounded working set handed to a model. |
 
 Ownership is exclusive for **authorship**, not for reading. ADAM reads
@@ -129,6 +131,14 @@ Ownership is exclusive for **authorship**, not for reading. ADAM reads
 measure; AXIOM reads `Memory` to ground a `Context`. None of them may mint a
 document of a type they do not own — a rule the conformance suite cannot check,
 but code review and the `provenance.authored_by` field make auditable.
+
+`FitnessResult` is the exception: for it the rule *is* machine-checked, because
+it is the one type a component could profit from forging.
+`authenticity_failure` rejects any author that is not a declared evaluator, and
+separately rejects an evaluator other than the one the request was dispatched
+to. Two checks rather than one — "not ADAM" alone would be weaker than the rule
+it replaced, since a provider claiming to be EVE while returning a PCR-authored
+document must also fail.
 
 ### 3.0 Protocol messages, which are not canonical types
 
@@ -311,7 +321,8 @@ Event `type` values are exactly:
 | `ReflectionCompleted`| ADAM    | A self-assessment across subsystems was produced. |
 | `MutationProposed`   | ADAM    | A change to genome, skills or beliefs was proposed. |
 | `SimulationCompleted`| EVE     | A deterministic scenario run finished. |
-| `FitnessMeasured`    | EVE     | A mutation was scored against baseline and candidate runs. |
+| `TaskRunCompleted`   | PCR     | A run against the actual external workspace finished. |
+| `FitnessMeasured`    | EVE, PCR | A mutation was scored against baseline and candidate runs. |
 | `MutationAccepted`   | ADAM    | A proposal passed governance and was applied. |
 | `MutationRejected`   | ADAM    | A proposal was refused; carries the reason. |
 | `GenomeCommitted`    | ADAM    | A new immutable genome version was appended. |
@@ -428,9 +439,19 @@ a document crossing a boundary; each stage emits its event.
 There is no shortcut edge. In particular a mutation that touches the genome
 beyond low-stakes preferences **cannot** be accepted without a `FitnessResult`
 whose `recommendation` is `approve` and whose provenance chains back to a real
-simulation run. ADAM enforces this; the enforcement is meaningless unless the
-`FitnessResult` was authored by EVE, which is why `provenance.authored_by` is
-mandatory and why ownership (§3) is exclusive.
+run — a `SimulationCompleted` when EVE measured, a `TaskRunCompleted` when PCR
+did. ADAM enforces this; the enforcement is meaningless unless the
+`FitnessResult` was authored by an evaluator, which is why
+`provenance.authored_by` is mandatory and why ownership (§3) is exclusive.
+
+The emitter column is enforced, not merely documented: constructing an `Event`
+whose actor the kind does not permit is rejected. ADAM does emit
+`FitnessMeasured` on receiving a measurement, and the actor it names is copied
+from the verified `FitnessResult` rather than asserted — a relay, not an
+authorship. Before this was checkable, the emitter was derived from the event
+kind, so an ADAM-written `FitnessMeasured` was recorded as EVE's: internally
+consistent and factually wrong, which is the failure mode hardest to find in an
+audit.
 
 ### 7.1 Rationale: fitness is counterfactual, not absolute
 

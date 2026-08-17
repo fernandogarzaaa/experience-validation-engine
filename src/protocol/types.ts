@@ -17,7 +17,7 @@
  */
 
 /** Which repository authored a document. Authorship is exclusive per type. */
-export type Component = "adam" | "eve" | "axiom";
+export type Component = "adam" | "eve" | "axiom" | "pcr";
 
 /** Chain of custody. Mandatory on every CP/1 document. */
 export interface Provenance {
@@ -63,16 +63,26 @@ export interface Observation {
   readonly provenance: Provenance;
 }
 
-export type ExperienceAction =
-  | "click"
-  | "type"
-  | "press"
-  | "scroll"
-  | "navigate"
-  | "back"
-  | "read"
-  | "wait"
-  | "abandon";
+/**
+ * The CP/1 canonical action verbs. This set is closed on the wire: adding a
+ * verb changes the canonical form and is a protocol version change (SPEC §8),
+ * not an edit here. Engine-side verbs beyond this set live in
+ * `actionVerbRegistry` (`src/protocol/verbs.ts`) and never serialize into an
+ * `Experience`.
+ */
+export const EXPERIENCE_ACTIONS = [
+  "click",
+  "type",
+  "press",
+  "scroll",
+  "navigate",
+  "back",
+  "read",
+  "wait",
+  "abandon",
+] as const;
+
+export type ExperienceAction = (typeof EXPERIENCE_ACTIONS)[number];
 
 export type ExperienceOutcome = "success" | "surprise" | "error" | "no_change" | "abandoned";
 
@@ -144,13 +154,24 @@ export interface ValidationRequest {
   readonly provenance: Provenance;
 }
 
-/** One side of a counterfactual fitness comparison. */
+/**
+ * One side of a counterfactual fitness comparison.
+ *
+ * `composite_bp` and `runs` are the whole of what an evaluator must report: a
+ * scalar objective in basis points, higher-is-better, and how many executions
+ * stand behind it. The four experience members are EVE's objective, and are
+ * optional because the other evaluator has no simulated human to have a
+ * frustration level — requiring them would be requiring it to invent the
+ * number. Absent means *not measured*; it never means zero.
+ *
+ * EVE always reports all six, so nothing on this side of the wire changes.
+ */
 export interface Measurement {
   readonly composite_bp: number;
-  readonly task_success_bp: number;
-  readonly frustration_bp: number;
-  readonly trust_bp: number;
-  readonly cognitive_load_bp: number;
+  readonly task_success_bp?: number;
+  readonly frustration_bp?: number;
+  readonly trust_bp?: number;
+  readonly cognitive_load_bp?: number;
   readonly runs: number;
 }
 
@@ -192,6 +213,7 @@ export const EVENT_KINDS = [
   "ReflectionCompleted",
   "MutationProposed",
   "SimulationCompleted",
+  "TaskRunCompleted",
   "FitnessMeasured",
   "MutationAccepted",
   "MutationRejected",
@@ -252,23 +274,31 @@ export interface CpEvent {
 }
 
 /**
- * The component permitted to emit each event. Ownership of an event follows
+ * The components permitted to emit each event. Ownership of an event follows
  * ownership of the concept it announces, so this is checkable: an
  * `ObservationRecorded` from ADAM means ADAM minted an EVE-owned fact.
+ *
+ * Fourteen of the fifteen kinds have exactly one permitted emitter.
+ * `FitnessMeasured` has two, because two independent evaluators can honestly
+ * score a mutation — EVE against simulated experience, PCR against the real
+ * objective — and a single `Component` here could only answer by naming the
+ * wrong one for the other. The permission stays closed: two named components,
+ * not "anyone". Mirrors `EventKind::emitters` on the Rust side.
  */
-export const EVENT_EMITTER: Readonly<Record<EventKind, Component>> = {
-  ObservationRecorded: "eve",
-  ExperienceCreated: "eve",
-  SimulationCompleted: "eve",
-  FitnessMeasured: "eve",
-  ContextCompressed: "axiom",
-  GroundingFailed: "axiom",
-  MemoryConsolidated: "adam",
-  BeliefUpdated: "adam",
-  SkillLearned: "adam",
-  ReflectionCompleted: "adam",
-  MutationProposed: "adam",
-  MutationAccepted: "adam",
-  MutationRejected: "adam",
-  GenomeCommitted: "adam",
+export const EVENT_EMITTER: Readonly<Record<EventKind, readonly Component[]>> = {
+  ObservationRecorded: ["eve"],
+  ExperienceCreated: ["eve"],
+  SimulationCompleted: ["eve"],
+  TaskRunCompleted: ["pcr"],
+  FitnessMeasured: ["eve", "pcr"],
+  ContextCompressed: ["axiom"],
+  GroundingFailed: ["axiom"],
+  MemoryConsolidated: ["adam"],
+  BeliefUpdated: ["adam"],
+  SkillLearned: ["adam"],
+  ReflectionCompleted: ["adam"],
+  MutationProposed: ["adam"],
+  MutationAccepted: ["adam"],
+  MutationRejected: ["adam"],
+  GenomeCommitted: ["adam"],
 };

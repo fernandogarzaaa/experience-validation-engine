@@ -1,5 +1,162 @@
 # Changelog
 
+## Unreleased — Phase 2: modality-variant kernel (Approach B)
+
+The one-time core generalization, landed additively: the browser-flavored
+`Percept`/`Action` pair now has a modality-agnostic kernel beneath it, MCP
+runs kernel-natively, and scoring is registry-driven and modality-gated.
+397 tests (22 new). Design doc: `docs/kernel.md`; debt retirement:
+`docs/projection-debt-ledger.md` (entries 1–7 retired, 8 deferred).
+
+### Added — the kernel (`src/core/kernel.ts`)
+
+- `KernelPercept` (discriminated over `visual | textual`), `FrameIdentity`
+  (`address`/`label`/`surfaceState` — frame identity independent of
+  "page/URL"), `Affordance` (open, registry-aligned `kind`; `bbox` /
+  `charCell` / `schemaPath` locators; perceived metadata bag), typed
+  `SurfaceSignal`s (`tool-result` with explicit truncation semantics,
+  `error` with `source`, `notification`, `surface-terminated`, …), and
+  `KernelAction { verb, target?, payload? }`.
+- Per-surface verb registries declared via `SurfaceCapabilities.actionVerbs`
+  (`actionVerbsFor` defaults to the eleven legacy web kinds).
+- `KernelSurface` adapter interface (`kernelPercept()` + `actKernel()`) with
+  the `asKernelSurface` narrowing helper.
+
+### Changed — compatibility (deprecated `WebPerceptView`, no behavior change)
+
+- The legacy `Percept`/`Action` shapes remain the session contract as the
+  deprecated web view: `kernelFromWebPercept` / `webPerceptFromKernel`
+  project both ways (`src/surface/kernelView.ts`). Cognition additionally
+  receives `CognitiveContext.kernel`; on web surfaces it is exactly the
+  projection of the decision percept (shim-equivalence test pins identical
+  session outcomes). All 375 pre-existing tests passed unchanged.
+- `Action` gained `{ kind: "invoke"; verb; payload? }` for kernel-native
+  acts; `describeAction` renders `invoke add({"a":2})`.
+
+### Changed — MCP is kernel-native (`src/surface/mcp.ts`)
+
+- One `tools/call` is one `mcp.invoke` action with typed arguments
+  (`src/cognition/toolArgs.ts` — intent is a cognition decision; the
+  adapter never coerces text). The catalog keeps schema + annotations as
+  perceived metadata with stable `tool:<name>` identity across
+  `list_changed`. Results, protocol errors, notifications and server death
+  are distinct typed signals; the kernel carries full result text and
+  reports web-view truncation explicitly. Structural frame headers are
+  headings, so menu/form/result have distinct screen identities.
+- The Phase-1 projection (form fill + Enter, error-as-dialog, truncated
+  lines) survives only as the deprecated web view.
+
+### Changed — registry-driven, modality-gated scoring
+
+- `Finding.category` / `Score.dimension` are open, registry-backed types.
+- `computeScores` honors `appliesTo`: visual-only dimensions are skipped
+  (not vacuously passed) on textual sessions; `overall` renormalizes.
+- One severity penalty schedule (`FINDING_SEVERITY_PENALTY` +
+  `scoreFromFindings` in `src/scoring/scorer.ts`); registered dimensions
+  (e.g. `mcp.*`) flow through the session scorer via
+  `FindingCategoryEntry.scoresInto`, evidence-gated. The MCP harness's
+  parallel scorer was retired onto it.
+
+### Protocol
+
+- **Wire impact: none.** `invoke` collapses to `click` in CP/1 `Experience`
+  documents (additive `ACTION_MAP` entry, same policy as `doubleClick`). No
+  canonical-form change; SPEC §8 not triggered; conformance fixtures
+  unchanged.
+
+## Unreleased — Phase 1: MCP server evaluation adapter
+
+The second proof of the non-visual surface seam: EVE now evaluates arbitrary
+MCP servers, via capability-flagged projection (Approach C — core
+generalization stays Phase 2). 375 tests (20 new).
+
+### Added — MCP surface adapter (`src/surface/mcp.ts`, `src/surface/mcpClient.ts`)
+
+- **`McpAdapter`** projects an MCP server onto the textual seam: `tools/list`
+  is the affordance menu, a tool's JSON Schema is its form, `tools/call` is
+  the submission, results/notifications are the observation, errors are
+  dialogs. Declares `TEXTUAL_SURFACE` honestly — the Phase-0 gate means no
+  vision finding can fire. Transports: stdio (spawn the target) and
+  Streamable HTTP. `notifications/tools/list_changed` refreshes the menu live.
+- **Persona-driven operation**: `eve run "mcp:node server.js" --goal "…"` runs
+  the full human loop (cognition, emotion, patience, scoring, reports)
+  against an MCP server unchanged.
+- `connectMcpInProcess(server)` evaluates in-process SDK servers — tests and
+  dogfooding (EVE can evaluate itself).
+
+### Added — deterministic MCP oracles (`src/mcpEval/`, `eve mcp-eval`)
+
+- **Schema oracle**: object-schema validity, dangling `required`, description
+  presence/quality, annotation honesty (name vs readOnly/destructive hints).
+- **Conformance oracle**: initialize/serverInfo, `capabilities.tools`
+  declaration, ping, unknown-tool → protocol error (not fake success/crash).
+- **Fuzz oracle**: seeded adversarial inputs (missing required, type
+  violations, boundary values, oversized payloads) classified as
+  protocol-error / error-result / accepted-invalid / hang / crash; a crash
+  is critical and stops fuzzing.
+- `evaluateMcpServer(target)` → evidence-backed `McpEvalReport` with
+  `mcp.schemaQuality` / `mcp.robustness` / `mcp.conformance` scores (100
+  minus the scorer's penalty schedule). `eve mcp-eval` exits 1 on any
+  critical finding — CI-gate friendly.
+- **Vocabulary** registered via the Phase-0 registries
+  (`registerMcpVocabulary`, idempotent): three dimensions and three finding
+  categories (`appliesTo: ["textual"]`, evidence mandatory) and the
+  engine-side `mcp.invoke` verb (`onCp1Wire: false`).
+
+### Added — projection debt ledger (`docs/projection-debt-ledger.md`)
+
+Every place the projection strains the browser-flavored contract, with
+Phase-2 cost estimates — the measurement instrument for scoping Approach B.
+User docs in `docs/mcp-adapter.md`.
+
+## Unreleased — Phase 0: honesty layer & vocabulary registries
+
+Expansion groundwork: a confirmed engine-level honesty bug is fixed, and the
+three closed vocabulary unions become registries so future domain packs can
+extend them without touching core. Fully backwards compatible — no score,
+report, or CP/1 document changes.
+
+### Fixed — engine-level capability-gate bypass
+
+- **`runVisionChecks` now honors `capabilities.spatial`** (`src/engine/session.ts`).
+  The session loop ran geometry/pixel vision checks unconditionally while
+  plugins correctly gated on `capabilities.spatial`. On a textual surface the
+  engine could emit valid-but-trivial findings (character-cell boxes flagged
+  as tiny targets or clipped elements) — the "Axiom dashboard" failure mode
+  the surface spec was written to prevent. The checks are now skipped, not
+  failed, exactly as the spec promised. Regression tests in
+  `tests/spatialGuards.test.ts` run a full session on a non-spatial fixture
+  whose geometry *would* produce findings, and assert none are emitted.
+
+### Added — vocabulary registries (`src/core/registry.ts`)
+
+- **`ScoreDimension`, `FindingCategory` and CP/1's `ExperienceAction` are now
+  registry-backed.** The shipped 16/10/9 values are pre-registered as
+  built-ins with their serialized strings unchanged (the union types are now
+  derived from const tuples, following the existing `EVENT_KINDS` pattern),
+  so every consumer, stored report and conformance fixture behaves as before.
+- **Dimension metadata.** Each `ScoreDimensionEntry` carries a published
+  composite `weight` (the scorer remains the single source of truth — a
+  registered dimension defaults to weight 0 and can never silently reweight
+  existing scores) and an `appliesTo` modality field for the honesty layer.
+  No consumer gates on `appliesTo` yet, so behavior is unchanged.
+- **Evidence stays mandatory.** Dimension and category entries carry
+  `evidenceRequired: true` as a type-level literal; new domains cannot
+  register vibes-based scoring.
+- **Plugin lifecycle hook `onRegister(registries)`** (`EvePlugin`, optional):
+  the one place a plugin may register custom dimensions, finding categories
+  or engine-side action verbs, invoked once at registration time by
+  `PluginManager`. Domain packs can equally call `registerDimension`,
+  `registerFindingCategory` and `registerActionVerb` directly.
+- **CP/1 compatibility.** Registered values serialize as plain strings, like
+  the built-ins, so document bytes and content hashes are unchanged and no
+  protocol version bump is required. Custom action verbs are registered
+  `onCp1Wire: false`: widening the canonical `ExperienceAction` set changes
+  the canonical form, which SPEC §8 reserves for a protocol version change.
+
+18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
+`tests/spatialGuards.test.ts`); 355 total.
+
 ## 0.3.1 — Dogfooding fixes
 
 Quality fixes surfaced by running EVE's own Phase-3 analysis against a model of

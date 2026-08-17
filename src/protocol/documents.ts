@@ -125,6 +125,11 @@ const ACTION_MAP: Readonly<Record<string, ExperienceAction>> = {
   read: "read",
   wait: "wait",
   abandon: "abandon",
+  // Phase 2 kernel-native verbs (e.g. mcp.invoke) never reach the wire —
+  // SPEC §8 reserves new canonical verbs for a protocol version. An
+  // invocation is, experientially, an actuation: collapse onto "click",
+  // the same policy doubleClick already follows.
+  invoke: "click",
 };
 
 /**
@@ -184,9 +189,43 @@ function outcomeOf(iteration: LoopIteration): ExperienceOutcome {
   return "success";
 }
 
-/** Mint a CP/1 event. `actor` is fixed by the event kind, never by the caller. */
+/**
+ * The emitter of an event, checked against what the kind permits.
+ *
+ * `actor` is still not free: it is either omitted, and the kind's sole
+ * permitted emitter is used, or it is supplied and must be one the kind allows.
+ * A caller cannot name itself the author of someone else's fact either way.
+ *
+ * The parameter exists only because `FitnessMeasured` now has two honest
+ * emitters. Defaulting it for that kind would mean picking one and silently
+ * mislabelling the other — the exact misattribution this check exists to stop —
+ * so an ambiguous kind demands an answer rather than guessing one.
+ */
+function actorFor(kind: EventKind, requested?: Component): Component {
+  const permitted = EVENT_EMITTER[kind];
+  if (requested === undefined) {
+    if (permitted.length !== 1) {
+      throw new Error(
+        `${kind} may be emitted by ${permitted.join(" or ")}; actor must be given explicitly`,
+      );
+    }
+    return permitted[0] as Component;
+  }
+  if (!permitted.includes(requested)) {
+    throw new Error(`${requested} may not emit ${kind}; permitted: ${permitted.join(", ")}`);
+  }
+  return requested;
+}
+
+/**
+ * Mint a CP/1 event.
+ *
+ * `actor` is constrained by the event kind, never chosen freely by the caller.
+ * See {@link actorFor}.
+ */
 export function event(options: {
   kind: EventKind;
+  actor?: Component;
   subjectId: string;
   subjectType: SubjectType;
   correlationId: string;
@@ -195,19 +234,20 @@ export function event(options: {
   origin: string;
   derivedFrom?: readonly string[];
 }): CpEvent {
+  const actor = actorFor(options.kind, options.actor);
   const document: CpEvent = {
     cp: "cp1",
     type: options.kind,
     id: randomUUID(),
     occurred_at: timestamp(),
-    actor: EVENT_EMITTER[options.kind],
+    actor,
     subject_id: options.subjectId,
     subject_type: options.subjectType,
     correlation_id: options.correlationId,
     ...(options.causationId === undefined ? {} : { causation_id: options.causationId }),
     payload: options.payload ?? {},
     provenance: provenance({
-      authoredBy: EVENT_EMITTER[options.kind],
+      authoredBy: actor,
       origin: options.origin,
       derivedFrom: options.derivedFrom,
     }),

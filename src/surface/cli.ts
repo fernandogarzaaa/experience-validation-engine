@@ -13,7 +13,7 @@ const SETTLE_MS = 50;
 const INTERACTIVE_SETTLE_MS = 300;
 
 /** Minimal shell-like tokenizer: honors single/double-quoted arguments. */
-function tokenizeCommand(command: string): string[] {
+export function tokenizeCommand(command: string): string[] {
   const tokens: string[] = [];
   const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
   let match = pattern.exec(command);

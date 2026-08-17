@@ -259,6 +259,14 @@ async function scoreScenario(
         seed: `${seed}#${scenario.id}#${personaIndex}#${trial}`,
         maxSteps,
         cognitive: true,
+        // The fitness path drives a MockAdapter, so nothing here has to wait
+        // for a real browser. Model time instead of reading it: perceived
+        // latency, the settle wait and the time budget then come from the
+        // persona rather than from how busy the host machine was, and a
+        // measurement replays exactly. Without this a slow host changes the
+        // operator's appraisal, and through it the composite — which is the
+        // score a governance decision rests on.
+        deterministic: true,
       }).run();
 
       successes.push(result.goalAchieved ? 1 : 0);

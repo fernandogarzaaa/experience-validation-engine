@@ -1,0 +1,93 @@
+{
+  "runs": 3,
+  "trajectory": {
+    "hashes": [
+      "c861503bf02b6c5b5a959e94f46a3326ba68d467c55389d14e35477b806e9b0f",
+      "c861503bf02b6c5b5a959e94f46a3326ba68d467c55389d14e35477b806e9b0f",
+      "c861503bf02b6c5b5a959e94f46a3326ba68d467c55389d14e35477b806e9b0f"
+    ],
+    "distinct": 1
+  },
+  "measurement": {
+    "hashes": [
+      "7ce5d6724acc375d683ecb05fa4ea5071c20921a91b4874966544c6a74fd7a41",
+      "7ce5d6724acc375d683ecb05fa4ea5071c20921a91b4874966544c6a74fd7a41",
+      "7ce5d6724acc375d683ecb05fa4ea5071c20921a91b4874966544c6a74fd7a41"
+    ],
+    "distinct": 1
+  },
+  "identity_fields_excluded": [
+    {
+      "id": "58e7c553-fa04-4324-b511-abfef367a655",
+      "produced_at": "2026-08-17T12:26:26.003Z",
+      "derived_from": [
+        "11111111-1111-4111-8111-111111111111",
+        "53202d37-a2db-4ca8-b887-9ddbd2600450"
+      ],
+      "run_identity_evidence": [
+        "simulation_event_id=53202d37-a2db-4ca8-b887-9ddbd2600450"
+      ]
+    },
+    {
+      "id": "d8decaf0-a42b-4ce2-a047-c61723568c0a",
+      "produced_at": "2026-08-17T12:26:26.095Z",
+      "derived_from": [
+        "11111111-1111-4111-8111-111111111111",
+        "7d7fb81d-3c87-4aec-8194-441935c3a61f"
+      ],
+      "run_identity_evidence": [
+        "simulation_event_id=7d7fb81d-3c87-4aec-8194-441935c3a61f"
+      ]
+    },
+    {
+      "id": "54bd9800-fd1b-4fcb-b561-1c47d1d02bd5",
+      "produced_at": "2026-08-17T12:26:26.177Z",
+      "derived_from": [
+        "11111111-1111-4111-8111-111111111111",
+        "3bf01a75-23fa-4b2a-8ad5-1c43fe54d0c0"
+      ],
+      "run_identity_evidence": [
+        "simulation_event_id=3bf01a75-23fa-4b2a-8ad5-1c43fe54d0c0"
+      ]
+    }
+  ],
+  "first_measurement": {
+    "mutation_id": "11111111-1111-4111-8111-111111111111",
+    "seed": 1337,
+    "scenario_ids": [
+      "excellent",
+      "average",
+      "bad"
+    ],
+    "trials": 2,
+    "baseline": {
+      "composite_bp": 7109,
+      "task_success_bp": 8333,
+      "frustration_bp": 5778,
+      "trust_bp": 6091,
+      "cognitive_load_bp": 1000,
+      "runs": 18
+    },
+    "candidate": {
+      "composite_bp": 5725,
+      "task_success_bp": 5556,
+      "frustration_bp": 6656,
+      "trust_bp": 6059,
+      "cognitive_load_bp": 1022,
+      "runs": 18
+    },
+    "delta_bp": -1384,
+    "recommendation": "reject",
+    "reason": "candidate regressed the composite by 1384bp over 18 seeded runs across 3 scenario(s); policy addition matched \"verify\", projected onto thoroughness (+0.15)",
+    "evidence": [
+      "seed=1337",
+      "scenarios=excellent,average,bad",
+      "trials=2",
+      "panel=first-time-user,impatient-user,power-user",
+      "projection=policy addition matched \"verify\", projected onto thoroughness (+0.15)",
+      "excellent: 0.832 → 0.825",
+      "average: 0.711 → 0.631",
+      "bad: 0.589 → 0.261"
+    ]
+  }
+}

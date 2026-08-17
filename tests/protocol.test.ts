@@ -459,16 +459,28 @@ describe("signed envelope", () => {
 });
 
 describe("event catalog", () => {
-  it("assigns every event to exactly one emitting component", () => {
+  it("assigns every event a closed, non-empty set of emitting components", () => {
     for (const kind of EVENT_KINDS) {
       expect(EVENT_EMITTER[kind], `${kind} has no declared emitter`).toBeDefined();
+      expect(EVENT_EMITTER[kind].length, `${kind} permits no emitter`).toBeGreaterThan(0);
     }
-    expect(new Set(Object.values(EVENT_EMITTER))).toEqual(new Set(["adam", "eve", "axiom"]));
+    expect(new Set(Object.values(EVENT_EMITTER).flat())).toEqual(
+      new Set(["adam", "eve", "axiom", "pcr"]),
+    );
   });
 
-  it("is closed at fourteen events", () => {
+  it("permits more than one emitter only for FitnessMeasured", () => {
+    // Two evaluators can honestly score a mutation; nothing else has two
+    // honest authors. A second multi-emitter kind would mean some other fact
+    // lost its single owner, which is the property the whole check rests on.
+    const ambiguous = EVENT_KINDS.filter((kind) => EVENT_EMITTER[kind].length > 1);
+    expect(ambiguous).toEqual(["FitnessMeasured"]);
+    expect(EVENT_EMITTER.FitnessMeasured).toEqual(["eve", "pcr"]);
+  });
+
+  it("is closed at fifteen events", () => {
     // Adding an event is a CP/1 version change: consumers switch exhaustively
     // over the set, so an addition silently creates untested branches.
-    expect(EVENT_KINDS).toHaveLength(14);
+    expect(EVENT_KINDS).toHaveLength(15);
   });
 });

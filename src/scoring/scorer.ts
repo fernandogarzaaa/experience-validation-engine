@@ -1,7 +1,10 @@
+import { findingCategoryRegistry } from "../core/findingCategories.js";
 import { clamp } from "../core/random.js";
+import type { Modality } from "../core/registry.js";
 import type { Finding, LoopIteration, Score, ScoreDimension, SessionUsage } from "../core/types.js";
 import type { EmotionSample } from "../emotion/emotionalState.js";
 import type { DiscoveredWorkflow, WorkflowNode } from "../workflow/graph.js";
+import { dimensionRegistry } from "./dimensions.js";
 
 /**
  * Scoring: converts the raw record of an experience session into 0..100
@@ -11,7 +14,51 @@ import type { DiscoveredWorkflow, WorkflowNode } from "../workflow/graph.js";
  * traces back to something that happened — an expectation violation, a
  * finding, an emotion excursion, wasted steps — and that trace ships with the
  * score as its evidence list.
+ *
+ * Phase 2 (registry-driven, modality-gated):
+ * - The sixteen built-in dimensions are still computed by name, unchanged —
+ *   but only when the session's modality is one the dimension `appliesTo`
+ *   (registered in `dimensionRegistry`). A visual-only dimension on a
+ *   textual session is *skipped, not vacuously passed*.
+ * - Dimensions registered by domain packs (e.g. `mcp.*`) are scored by the
+ *   generic rule {@link scoreFromFindings} — the single home of the
+ *   severity penalty schedule — from findings in categories linked via
+ *   `FindingCategoryEntry.scoresInto`, and only when such findings exist
+ *   (evidence-gated: no evidence, no dimension).
  */
+
+/** The one severity penalty schedule: critical 25 / major 12 / minor 4 / info 1. */
+export const FINDING_SEVERITY_PENALTY = {
+  critical: 25,
+  major: 12,
+  minor: 4,
+  info: 1,
+} as const;
+
+/** The slice of a finding the generic dimension rule needs. */
+export type FindingEvidence = Pick<Finding, "severity" | "title">;
+
+/**
+ * The generic registered-dimension rule: 100 minus severity penalties, with
+ * the driving findings cited. This is the *only* implementation of that
+ * rule — the MCP harness retired its parallel copy in Phase 2.
+ */
+export function scoreFromFindings(
+  dimension: Score["dimension"],
+  findings: readonly FindingEvidence[],
+): Score {
+  let value = 100;
+  const evidence: string[] = [];
+  for (const f of findings) {
+    value -= FINDING_SEVERITY_PENALTY[f.severity];
+    if (evidence.length < 8) evidence.push(`[${f.severity}] ${f.title}`);
+  }
+  if (findings.length > evidence.length) {
+    evidence.push(`…and ${findings.length - evidence.length} more finding(s).`);
+  }
+  if (evidence.length === 0) evidence.push("No findings on this dimension.");
+  return { dimension, value: clamp(Math.round(value), 0, 100), evidence };
+}
 
 export interface ScoringInput {
   readonly iterations: readonly LoopIteration[];
@@ -23,6 +70,14 @@ export interface ScoringInput {
   readonly usage: SessionUsage;
   readonly goalAchieved: boolean;
   readonly abandoned: boolean;
+  /**
+   * The session's perceptual modality. When provided, dimensions whose
+   * registry `appliesTo` excludes it are skipped, and applicable registered
+   * dimensions with evidence are scored. Omit for phase-1 behavior (every
+   * built-in computed, no registered extras) — used by tests that score
+   * dimension math in isolation.
+   */
+  readonly modality?: Modality;
 }
 
 interface DimensionResult {
@@ -31,7 +86,19 @@ interface DimensionResult {
 }
 
 export function computeScores(input: ScoringInput): Score[] {
-  const results = new Map<ScoreDimension, DimensionResult>();
+  const results = new Map<string, DimensionResult>();
+
+  // Modality gating (Phase 0 `appliesTo` metadata, wired in Phase 2): a
+  // dimension the registry marks inapplicable to this session's modality is
+  // skipped, not failed. Unknown ids (never happens for built-ins) apply.
+  const applies = (id: string): boolean => {
+    if (!input.modality) return true;
+    const entry = dimensionRegistry.get(id);
+    return !entry || entry.appliesTo.includes(input.modality);
+  };
+  const setScore = (id: ScoreDimension, r: DimensionResult): void => {
+    if (applies(id)) results.set(id, r);
+  };
 
   const outcomes = input.iterations
     .map((it) => it.outcome)
@@ -99,7 +166,7 @@ export function computeScores(input: ScoringInput): Score[] {
       evidence.push("The operator abandoned the session before completing their goal.");
     }
     if (evidence.length === 0) evidence.push("Interactions consistently matched expectations.");
-    results.set("usability", { value: clamp(value, 0, 100), evidence });
+    setScore("usability", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- learnability ----------------------------------------------- */
@@ -120,7 +187,7 @@ export function computeScores(input: ScoringInput): Score[] {
       );
     }
     evidence.push(`Peak confusion reached ${(peakEmotion("confusion") * 100).toFixed(0)}%.`);
-    results.set("learnability", { value: clamp(value, 0, 100), evidence });
+    setScore("learnability", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- accessibility ---------------------------------------------- */
@@ -130,7 +197,7 @@ export function computeScores(input: ScoringInput): Score[] {
     const value = 95 - findingPenalty(findings, 30, 15, 5);
     if (evidence.length === 0)
       evidence.push("No accessibility barriers were perceived during the session.");
-    results.set("accessibility", { value: clamp(value, 0, 100), evidence });
+    setScore("accessibility", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- efficiency -------------------------------------------------- */
@@ -152,7 +219,7 @@ export function computeScores(input: ScoringInput): Score[] {
     evidence.push(
       `Session lasted ${(input.usage.durationMs / 1000).toFixed(1)}s over ${input.usage.steps} steps.`,
     );
-    results.set("efficiency", { value: clamp(value, 0, 100), evidence });
+    setScore("efficiency", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- consistency ------------------------------------------------- */
@@ -163,7 +230,7 @@ export function computeScores(input: ScoringInput): Score[] {
     // Surprise concentrated on repeat visits implies inconsistent behavior.
     if (evidence.length === 0)
       evidence.push("No behavioral or visual inconsistencies were perceived.");
-    results.set("consistency", { value: clamp(value, 0, 100), evidence });
+    setScore("consistency", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- visual design ----------------------------------------------- */
@@ -175,7 +242,7 @@ export function computeScores(input: ScoringInput): Score[] {
       evidence.push(
         "No visual defects (contrast, clipping, overflow, misalignment) were perceived.",
       );
-    results.set("visualDesign", { value: clamp(value, 0, 100), evidence });
+    setScore("visualDesign", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- navigation --------------------------------------------------- */
@@ -188,7 +255,7 @@ export function computeScores(input: ScoringInput): Score[] {
     evidence.push(
       `${input.usage.uniqueUrls} distinct locations reached across ${input.usage.screensVisited} screens.`,
     );
-    results.set("navigation", { value: clamp(value, 0, 100), evidence });
+    setScore("navigation", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- workflow quality --------------------------------------------- */
@@ -213,7 +280,7 @@ export function computeScores(input: ScoringInput): Score[] {
       evidence.push("No recognizable workflows were discovered.");
       value = 45;
     }
-    results.set("workflowQuality", { value: clamp(value, 0, 100), evidence });
+    setScore("workflowQuality", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- information architecture -------------------------------------- */
@@ -228,7 +295,7 @@ export function computeScores(input: ScoringInput): Score[] {
     evidence.push(
       `${(ratio * 100).toFixed(0)}% of steps were spent hunting (scrolling/backtracking) rather than acting.`,
     );
-    results.set("informationArchitecture", { value: clamp(value, 0, 100), evidence });
+    setScore("informationArchitecture", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- onboarding ----------------------------------------------------- */
@@ -246,7 +313,7 @@ export function computeScores(input: ScoringInput): Score[] {
       `Peak confusion during the opening minutes: ${(earlyConfusion * 100).toFixed(0)}%.`,
     );
     if (sawOnboarding) evidence.push("An onboarding/welcome flow was present and encountered.");
-    results.set("onboarding", { value: clamp(value, 0, 100), evidence });
+    setScore("onboarding", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- error recovery -------------------------------------------------- */
@@ -267,7 +334,7 @@ export function computeScores(input: ScoringInput): Score[] {
     } else {
       evidence.push("No visible errors occurred during the session.");
     }
-    results.set("errorRecovery", { value: clamp(value, 0, 100), evidence });
+    setScore("errorRecovery", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- responsiveness --------------------------------------------------- */
@@ -284,13 +351,13 @@ export function computeScores(input: ScoringInput): Score[] {
     evidence.push(`Average perceived wait after actions: ${avg.toFixed(0)}ms.`);
     if (slow.length)
       evidence.push(`${slow.length} action(s) left the operator waiting over 2 seconds.`);
-    results.set("responsiveness", { value: clamp(value, 0, 100), evidence });
+    setScore("responsiveness", { value: clamp(value, 0, 100), evidence });
   }
 
   /* ---- user confidence --------------------------------------------------- */
   {
     const value = clamp(meanEmotion("confidence") * 100, 0, 100);
-    results.set("userConfidence", {
+    setScore("userConfidence", {
       value,
       evidence: [
         `Mean confidence across the session: ${(meanEmotion("confidence") * 100).toFixed(0)}%.`,
@@ -304,14 +371,14 @@ export function computeScores(input: ScoringInput): Score[] {
     // Higher score = lighter load (score is "goodness").
     const loadProxy =
       meanEmotion("confusion") * 0.5 + meanEmotion("fatigue") * 0.3 + meanEmotion("stress") * 0.2;
-    results.set("cognitiveLoad", {
+    setScore("cognitiveLoad", {
       value: clamp((1 - loadProxy) * 100, 0, 100),
       evidence: [
         `Mean confusion ${(meanEmotion("confusion") * 100).toFixed(0)}%, fatigue ${(meanEmotion("fatigue") * 100).toFixed(0)}%, stress ${(meanEmotion("stress") * 100).toFixed(0)}%.`,
       ],
     });
   }
-  results.set("trust", {
+  setScore("trust", {
     value: clamp(meanEmotion("trust") * 100, 0, 100),
     evidence: [
       `Mean trust across the session: ${(meanEmotion("trust") * 100).toFixed(0)}%.`,
@@ -348,7 +415,7 @@ export function computeScores(input: ScoringInput): Score[] {
     const criticalCount = bySeverity("critical").length;
     let value = weightSum > 0 ? total / weightSum : 50;
     value -= criticalCount * 8; // critical findings cap the ceiling
-    results.set("overall", {
+    setScore("overall", {
       value: clamp(value, 0, 100),
       evidence: [
         `Weighted composite of ${Object.keys(weights).length} dimensions.`,
@@ -359,8 +426,28 @@ export function computeScores(input: ScoringInput): Score[] {
     });
   }
 
+  /* ---- registered (domain-pack) dimensions ------------------------------ */
+  // Dimensions registered beyond the built-ins (e.g. the MCP pack's
+  // `mcp.*`) flow through the same pipeline now that the registries exist
+  // at the type level: scored by the generic rule from findings in their
+  // linked categories, gated by `appliesTo`, and only reported when there
+  // is evidence — a session with no relevant findings simply skips them.
+  if (input.modality) {
+    for (const entry of dimensionRegistry.listFor(input.modality)) {
+      if (entry.builtin || results.has(entry.id)) continue;
+      const linkedCategories = findingCategoryRegistry
+        .list()
+        .filter((c) => c.scoresInto === entry.id)
+        .map((c) => c.id);
+      const relevant = input.findings.filter((f) => linkedCategories.includes(f.category));
+      if (relevant.length === 0) continue;
+      const scored = scoreFromFindings(entry.id, relevant);
+      results.set(entry.id, { value: scored.value, evidence: [...scored.evidence] });
+    }
+  }
+
   return [...results.entries()].map(([dimension, r]) => ({
-    dimension,
+    dimension: dimension as Score["dimension"],
     value: Math.round(r.value),
     evidence: r.evidence,
   }));

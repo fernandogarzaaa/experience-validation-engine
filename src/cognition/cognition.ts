@@ -1,3 +1,4 @@
+import type { KernelPercept } from "../core/kernel.js";
 import type { Rng } from "../core/random.js";
 import type { Action, Percept, Prediction } from "../core/types.js";
 import type { EmotionVector } from "../emotion/emotionalState.js";
@@ -21,6 +22,15 @@ export interface CognitiveContext {
   readonly step: number;
   /** Ms elapsed since session start. */
   readonly elapsedMs: number;
+
+  /**
+   * Phase 2: the kernel view of the current percept (`src/core/kernel.ts`).
+   * On kernel-native surfaces (MCP) this is the real thing — typed
+   * affordances and signals; on legacy adapters it is the projection of
+   * `percept` (`kernelFromWebPercept`), so policies can consume one shape
+   * uniformly. Optional so existing policies and tests are unaffected.
+   */
+  readonly kernel?: KernelPercept;
 
   /* --- Optional phase-2 enrichments (populated when the enhanced cognitive
      suite is enabled; phase-1 policies ignore them). --- */

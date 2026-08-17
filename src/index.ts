@@ -32,8 +32,19 @@ export * from "./collaborative/index.js";
 export * from "./config/index.js";
 export type { EveEventMap, EveEventName } from "./core/events.js";
 export { EventBus } from "./core/events.js";
+// Vocabulary registries (formerly closed unions; see src/core/registry.ts)
+export { findingCategoryRegistry, registerFindingCategory } from "./core/findingCategories.js";
 export type { Rng } from "./core/random.js";
 export { createRng, seedFromString } from "./core/random.js";
+export type {
+  ActionVerbEntry,
+  EveRegistries,
+  FindingCategoryEntry,
+  Modality,
+  RegistryEntry,
+  ScoreDimensionEntry,
+} from "./core/registry.js";
+export { ALL_MODALITIES, EveRegistry } from "./core/registry.js";
 // Core types
 export type {
   Action,
@@ -54,7 +65,7 @@ export type {
   VisibleDialog,
   VisibleElement,
 } from "./core/types.js";
-export { describeAction } from "./core/types.js";
+export { describeAction, FINDING_CATEGORIES, SCORE_DIMENSIONS } from "./core/types.js";
 // Emotion
 export * from "./emotion/index.js";
 export type { CognitiveConfig, CognitiveLoadTimeline } from "./engine/cognitiveSuite.js";
@@ -66,6 +77,8 @@ export { EveSession } from "./engine/session.js";
 export * from "./evebench/index.js";
 // Phase-2: experience forecasting
 export * from "./forecasting/index.js";
+// Expansion Phase-1: MCP server evaluation (deterministic oracles + vocabulary)
+export * from "./mcpEval/index.js";
 // Memory
 export * from "./memory/index.js";
 // Phase-3: multimodal perception (icons, charts, loading, toasts, motion)
@@ -96,6 +109,18 @@ export * from "./research/index.js";
 export * from "./scoring/index.js";
 // Phase-3: AI-moderated user study (specialist panel + moderator synthesis)
 export * from "./study/index.js";
+// Non-browser surfaces (textual seam: CLI adapter, MCP adapter + connector)
+export type { SurfaceCapabilities } from "./surface/capabilities.js";
+export { TEXTUAL_SURFACE, TOUCH_VISUAL_SURFACE, VISUAL_SURFACE } from "./surface/capabilities.js";
+export { CliAdapter, type CliAdapterOptions } from "./surface/cli.js";
+export { McpAdapter, type McpAdapterOptions } from "./surface/mcp.js";
+export {
+  connectMcpInProcess,
+  connectMcpServer,
+  type McpCallOutcome,
+  type McpConnection,
+  type McpConnector,
+} from "./surface/mcpClient.js";
 // Phase-3: continuous UX regression (experience trends across builds)
 export * from "./trends/index.js";
 // Phase-3: human digital twins (persistent, evolving user models)

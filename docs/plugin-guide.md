@@ -14,6 +14,7 @@ import type { EvePlugin, PluginContext, Percept, PredictionOutcome, LoopIteratio
 class MyPlugin implements EvePlugin {
   readonly name = "my-plugin";
 
+  onRegister(registries: EveRegistries) {}  // vocabulary registration (optional)
   async onSessionStart(ctx: PluginContext) {}
   async onPercept(ctx: PluginContext, percept: Percept, step: number) {}
   async onOutcome(ctx: PluginContext, outcome: PredictionOutcome, percept: Percept, step: number) {}
@@ -29,6 +30,31 @@ All hooks are optional. `PluginContext` provides:
   in by the engine; findings are deduplicated on `(title, url)`.
 
 Plugin errors are caught and logged; a throwing plugin never breaks a session.
+
+## Registering new vocabulary
+
+Score dimensions, finding categories and action verbs were closed union
+types; they are now registries (`src/core/registry.ts`) with the shipped
+values pre-registered as built-ins. `onRegister` runs once when the plugin is
+registered — before any session — and is the one place a plugin may widen a
+vocabulary:
+
+```ts
+onRegister({ dimensions, findingCategories, actionVerbs }: EveRegistries) {
+  dimensions.register({
+    id: "saas.tenantIsolation",
+    builtin: false,
+    weight: 0,                          // never reweights existing composites
+    appliesTo: ["visual", "textual"],   // modality gating (honesty layer)
+    evidenceRequired: true,             // not negotiable
+  });
+}
+```
+
+Registered values serialize as plain strings, exactly like the built-ins, so
+report formats and CP/1 documents are unaffected. Custom action verbs are
+always engine-side: the CP/1 canonical verb set (`ExperienceAction`) is
+closed on the wire and can only grow with a protocol version change.
 
 ## A complete example
 

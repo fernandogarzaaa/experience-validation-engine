@@ -1,3 +1,4 @@
+import type { SurfaceSignal } from "../core/kernel.js";
 import { clamp01 } from "../core/random.js";
 import type { Action, VisibleElement } from "../core/types.js";
 import { screenSignature } from "../memory/memory.js";
@@ -10,6 +11,7 @@ import {
 import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
 import { predictInteraction, tokenize } from "./mentalModel.js";
 import { choiceLoad, readingLoad, scoreAffordances } from "./salience.js";
+import { synthesizeArguments } from "./toolArgs.js";
 
 /**
  * The default, fully-offline decision policy.
@@ -39,6 +41,13 @@ export class HeuristicCognition implements DecisionPolicy {
     const sig = screenSignature(percept);
     const effortBase = clamp01(readingLoad(percept) * 0.5 + choiceLoad(percept) * 0.5);
     const weights = strategyWeights(this.strategy);
+
+    // 0. Kernel-native tool surface (Phase 2): one tool call is one semantic
+    //    act, typed signals replace the dialog metaphor. Only fires when the
+    //    kernel percept advertises tool affordances; web/CLI percepts never
+    //    do, so the cascade below is byte-for-byte the phase-1 behavior.
+    const toolSurfaceDecision = this.handleToolSurface(ctx, sig);
+    if (toolSurfaceDecision) return toolSurfaceDecision;
 
     // 1. A dialog is blocking the screen.
     const dialogDecision = this.handleDialog(ctx);
@@ -272,6 +281,156 @@ export class HeuristicCognition implements DecisionPolicy {
     return clamp01(0.3 + ctx.persona.traits.techLiteracy * 0.4 + ctx.emotion.confidence * 0.3);
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Kernel-native tool surfaces (Phase 2, MCP)                        */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Decide natively on a kernel tool surface — the Phase-2 replacement for
+   * the Phase-1 projection (a tool call was "form fill + Enter"; an error
+   * was a fake modal dialog; arguments were typed text re-parsed by the
+   * adapter — projection debt ledger items 1, 3, 4).
+   *
+   * Returns null unless the kernel percept advertises `mcp.tool`
+   * affordances, so legacy surfaces never enter this branch. Inside it, the
+   * same human priorities apply, restated natively: a dead surface ends the
+   * session; a busy surface is waited out; a new catalog is read before
+   * anything is touched; a failure is *read*, not "dismissed"; and choosing
+   * a tool produces exactly one `mcp.invoke` action with typed arguments.
+   */
+  private handleToolSurface(ctx: CognitiveContext, sig: string): Decision | null {
+    const kernel = ctx.kernel;
+    if (kernel?.modality !== "textual") return null;
+    const tools = kernel.affordances.filter((a) => a.kind === "mcp.tool" && a.state.enabled);
+    if (tools.length === 0) return null;
+    const { percept, persona, memory, goals, rng } = ctx;
+
+    // The surface itself ceased to exist — not a screen without affordances.
+    if (kernel.signals.some((s) => s.type === "surface-terminated")) {
+      return {
+        action: {
+          kind: "abandon",
+          reason: "The MCP server connection terminated mid-session; the surface is gone.",
+        },
+        rationale: "The server is gone — there is nothing left to operate.",
+        prediction: {
+          description: "I stop using the product.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 1,
+        },
+        effort: 0,
+      };
+    }
+
+    // A call in flight: wait, patience permitting (same as the loading rule).
+    if (kernel.signals.some((s) => s.type === "loading" && s.active)) {
+      const waitMs = 500 + persona.traits.patience * 2500;
+      return {
+        action: { kind: "wait", durationMs: waitMs },
+        rationale: "A tool call is still running; I'll give it a moment.",
+        prediction: {
+          description: "The call should have finished when I look again.",
+          expectedSignals: [],
+          expectsChange: true,
+          confidence: 0.7,
+        },
+        effort: 0.05,
+      };
+    }
+
+    const thoughts = () => memory.currentThoughts().map((t) => t.content);
+
+    // A failed call is an error to *read*, not a modal to dismiss.
+    const failure = [...kernel.signals].reverse().find(isFailureSignal);
+    if (failure) {
+      const failureText = failure.text;
+      const readKey = `mcp-error-read:${failureText.slice(0, 80)}`;
+      if (!thoughts().includes(readKey)) {
+        memory.hold(readKey, ctx.step);
+        return {
+          action: { kind: "read", target: null, durationMs: readingTimeMs(persona, 60) },
+          rationale: `The call failed ("${failureText.slice(0, 60)}") — reading what the server said before trying anything else.`,
+          prediction: {
+            description: "Reading the error changes nothing; I'm deciding what to try next.",
+            expectedSignals: [],
+            expectsChange: false,
+            confidence: 0.9,
+          },
+          effort: 0.2,
+        };
+      }
+    }
+
+    // First encounter with a screen: read it before touching anything (the
+    // same instinct as the cascade's read-first rule, restated here because
+    // this branch supersedes the cascade on tool surfaces).
+    if (!failure) {
+      const readKey = `read:${sig}`;
+      const alreadyRead = memory.currentThoughts().some((t) => t.content === readKey);
+      if (!alreadyRead && memory.isNovelScreen(percept)) {
+        memory.hold(readKey, ctx.step);
+        const words = percept.elements.reduce(
+          (n, el) => n + el.text.split(/\s+/).filter(Boolean).length,
+          0,
+        );
+        const durationMs = readingTimeMs(persona, Math.min(words, 400));
+        return {
+          action: { kind: "read", target: null, durationMs },
+          rationale: "New screen — let me look around and figure out what this is.",
+          prediction: {
+            description: "Reading won't change anything; I'm building a picture.",
+            expectedSignals: [],
+            expectsChange: false,
+            confidence: 0.95,
+          },
+          effort: 0.3,
+        };
+      }
+    }
+
+    // Choose a tool to call. Tools are tried at most once per session
+    // (working memory); goal-relevant ones win over curiosity.
+    const triedKey = (id: string) => `mcp-tried:${id}`;
+    const untried = tools.filter((t) => !thoughts().includes(triedKey(t.id)));
+    if (untried.length === 0) return null; // explored everything → cascade tail
+
+    const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
+    const goalHit = untried.find((t) => {
+      const tokens = tokenize(`${toolNameOf(t)} ${t.description}`);
+      return goalKeywords.some((kw) => tokens.includes(kw));
+    });
+    const chosen = goalHit ?? rng.pick(untried);
+    const toolName = toolNameOf(chosen);
+    memory.hold(triedKey(chosen.id), ctx.step);
+
+    // Typed arguments, synthesized from the schema the server advertises —
+    // intent is a cognition decision, not adapter-side text coercion.
+    const schema = chosen.state.metadata?.inputSchema as
+      | Readonly<Record<string, unknown>>
+      | undefined;
+    const args = synthesizeArguments(schema, persona.name, rng);
+
+    return {
+      action: {
+        kind: "invoke",
+        verb: "mcp.invoke",
+        target: null,
+        payload: { tool: toolName, arguments: args },
+      },
+      rationale: goalHit
+        ? `"${toolName}" matches what I'm trying to do (${goals.current.description}) — calling it.`
+        : `I haven't tried "${toolName}" yet — let me call it and see what it does.`,
+      prediction: {
+        description: `Calling ${toolName} should return a result.`,
+        expectedSignals: [toolName],
+        expectsChange: true,
+        confidence: this.baseConfidence(ctx),
+      },
+      effort: 0.3,
+    };
+  }
+
   private handleDialog(ctx: CognitiveContext): Decision | null {
     const { percept, persona } = ctx;
     if (percept.dialogs.length === 0) return null;
@@ -387,6 +546,18 @@ function fieldKey(el: VisibleElement): string {
   // filled (its value becomes the label), which would otherwise make the
   // operator type into the same field forever.
   return `field:${Math.round(el.box.x)},${Math.round(el.box.y)}`;
+}
+
+/** The tool name behind an `mcp.tool` kernel affordance id (`tool:<name>`). */
+function toolNameOf(affordance: { id: string; description: string }): string {
+  return affordance.id.startsWith("tool:") ? affordance.id.slice(5) : affordance.id;
+}
+
+/** Signals that mean "the last call failed" on a tool surface. */
+function isFailureSignal(
+  signal: SurfaceSignal,
+): signal is Extract<SurfaceSignal, { type: "error" | "tool-result" }> {
+  return signal.type === "error" || (signal.type === "tool-result" && signal.isError);
 }
 
 /**

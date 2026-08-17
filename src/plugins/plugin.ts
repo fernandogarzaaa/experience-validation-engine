@@ -1,6 +1,8 @@
+import type { EveRegistries } from "../core/registry.js";
 import type { Finding, LoopIteration, Percept, PredictionOutcome } from "../core/types.js";
 import type { Persona } from "../personas/persona.js";
 import type { SurfaceCapabilities } from "../surface/capabilities.js";
+import { defaultRegistries } from "./registries.js";
 
 /**
  * Plugin system.
@@ -11,6 +13,11 @@ import type { SurfaceCapabilities } from "../surface/capabilities.js";
  * review, LLM critique, localization checks — without ever influencing the
  * operator's behavior. That separation keeps simulations comparable across
  * plugin configurations.
+ *
+ * A plugin may additionally widen EVE's vocabularies — score dimensions,
+ * finding categories, engine-side action verbs — but only in `onRegister`,
+ * the one hook that runs before any session starts. That keeps registration
+ * deterministic and out of the loop.
  */
 
 export interface PluginContext {
@@ -24,6 +31,14 @@ export interface PluginContext {
 
 export interface EvePlugin {
   readonly name: string;
+  /**
+   * Called once when the plugin is registered, before any session starts.
+   * The one place a plugin may widen a vocabulary: register custom score
+   * dimensions, finding categories or engine-side action verbs. Registered
+   * values serialize as strings, exactly like the built-ins, so reports and
+   * CP/1 documents are unaffected.
+   */
+  onRegister?(registries: EveRegistries): void;
   /** Called once before the loop starts. */
   onSessionStart?(ctx: PluginContext): void | Promise<void>;
   /** Called for every settled percept. */
@@ -42,13 +57,23 @@ export interface EvePlugin {
 export class PluginManager {
   private readonly plugins: EvePlugin[] = [];
 
-  constructor(private readonly onError: (err: unknown, plugin: string) => void = () => {}) {}
+  constructor(
+    private readonly onError: (err: unknown, plugin: string) => void = () => {},
+    private readonly registries: EveRegistries = defaultRegistries,
+  ) {}
 
   register(plugin: EvePlugin): void {
     if (this.plugins.some((p) => p.name === plugin.name)) {
       throw new Error(`Plugin "${plugin.name}" is already registered`);
     }
     this.plugins.push(plugin);
+    if (plugin.onRegister) {
+      try {
+        plugin.onRegister(this.registries);
+      } catch (err) {
+        this.onError(err, plugin.name);
+      }
+    }
   }
 
   list(): readonly EvePlugin[] {

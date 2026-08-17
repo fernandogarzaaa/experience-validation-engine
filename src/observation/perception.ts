@@ -1,11 +1,15 @@
 import type { BrowserAdapter } from "../browser/adapter.js";
+import { type Clock, WALL_CLOCK } from "../core/clock.js";
 import type { BoundingBox, Percept, VisibleElement } from "../core/types.js";
 
 /**
  * The observation layer turns raw adapter snapshots into {@link Percept}s —
  * timestamped, immutable records of what the operator saw. It also measures
- * perceived latency: the wall-clock a human experiences between acting and
- * the screen settling.
+ * perceived latency: the time a human experiences between acting and the
+ * screen settling, read from the {@link Clock} it is given. Against a real
+ * browser that is the wall clock, because the wait is real; against a
+ * deterministic surface it is a simulated clock, because the wait is modeled
+ * and the host machine's scheduling must not reach the percept.
  *
  * On touch surfaces it also models soft-keyboard occlusion. No headless
  * browser renders a real on-screen keyboard, so this cannot be perceived from
@@ -35,6 +39,12 @@ export class Observer {
   constructor(
     private readonly adapter: BrowserAdapter,
     private readonly sessionStart: number = Date.now(),
+    /**
+     * Where elapsed time comes from. Defaults to the wall clock so existing
+     * callers driving a real browser are unaffected; pass a simulated clock to
+     * make a run replayable.
+     */
+    private readonly clock: Clock = WALL_CLOCK,
   ) {}
 
   /**
@@ -45,14 +55,17 @@ export class Observer {
   async observe(options: ObserveOptions = {}): Promise<Observation> {
     const settleTimeoutMs = options.settleTimeoutMs ?? 8_000;
     const pollMs = options.pollMs ?? 250;
-    const start = Date.now();
+    const start = this.clock.now();
 
     let snap = await this.adapter.snapshot();
-    while (snap.loadingIndicator && Date.now() - start < settleTimeoutMs) {
-      await sleep(pollMs);
+    while (snap.loadingIndicator && this.clock.now() - start < settleTimeoutMs) {
+      // `sleep` on a simulated clock advances it by `pollMs` without blocking,
+      // so the settle wait is a count of polls rather than a measurement of
+      // how busy the host was.
+      await this.clock.sleep(pollMs);
       snap = await this.adapter.snapshot();
     }
-    const settleMs = Date.now() - start;
+    const settleMs = this.clock.now() - start;
 
     const screenshot = options.withScreenshot ? await this.adapter.screenshot() : null;
     const keyboardOcclusion = modelKeyboardOcclusion(this.adapter, snap.viewport, snap.elements);
@@ -64,7 +77,7 @@ export class Observer {
         )
       : snap.elements;
     const percept: Percept = {
-      timestamp: Date.now() - this.sessionStart,
+      timestamp: this.clock.now() - this.sessionStart,
       url: snap.url,
       title: snap.title,
       viewport: snap.viewport,
@@ -101,8 +114,4 @@ function modelKeyboardOcclusion(
 
 function intersectsBottomBand(box: BoundingBox, band: BoundingBox): boolean {
   return box.y + box.height > band.y;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

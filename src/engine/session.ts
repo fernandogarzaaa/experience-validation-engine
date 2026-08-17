@@ -1,4 +1,4 @@
-import type { BrowserAdapter } from "../browser/adapter.js";
+import { asKernelSurface, type BrowserAdapter } from "../browser/adapter.js";
 import {
   hesitationMs,
   planClick,
@@ -16,7 +16,9 @@ import {
   visibleText,
 } from "../cognition/mentalModel.js";
 import { readingLoad, riskOf } from "../cognition/salience.js";
+import { type Clock, SimulatedClock, WALL_CLOCK } from "../core/clock.js";
 import { EventBus } from "../core/events.js";
+import { type KernelPercept, kernelFromWebPercept } from "../core/kernel.js";
 import { clamp01, createRng, type Rng, seedFromString } from "../core/random.js";
 import type {
   Finding,
@@ -101,6 +103,17 @@ export interface SessionOptions {
    * simulated clock always advances at full human speed regardless.
    */
   paceScale?: number;
+  /**
+   * Model time instead of reading it.
+   *
+   * Off by default, because driving a real browser means waiting for real
+   * latency. Turn it on when the surface under test is deterministic (a
+   * `MockAdapter`, say) and the run has to be replayable: perceived latency,
+   * the settle wait and the time budget then come from the simulated human
+   * clock, so nothing about how busy the host machine was can reach the
+   * operator's appraisal — and through it the session's score.
+   */
+  deterministic?: boolean;
   /** Log sink for progress lines. */
   onLog?: (line: string) => void;
 
@@ -181,6 +194,11 @@ export class EveSession {
   private geometryCheckedSignatures = new Set<string>();
   /** Simulated human clock, ms. Advances by full human durations. */
   private simClock = 0;
+  /**
+   * Where elapsed time comes from. The same object the {@link Observer} reads,
+   * so the operator and its eyes never disagree about what time it is.
+   */
+  private readonly clock: Clock;
   private readonly culture: CultureProfile;
   private readonly capturedScreens = new Map<string, Percept>();
 
@@ -193,6 +211,7 @@ export class EveSession {
       paceScale: options.paceScale ?? 0.15,
       ...options,
     };
+    this.clock = this.options.deterministic ? new SimulatedClock() : WALL_CLOCK;
     let persona =
       typeof options.persona === "string"
         ? getPersona(options.persona)
@@ -231,7 +250,7 @@ export class EveSession {
     );
     const workflowGraph = new WorkflowGraph();
     const iterations: LoopIteration[] = [];
-    const wallStart = Date.now();
+    const startedAt = this.clock.now();
 
     /* ---- Long-term memory: load, forget, seed the operator ---- */
     const appId = appIdForUrl(startUrl);
@@ -283,7 +302,7 @@ export class EveSession {
     await this.plugins.sessionStart(pluginCtx);
 
     await adapter.open(startUrl, this.options.viewport);
-    const observer = new Observer(adapter, wallStart);
+    const observer = new Observer(adapter, startedAt, this.clock);
 
     let endReason = "budget-exhausted";
     let abandoned = false;
@@ -295,7 +314,9 @@ export class EveSession {
 
     let step = 0;
     while (step < this.options.maxSteps) {
-      if (Date.now() - wallStart > this.options.maxDurationMs) {
+      // Deterministic mode measures the budget in modeled human time, so a
+      // slow host cannot truncate the trajectory and change the score.
+      if (this.clock.now() - startedAt > this.options.maxDurationMs) {
         endReason = "time-budget-exhausted";
         break;
       }
@@ -369,6 +390,10 @@ export class EveSession {
       }
 
       /* ---- PREDICT + DECIDE --------------------------------------- */
+      // Phase 2: cognition receives the kernel view alongside the legacy
+      // percept — the real thing on kernel-native surfaces, the projection
+      // of the decision percept elsewhere (identical content either way).
+      const kernelPercept = await this.kernelOf(adapter, perceptForDecision);
       const enrichment = suite ? suite.contextEnrichment(stepPerception?.load ?? null) : {};
       const decision = await this.policy.decide({
         percept: perceptForDecision,
@@ -380,6 +405,7 @@ export class EveSession {
         rng: this.rng,
         step,
         elapsedMs: this.simClock,
+        kernel: kernelPercept,
         ...enrichment,
       });
       goals.tickEffort();
@@ -418,7 +444,7 @@ export class EveSession {
       }
 
       /* ---- INTERACT ----------------------------------------------- */
-      const actStart = Date.now();
+      const actStart = this.clock.now();
       const clickPoint = await this.execute(adapter, decision, percept);
       lastVia = describeAction(decision.action);
       await this.events.emit("loop:act", { step, action: decision.action });
@@ -428,7 +454,7 @@ export class EveSession {
         withScreenshot: false,
         settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
       });
-      const perceivedLatencyMs = Date.now() - actStart + settleMs;
+      const perceivedLatencyMs = this.clock.now() - actStart + settleMs;
       const outcome = comparePrediction(
         decision.prediction,
         percept,
@@ -510,6 +536,9 @@ export class EveSession {
       usage,
       goalAchieved,
       abandoned,
+      // Phase 2 honesty layer: visual-only dimensions are skipped, not
+      // vacuously passed, on textual surfaces.
+      modality: adapter.capabilities.modality,
     });
 
     /* ---- Journey reconstruction ---- */
@@ -701,6 +730,17 @@ export class EveSession {
   /* Action execution                                                  */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * The kernel view of a percept: the native kernel on kernel-capable
+   * surfaces, the one-to-one projection of the legacy percept elsewhere.
+   */
+  private async kernelOf(adapter: BrowserAdapter, percept: Percept): Promise<KernelPercept> {
+    const kernel = asKernelSurface(adapter);
+    return kernel
+      ? kernel.kernelPercept()
+      : kernelFromWebPercept(percept, adapter.capabilities.modality);
+  }
+
   private async execute(
     adapter: BrowserAdapter,
     decision: Decision,
@@ -797,6 +837,20 @@ export class EveSession {
         return null;
       case "abandon":
         return null;
+      case "invoke": {
+        // Phase 2: one kernel-native semantic act through the surface's own
+        // verb registry — never decomposed into synthetic UI gestures.
+        const kernel = asKernelSurface(adapter);
+        if (!kernel) {
+          // A kernel action on a legacy surface is a cognition bug; be
+          // honest about it rather than faking pointer gestures.
+          this.log(`(this surface cannot act on "${action.verb}" — no kernel actuator)`);
+          return null;
+        }
+        await this.pace(500);
+        await kernel.actKernel({ verb: action.verb, payload: action.payload });
+        return null;
+      }
     }
     void percept;
     return null;
@@ -805,6 +859,12 @@ export class EveSession {
   /** Advance the simulated clock by full human time; sleep a scaled slice. */
   private async pace(humanMs: number): Promise<void> {
     this.simClock += humanMs;
+    // The shared clock advances by the same full human duration, so perceived
+    // latency and the time budget are measured in the same units the operator
+    // thinks in. On a wall clock `advance` is a no-op and the sleep below is
+    // what actually passes time.
+    this.clock.advance(humanMs);
+    if (this.clock.deterministic) return;
     const realMs = humanMs * this.options.paceScale;
     if (realMs >= 5) await new Promise((r) => setTimeout(r, Math.min(realMs, 4000)));
   }
@@ -813,7 +873,17 @@ export class EveSession {
   /* Findings & learning                                               */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * Geometry and pixel checks assume pixel geometry and visual styling are
+   * meaningful. On a surface without them (`capabilities.spatial === false`)
+   * they can only produce valid-but-trivial findings — character-cell boxes
+   * flagged as tiny targets or clipped elements — so, exactly like the
+   * plugins, the engine skips them rather than running and reporting them.
+   * Skipped, not failed: a textual surface must never look like it failed a
+   * visual audit.
+   */
   private runVisionChecks(percept: Percept, signature: string): void {
+    if (!this.options.adapter.capabilities.spatial) return;
     if (!this.geometryCheckedSignatures.has(signature)) {
       this.geometryCheckedSignatures.add(signature);
       for (const issue of checkGeometry(percept, this.persona.accessibility)) {

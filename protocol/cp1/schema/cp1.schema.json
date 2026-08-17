@@ -59,8 +59,8 @@
     },
 
     "component": {
-      "enum": ["adam", "eve", "axiom"],
-      "description": "The repository that authored a document. Authorship of each canonical type is exclusive; see SPEC.md section 3."
+      "enum": ["adam", "eve", "axiom", "pcr"],
+      "description": "The repository that authored a document. Authorship of each canonical type is exclusive; see SPEC.md section 3. `pcr` is the real-task evaluator: it runs the organism's genome against an actual external workspace and reports the objective that workspace defines. A second evaluator, not a second EVE — the two measure different objectives and neither may answer for the other."
     },
 
     "provenance": {
@@ -416,16 +416,16 @@
 
     "measurement": {
       "type": "object",
-      "description": "One side of a counterfactual fitness comparison.",
+      "description": "One side of a counterfactual fitness comparison. `composite_bp` and `runs` are the whole of what an evaluator must report: a scalar objective in basis points, higher-is-better, and how many executions stand behind it. The four experience members are EVE's objective and are optional for that reason — an evaluator measuring a real workspace has no simulated human to have a frustration level, and a schema that required one would be requiring it to invent the number. An absent member means not measured; it never means zero.",
       "properties": {
         "composite_bp": { "$ref": "#/$defs/basisPoints" },
         "task_success_bp": { "$ref": "#/$defs/basisPoints" },
         "frustration_bp": { "$ref": "#/$defs/basisPoints" },
         "trust_bp": { "$ref": "#/$defs/basisPoints" },
         "cognitive_load_bp": { "$ref": "#/$defs/basisPoints" },
-        "runs": { "type": "integer", "description": "Sessions behind this side of the comparison. Zero is legal and meaningful: it is how EVE reports a mutation it declined to measure. A floor of 1 would force the wire to claim a run that never happened, in exactly the case where honesty matters most.", "minimum": 0, "maximum": 9007199254740991 }
+        "runs": { "type": "integer", "description": "Sessions behind this side of the comparison. Zero is legal and meaningful: it is how an evaluator reports a mutation it declined to measure. A floor of 1 would force the wire to claim a run that never happened, in exactly the case where honesty matters most.", "minimum": 0, "maximum": 9007199254740991 }
       },
-      "required": ["composite_bp", "task_success_bp", "frustration_bp", "trust_bp", "cognitive_load_bp", "runs"],
+      "required": ["composite_bp", "runs"],
       "additionalProperties": false
     },
 
@@ -545,6 +545,7 @@
             "ReflectionCompleted",
             "MutationProposed",
             "SimulationCompleted",
+            "TaskRunCompleted",
             "FitnessMeasured",
             "MutationAccepted",
             "MutationRejected",

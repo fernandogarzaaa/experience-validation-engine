@@ -7,6 +7,7 @@ import { LlmCognition } from "../cognition/llmCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
 import { type EveConfig, loadConfigFile, resolveConfig } from "../config/config.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
+import { evaluateMcpServer, renderMcpEvalMarkdown } from "../mcpEval/index.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { runPanel } from "../panel/index.js";
 import {
@@ -33,6 +34,7 @@ import { inferProductIntelligence, renderProductIntelligenceMarkdown } from "../
 import { writeReports } from "../reporting/index.js";
 import { renderStudyMarkdown, writeStudyDataset } from "../research/index.js";
 import { moderateStudy, renderModeratedStudyMarkdown } from "../study/index.js";
+import { McpAdapter } from "../surface/mcp.js";
 
 /**
  * The `eve` CLI.
@@ -47,6 +49,7 @@ const HELP = `eve — Experience Validation Engine ("AI that experiences softwar
 Usage:
   eve run <url> [options]     Run a simulated-human session against a URL
   eve study <url> [options]   Run a population usability study (many operators)
+  eve mcp-eval <target>       Evaluate an MCP server (schema, conformance, fuzzing)
   eve personas                List built-in personas
   eve professions             List professional overlays
   eve cultures                List cultural profiles
@@ -104,8 +107,17 @@ Examples:
   eve run mock: --persona curious-explorer --cognitive --utility
   eve run mock: --persona office-worker --profession accountant --culture de-DE
   eve run mock: --remember .eve-memory.json --seed 1   # run repeatedly to see learning
+  eve run "mcp:node my-server.js" --goal "look up a customer"   # operate an MCP server
   eve study mock: --size 50 --seed 7 --out .eve-output/study
   eve study https://myapp.example.com --goal "sign up" --professions accountant,designer
+  eve mcp-eval "node my-server.js"           # deterministic MCP server evaluation
+  eve mcp-eval "node my-server.js" --no-fuzz # schema + conformance only
+
+Options for "mcp-eval":
+  --no-fuzz             Skip robustness fuzzing (schema + conformance only)
+  --format <fmt>        markdown | json (default markdown)
+  --seed <value>        Reproducibility seed for fuzz case selection
+  --timeout <ms>        Per-call timeout for fuzz probes (default 5000)
 `;
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
@@ -152,6 +164,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (command === "study") {
     return runStudyCommand(rest);
+  }
+
+  if (command === "mcp-eval") {
+    return runMcpEvalCommand(rest);
   }
 
   if (command !== "run") {
@@ -229,7 +245,6 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   // URLs beginning with mock: force the mock adapter for offline demos.
   if (config.url.startsWith("mock:")) config.browser = "mock";
-
   for (const spec of config.customPersonas ?? []) registerPersona(definePersona(spec));
   let persona: Persona =
     typeof config.persona === "string" ? getPersona(config.persona) : config.persona;
@@ -261,11 +276,15 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   };
 
   process.stdout.write(
-    `\nEVE — simulating "${persona.name}" on ${config.url} (${config.browser}, seed ${config.seed ?? "auto"})\n\n`,
+    `\nEVE — simulating "${persona.name}" on ${config.url} (${config.url.startsWith("mcp:") ? "mcp" : config.browser}, seed ${config.seed ?? "auto"})\n\n`,
   );
 
+  const isMcp = config.url.startsWith("mcp:");
   const session = new EveSession({
-    adapter: createAdapter(config.browser, { headless: config.headless, device: config.device }),
+    // mcp: URLs project an MCP server onto the textual-surface seam.
+    adapter: isMcp
+      ? new McpAdapter()
+      : createAdapter(config.browser, { headless: config.headless, device: config.device }),
     startUrl: config.url,
     persona,
     policy,
@@ -276,7 +295,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     maxSteps: config.maxSteps,
     maxDurationMs: config.maxDurationMinutes * 60 * 1000,
     viewport: config.viewport,
-    screenshots: config.screenshots && config.browser !== "mock",
+    screenshots: config.screenshots && config.browser !== "mock" && !isMcp,
     paceScale: config.paceScale,
     onLog: log,
     cognitive: config.cognitive,
@@ -458,8 +477,9 @@ async function runStudyCommand(rest: readonly string[]): Promise<number> {
   }
 }
 
-/** Serialize the parts of a config that resolveConfig re-validates. */
-function configToRaw(config: EveConfig): Record<string, unknown> {
+/** Serialize the parts of a config that resolveConfig re-validates. */ function configToRaw(
+  config: EveConfig,
+): Record<string, unknown> {
   return {
     url: config.url,
     persona: typeof config.persona === "string" ? config.persona : undefined,
@@ -478,4 +498,52 @@ function configToRaw(config: EveConfig): Record<string, unknown> {
     outputDir: config.outputDir,
     verbosity: config.verbosity,
   };
+}
+
+/** `eve mcp-eval` — deterministic MCP server evaluation (schema + conformance + fuzzing). */
+async function runMcpEvalCommand(rest: readonly string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: [...rest],
+    allowPositionals: true,
+    options: {
+      "no-fuzz": { type: "boolean" },
+      format: { type: "string" },
+      seed: { type: "string" },
+      timeout: { type: "string" },
+    },
+  });
+
+  const target = positionals.join(" ");
+  if (!target) {
+    process.stderr.write(`"eve mcp-eval" needs a target, e.g. eve mcp-eval "node my-server.js".\n`);
+    return 2;
+  }
+  const format = values.format ?? "markdown";
+  if (format !== "markdown" && format !== "json") {
+    process.stderr.write(`--format must be "markdown" or "json".\n`);
+    return 2;
+  }
+
+  try {
+    const report = await evaluateMcpServer(target, {
+      fuzz: values["no-fuzz"]
+        ? false
+        : {
+            ...(values.seed
+              ? { seed: /^\d+$/.test(values.seed) ? Number(values.seed) : values.seed }
+              : {}),
+            ...(values.timeout ? { timeoutMs: parsePositiveInt(values.timeout, "--timeout") } : {}),
+          },
+    });
+    process.stdout.write(
+      format === "json" ? `${JSON.stringify(report, null, 2)}\n` : renderMcpEvalMarkdown(report),
+    );
+    // CI-gate friendly: any critical finding (e.g. a fuzz crash) fails the run.
+    return report.findings.some((f) => f.severity === "critical") ? 1 : 0;
+  } catch (err) {
+    process.stderr.write(
+      `\nEVE mcp-eval failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+    return 1;
+  }
 }

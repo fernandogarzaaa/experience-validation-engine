@@ -7,6 +7,14 @@
  * human-visible information (pixels, visible text, layout geometry, the URL
  * bar, loading indicators), never DOM internals, network traffic, console
  * output or source code.
+ *
+ * **Phase 2 note (modality-variant kernel):** {@link Percept} and the eleven
+ * browser-flavored {@link Action} kinds are the *deprecated web view* of the
+ * modality-agnostic kernel in `src/core/kernel.ts` (`KernelPercept`,
+ * `Affordance`, `SurfaceSignal`, `KernelAction`). They remain the session
+ * contract and are fully supported — existing adapters and consumers keep
+ * working unchanged — but new surface vocabulary (new verbs, new signal
+ * types, new affordance kinds) is added to the kernel, not to these shapes.
  */
 
 /** Axis-aligned rectangle in CSS pixels, viewport-relative. */
@@ -146,7 +154,22 @@ export type Action =
   | { kind: "back" }
   | { kind: "read"; target: VisibleElement | null; durationMs: number }
   | { kind: "wait"; durationMs: number }
-  | { kind: "abandon"; reason: string };
+  | { kind: "abandon"; reason: string }
+  | {
+      /**
+       * Phase 2: a kernel-native action — one semantic act on a surface that
+       * declares its own verb registry via `SurfaceCapabilities.actionVerbs`
+       * (e.g. a single `mcp.invoke` carrying typed tool arguments). Executed
+       * through the adapter's kernel actuator (`KernelSurface.actKernel`), not
+       * decomposed into synthetic UI gestures. See `src/core/kernel.ts`.
+       */
+      kind: "invoke";
+      /** Registry-backed verb, e.g. "mcp.invoke". */
+      verb: string;
+      target: VisibleElement | null;
+      /** Typed, surface-defined payload (structured arguments — no coercion). */
+      payload?: unknown;
+    };
 
 export function describeAction(action: Action): string {
   switch (action.kind) {
@@ -172,7 +195,30 @@ export function describeAction(action: Action): string {
       return `wait ${Math.round(action.durationMs)}ms`;
     case "abandon":
       return `give up: ${action.reason}`;
+    case "invoke":
+      return describeInvoke(action.verb, action.payload);
   }
+}
+
+/**
+ * Describe a kernel-native action by what it is. An MCP tool call reads as
+ * `invoke add({"a":2})` — the evidence chain names the tool and its typed
+ * arguments rather than "type 2 into a" (projection debt ledger item 1).
+ */
+function describeInvoke(verb: string, payload: unknown): string {
+  if (verb === "mcp.invoke" && isToolInvocation(payload)) {
+    return `invoke ${payload.tool}(${JSON.stringify(payload.arguments ?? {})})`;
+  }
+  const suffix = payload === undefined ? "" : ` ${JSON.stringify(payload)}`;
+  return `${verb}${suffix}`;
+}
+
+function isToolInvocation(payload: unknown): payload is { tool: string; arguments?: unknown } {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { tool?: unknown }).tool === "string"
+  );
 }
 
 function label(el: VisibleElement): string {
@@ -223,22 +269,41 @@ export interface PredictionOutcome {
 
 export type FindingSeverity = "critical" | "major" | "minor" | "info";
 
-export type FindingCategory =
-  | "usability"
-  | "navigation"
-  | "visual"
-  | "accessibility"
-  | "performance"
-  | "content"
-  | "error-recovery"
-  | "expectation-violation"
-  | "workflow"
-  | "consistency";
+/**
+ * The built-in finding categories, pre-registered in
+ * `findingCategoryRegistry` (`src/core/findingCategories.ts`). The registry
+ * is the source of truth at runtime; this tuple pins the serialized values
+ * the type-level union is derived from, so existing `FindingCategory` types
+ * and stored reports are unaffected.
+ */
+export const FINDING_CATEGORIES = [
+  "usability",
+  "navigation",
+  "visual",
+  "accessibility",
+  "performance",
+  "content",
+  "error-recovery",
+  "expectation-violation",
+  "workflow",
+  "consistency",
+] as const;
+
+export type FindingCategory = (typeof FINDING_CATEGORIES)[number];
+
+/**
+ * A finding's category: one of the built-ins above, or any id registered in
+ * `findingCategoryRegistry` (Phase 0/2 — the registry is the runtime source
+ * of truth, so the type-level vocabulary is open). The `(string & {})`
+ * trick keeps built-in autocomplete while admitting registered ids like
+ * `mcp.robustness`.
+ */
+export type FindingCategoryId = FindingCategory | (string & {});
 
 export interface Finding {
   readonly id: string;
   readonly severity: FindingSeverity;
-  readonly category: FindingCategory;
+  readonly category: FindingCategoryId;
   readonly title: string;
   readonly description: string;
   /** What the operator was doing / seeing when this was found. */
@@ -250,26 +315,43 @@ export interface Finding {
   readonly recommendation?: string;
 }
 
-export type ScoreDimension =
-  | "overall"
-  | "usability"
-  | "learnability"
-  | "accessibility"
-  | "efficiency"
-  | "consistency"
-  | "visualDesign"
-  | "navigation"
-  | "workflowQuality"
-  | "informationArchitecture"
-  | "onboarding"
-  | "errorRecovery"
-  | "responsiveness"
-  | "userConfidence"
-  | "cognitiveLoad"
-  | "trust";
+/**
+ * The built-in score dimensions, pre-registered in `dimensionRegistry`
+ * (`src/scoring/dimensions.ts`). The registry is the runtime source of
+ * truth; this tuple pins the serialized values the type-level union is
+ * derived from, so existing `ScoreDimension` types and stored reports are
+ * unaffected.
+ */
+export const SCORE_DIMENSIONS = [
+  "overall",
+  "usability",
+  "learnability",
+  "accessibility",
+  "efficiency",
+  "consistency",
+  "visualDesign",
+  "navigation",
+  "workflowQuality",
+  "informationArchitecture",
+  "onboarding",
+  "errorRecovery",
+  "responsiveness",
+  "userConfidence",
+  "cognitiveLoad",
+  "trust",
+] as const;
+
+export type ScoreDimension = (typeof SCORE_DIMENSIONS)[number];
+
+/**
+ * A score's dimension: one of the built-ins above, or any id registered in
+ * `dimensionRegistry` (the registry is the runtime source of truth, so the
+ * type-level vocabulary is open — e.g. the MCP pack's `mcp.*` dimensions).
+ */
+export type ScoreDimensionId = ScoreDimension | (string & {});
 
 export interface Score {
-  readonly dimension: ScoreDimension;
+  readonly dimension: ScoreDimensionId;
   /** 0..100 */
   readonly value: number;
   readonly evidence: readonly string[];

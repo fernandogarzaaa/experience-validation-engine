@@ -17,6 +17,38 @@ export interface SurfaceCapabilities {
   readonly pointer: "mouse" | "touch";
   /** Whether hover-revealed content is reachable at all on this surface. */
   readonly canHover: boolean;
+  /**
+   * Phase 2: the surface's native action-verb registry — the vocabulary a
+   * cognition policy may use in kernel-native `invoke` actions
+   * (`src/core/kernel.ts`). Verbs must be registered in
+   * `actionVerbRegistry` (`src/protocol/verbs.ts`). When omitted, the
+   * surface speaks the eleven legacy browser action kinds (the deprecated
+   * web view's vocabulary); see {@link actionVerbsFor}.
+   */
+  readonly actionVerbs?: readonly string[];
+}
+
+/**
+ * The eleven legacy browser action kinds — the default verb vocabulary of
+ * every surface that predates the kernel (web, mobile, CLI, mock).
+ */
+export const LEGACY_WEB_VERBS = [
+  "click",
+  "doubleClick",
+  "hover",
+  "type",
+  "press",
+  "scroll",
+  "navigate",
+  "back",
+  "read",
+  "wait",
+  "abandon",
+] as const;
+
+/** The verbs a surface actuates natively (declared, or the legacy web set). */
+export function actionVerbsFor(capabilities: SurfaceCapabilities): readonly string[] {
+  return capabilities.actionVerbs ?? LEGACY_WEB_VERBS;
 }
 
 /** A rendered browser page: full pixel geometry and styling, driven by a mouse. */

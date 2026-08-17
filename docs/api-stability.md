@@ -59,6 +59,9 @@ the shapes are still settling as more of the cognitive model lands.
 - `UtilityCognition` and the utility/expectation types
 - Long-term memory stores (`PersistentMemory`, `FileMemoryStore`)
 - Trust, attention and expectation timelines on `SessionResult`
+- The vocabulary registries (`dimensionRegistry`, `findingCategoryRegistry`,
+  `actionVerbRegistry`, `EvePlugin.onRegister`) — the built-in values and
+  their serialized ids are stable; the entry metadata shape may gain fields
 - `src/regression/`, `src/forecasting/`, `src/panel/`, `src/benchmarks/`,
   `src/collaborative/`
 

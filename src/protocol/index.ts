@@ -3,8 +3,9 @@
  *
  * EVE, AXIOM-AETHER and ADAM are one organism. CP/1 is the stable wire contract
  * between them: twelve canonical types each with exactly one owning repository
- * (plus `ValidationRequest`, a protocol message rather than a canonical type),
- * a closed set of fourteen events, mandatory chained provenance, and a
+ * (plus `ValidationRequest`, a protocol message rather than a canonical type,
+ * and less `FitnessResult`, which two evaluators may author and ADAM may not),
+ * a closed set of fifteen events, mandatory chained provenance, and a
  * canonical byte encoding with no floating point on the wire.
  *
  * The normative source lives in AXIOM-AETHER at `protocol/cp1/`. This
@@ -68,6 +69,7 @@ export {
   EVENT_EMITTER,
   EVENT_KINDS,
   type EventKind,
+  EXPERIENCE_ACTIONS,
   type Experience,
   type ExperienceAction,
   type ExperienceOutcome,
@@ -86,9 +88,10 @@ export {
   type Surface,
   type ValidationRequest,
 } from "./types.js";
+export { actionVerbRegistry, registerActionVerb } from "./verbs.js";
 
 /** The revision of the normative source this binding implements. */
-export const CP1_VERSION = "1.0.0";
+export const CP1_VERSION = "1.1.0";
 
 /** The protocol identifier carried by every CP/1 document. */
 export const CP = "cp1" as const;

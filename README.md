@@ -73,10 +73,12 @@ Three principles make it a simulation rather than automation:
 - **Visual observation** — WCAG contrast (with color-blindness simulation),
   clipped/overflowing/overlapping/misaligned layout detection, tiny
   text/targets, blank screens, pixel-diff visual-regression on revisits.
-- **Evidence-backed scoring** — 16 dimensions (usability, learnability,
-  accessibility, efficiency, navigation, workflow quality, error recovery,
-  responsiveness, cognitive load, trust…) where every number traces to
-  something that happened.
+- **Evidence-backed scoring** — 16 built-in dimensions (usability,
+  learnability, accessibility, efficiency, navigation, workflow quality,
+  error recovery, responsiveness, cognitive load, trust…) where every number
+  traces to something that happened. Dimensions, finding categories and
+  action verbs are registry-backed: domain packs and plugins can register
+  new ones without touching core (see [docs/plugin-guide.md](docs/plugin-guide.md)).
 - **Rich reports** — self-contained HTML (emotion timeline, interaction
   heatmap, screenshots, session journal with first-person rationale),
   Markdown and JSON. Exit codes make `eve run` a CI gate.
@@ -87,6 +89,12 @@ Three principles make it a simulation rather than automation:
 - **Mobile web** — real device emulation with genuine touch actuation (fat-
   finger tap scatter, swipe momentum, soft-keyboard cadence and occlusion),
   not just a resized viewport. See [docs/mobile-web.md](docs/mobile-web.md).
+- **MCP server evaluation** — EVE speaks MCP natively (it *is* an MCP
+  server), so it can evaluate other MCP servers: personas operate them
+  through the session loop (`eve run "mcp:node server.js"`), and a
+  deterministic oracle suite (`eve mcp-eval`) checks schema quality,
+  protocol conformance, and robustness under seeded fuzzing. See
+  [docs/mcp-adapter.md](docs/mcp-adapter.md).
 
 ## Quick start
 
@@ -190,6 +198,9 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | | |
 |---|---|
 | [Integration Guide](docs/integrations.md) | Use EVE as an MCP server / plugin in Claude, Codex, Cursor, … |
+| [MCP Server Evaluation](docs/mcp-adapter.md) | Evaluate MCP servers: persona exploration + deterministic schema/conformance/fuzz oracles |
+| [Modality-Variant Kernel (Phase 2)](docs/kernel.md) | The generalized `KernelPercept`/`KernelAction` core, the deprecated web view, and migration notes |
+| [Projection Debt Ledger](docs/projection-debt-ledger.md) | Where the Phase-1 MCP projection strained the core contract; entries 1–7 retired in Phase 2 |
 | [Population Simulation (Phase 3)](docs/population.md) | Run hundreds of operators → a statistical usability study + research dataset |
 | [AI-Moderated Study (Phase 3)](docs/moderated-study.md) | A 6-specialist research panel + moderator → an executive report with a ship verdict |
 | [Product Intelligence (Phase 3)](docs/product-intelligence.md) | Infer personas, workflows, business goals, feature importance, friction, and drop-off causes |
@@ -240,7 +251,9 @@ src/
 ├── reporting/   HTML / Markdown / JSON renderers
 ├── config/      YAML config
 ├── cli/         the `eve` command
-└── mcp/         the `eve-mcp` Model Context Protocol server
+├── mcp/         the `eve-mcp` Model Context Protocol server
+├── surface/     non-browser surfaces: CLI adapter, MCP adapter + client connector
+└── mcpEval/     deterministic MCP oracles (schema, conformance, fuzzing)
 ```
 
 ## License

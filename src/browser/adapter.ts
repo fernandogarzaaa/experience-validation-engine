@@ -1,3 +1,4 @@
+import type { KernelAction, KernelPercept } from "../core/kernel.js";
 import type { Percept, Point, Viewport } from "../core/types.js";
 import type { SurfaceCapabilities } from "../surface/capabilities.js";
 
@@ -94,3 +95,33 @@ export interface AdapterOptions {
 
 /** Adapters are not browser-specific; this alias names the general contract. */
 export type SurfaceAdapter = BrowserAdapter;
+
+/**
+ * Phase 2: a kernel-native surface (`src/core/kernel.ts`).
+ *
+ * Kernel-native adapters perceive and actuate in the modality-variant kernel
+ * directly, and derive their legacy {@link RawSnapshot} from the kernel
+ * percept — the deprecated web view — so old consumers keep working. The
+ * session prefers this interface when present: cognition receives the real
+ * kernel percept (typed affordances, typed signals) and its `invoke` actions
+ * execute through {@link KernelSurface.actKernel} as single semantic acts.
+ */
+export interface KernelSurface {
+  /** The current operator-visible state, in kernel form. */
+  kernelPercept(): Promise<KernelPercept>;
+  /**
+   * Perform one kernel-native action (verb from the surface's declared
+   * `capabilities.actionVerbs`). Unknown verbs are a cognition bug and may
+   * throw.
+   */
+  actKernel(action: KernelAction): Promise<void>;
+}
+
+/** Narrow an adapter to its kernel-native interface, when it has one. */
+export function asKernelSurface(adapter: BrowserAdapter): (BrowserAdapter & KernelSurface) | null {
+  const candidate = adapter as Partial<KernelSurface>;
+  if (typeof candidate.kernelPercept === "function" && typeof candidate.actKernel === "function") {
+    return adapter as BrowserAdapter & KernelSurface;
+  }
+  return null;
+}

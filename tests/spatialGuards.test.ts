@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { BrowserAdapter, RawSnapshot } from "../src/browser/adapter.js";
 import type { Percept } from "../src/core/types.js";
+import { EveSession } from "../src/engine/session.js";
 import { HeuristicMultimodalPerceptor } from "../src/multimodal/perceptor.js";
 import { AccessibilityPlugin } from "../src/plugins/accessibility.js";
 import type { SurfaceCapabilities } from "../src/surface/capabilities.js";
@@ -65,4 +67,126 @@ describe("vision/multimodal layer on a textual surface", () => {
     const { cues } = new HeuristicMultimodalPerceptor().perceive(next, prev);
     expect(cues.some((c) => c.kind === "animation")).toBe(false);
   });
+});
+
+/**
+ * Engine-level guard: the session loop's own vision checks must honor the
+ * same `capabilities.spatial` gate the plugins respect. The fixture below is
+ * a surface whose geometry would produce findings if the checks ran (a tiny
+ * interactive target and a viewport-clipped element), so a run that emits no
+ * `Check:`-evidenced finding proves the gate, not an inert fixture.
+ */
+class StaticSurfaceAdapter implements BrowserAdapter {
+  readonly name = "static-surface";
+
+  constructor(readonly capabilities: SurfaceCapabilities) {}
+
+  open(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  snapshot(): Promise<RawSnapshot> {
+    return Promise.resolve({
+      url: "surface:demo",
+      title: "demo",
+      viewport: { width: 960, height: 432 },
+      scrollY: 0,
+      scrollHeight: 432,
+      elements: [
+        {
+          id: 0,
+          role: "button",
+          text: "Go",
+          box: { x: 0, y: 0, width: 10, height: 10 },
+          interactive: true,
+          disabled: false,
+          editable: false,
+          focused: false,
+          clippedByViewport: false,
+        },
+        {
+          id: 1,
+          role: "text",
+          text: "partially off-screen content",
+          box: { x: 900, y: 10, width: 120, height: 20 },
+          interactive: false,
+          disabled: false,
+          editable: false,
+          focused: false,
+          clippedByViewport: true,
+        },
+      ],
+      dialogs: [],
+      loadingIndicator: false,
+    });
+  }
+
+  screenshot(): Promise<Buffer | null> {
+    return Promise.resolve(null);
+  }
+
+  moveMouse(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  clickAt(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  doubleClickAt(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  typeText(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  pressKey(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  scrollBy(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  goBack(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  navigate(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  close(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+async function runStaticSurface(capabilities: SurfaceCapabilities) {
+  const session = new EveSession({
+    adapter: new StaticSurfaceAdapter(capabilities),
+    startUrl: "surface:demo",
+    seed: 9,
+    maxSteps: 4,
+    paceScale: 0,
+  });
+  return session.run();
+}
+
+/** Vision findings the engine produces carry `Check: <kind>` evidence. */
+function visionFindings(result: Awaited<ReturnType<typeof runStaticSurface>>) {
+  return result.findings.filter((f) => f.evidence.some((e) => e.startsWith("Check:")));
+}
+
+describe("engine-level vision checks", () => {
+  it("produce geometry findings on a spatial surface (fixture is not inert)", async () => {
+    const result = await runStaticSurface({ ...VISUAL_SURFACE, canScreenshot: false });
+    expect(visionFindings(result).length).toBeGreaterThan(0);
+  }, 15_000);
+
+  it("are skipped, not failed, on a non-spatial surface", async () => {
+    const result = await runStaticSurface(TEXTUAL_SURFACE);
+    expect(visionFindings(result)).toHaveLength(0);
+    expect(result.findings.some((f) => f.category === "visual")).toBe(false);
+  }, 15_000);
 });
