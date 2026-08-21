@@ -18,9 +18,18 @@ import { stripAnsi } from "../../surface/affordances.js";
 import type { Artifact, ReaderInput } from "../types.js";
 import { ArtifactBuilder } from "./builder.js";
 
-/** A shell prompt: `$ cmd`, `> cmd`, `user@host:~/dir$ cmd`, `PS C:\> cmd`. */
+/**
+ * A shell prompt: `$ cmd`, `> cmd`, `user@host:~/dir$ cmd`, `PS C:\> cmd`.
+ *
+ * Every prefix branch excludes the sigil characters it is followed by, so
+ * there is exactly one way to split a candidate line and matching stays
+ * linear. Phrased the natural way — a `[^$#>]*` prefix followed by `\s*` and
+ * then the sigil — whitespace belongs to both halves, and a long line that
+ * ends up not being a prompt costs quadratic time. A transcript reader is
+ * pointed at whatever a caller hands it, so that line is ordinary input.
+ */
 const PROMPT =
-  /^(?:[\w.-]+@[\w.-]+[^$#>]*|PS [A-Za-z]:[^>]*|~[^$#>]*|\S*)?\s*(?:\$|#|>|❯|➜)\s+(\S.*)$/;
+  /^(?:[\w.-]+@[^$#>❯➜]*|PS [A-Za-z]:[^$#>❯➜]*|~[^$#>❯➜]*|[\w.-]*[ \t]*)?(?:\$|#|>|❯|➜)[ \t]+(\S.*)$/;
 const ERROR_LINE =
   /\b(?:error|fatal|exception|traceback|panic|failed|failure|cannot|denied|refused|unable to|not found)\b/i;
 const WARNING_LINE = /\b(?:warn|warning|deprecated)\b/i;

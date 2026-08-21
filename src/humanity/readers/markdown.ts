@@ -20,7 +20,22 @@ const LIST_ITEM = /^(\s*)(?:[-*+]|\d{1,3}[.)])\s+(.*)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const THEMATIC_BREAK = /^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/;
 const TABLE_ROW = /^\s*\|(.+)\|\s*$/;
-const TABLE_DIVIDER = /^\s*\|?[\s:|-]+\|[\s:|-]*$/;
+/**
+ * A table's divider row (`| --- | :---: |`) is a line made of nothing but
+ * pipes, dashes, colons and spaces.
+ *
+ * Deliberately one unambiguous character class plus two `includes` checks,
+ * rather than the natural `[\s:|-]+\|[\s:|-]*` phrasing: there, every pipe in
+ * the line is a candidate split point for the literal `\|`, so a long line of
+ * pipes and dashes that ends up not matching costs quadratic time. Readers
+ * parse whatever a caller points them at, so a pathological line is input,
+ * not an attack that needs to get past anything.
+ */
+const TABLE_DIVIDER_CHARS = /^[\s:|-]+$/;
+
+function isTableDivider(line: string): boolean {
+  return TABLE_DIVIDER_CHARS.test(line) && line.includes("|") && line.includes("-");
+}
 const IMAGE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const LINK = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const CALLOUT = /^\s{0,3}>\s*\[!(\w+)\]\s*(.*)$/;
@@ -236,7 +251,7 @@ interface ParsedTable {
 function readTable(lines: readonly string[], start: number): ParsedTable | null {
   const header = TABLE_ROW.exec(lines[start] ?? "");
   if (!header) return null;
-  if (!TABLE_DIVIDER.test(lines[start + 1] ?? "")) return null;
+  if (!isTableDivider(lines[start + 1] ?? "")) return null;
 
   const columns = splitRow(lines[start] ?? "");
   const rows: string[][] = [];

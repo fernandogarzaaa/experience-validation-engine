@@ -78,7 +78,10 @@ export class ArtifactBuilder {
   }
 
   add(block: BlockInput): void {
-    const text = block.text.replace(/\s+$/, "");
+    // `trimEnd`, not a `/\s+$/` replace: an end-anchored `+` retries from
+    // every position in a long run of whitespace, so trimming one very long
+    // line costs quadratic time. Blocks carry whatever the artifact had.
+    const text = block.text.trimEnd();
     // A block with neither text nor structured content is not perceivable.
     if (!text.trim() && !block.table && !block.metric && !block.figure) return;
     if (this.sections.length === 0) this.sections.push({ title: "", blocks: [] });

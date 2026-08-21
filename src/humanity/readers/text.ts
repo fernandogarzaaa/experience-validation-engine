@@ -97,7 +97,11 @@ export function readText(input: ReaderInput): Artifact {
         i++;
       }
       i--;
-      builder.add({ kind: "code", text: code.join("\n").replace(/\n+$/, "") });
+      // The lookahead above swallows the blank lines after the block; drop
+      // them by popping, not with an end-anchored `/\n+$/` replace, which
+      // retries from every position of a long final line.
+      while (code.length > 0 && !(code.at(-1) ?? "").trim()) code.pop();
+      builder.add({ kind: "code", text: code.join("\n") });
       continue;
     }
 

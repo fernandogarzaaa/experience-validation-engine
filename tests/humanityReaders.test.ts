@@ -168,6 +168,92 @@ describe("artifact readers", () => {
   });
 });
 
+describe("readers on pathological input", () => {
+  /**
+   * A reader is pointed at whatever a caller hands it — a log from CI, a file
+   * from an issue, a URL. A line that happens to be a long run of the
+   * characters a pattern cares about is ordinary input, so parsing it has to
+   * stay linear. Both inputs below took seconds against the earlier phrasings
+   * of the table-divider and shell-prompt patterns, which let whitespace and
+   * pipes belong to two parts of the same match.
+   */
+  const BUDGET_MS = 1000;
+
+  function timed(fn: () => void): number {
+    const start = performance.now();
+    fn();
+    return performance.now() - start;
+  }
+
+  it("parses a long pipe-and-dash line without backtracking", () => {
+    const line = `|${"-|".repeat(32_000)}x`;
+    const elapsed = timed(() => artifactFromText("t.md", `| a | b |\n${line}\n`));
+    expect(elapsed).toBeLessThan(BUDGET_MS);
+  });
+
+  it("parses a long prompt-shaped line without backtracking", () => {
+    const line = `a@b${" ".repeat(32_000)}x`;
+    const elapsed = timed(() => artifactFromText("t.log", `$ run\n${line}\n`));
+    expect(elapsed).toBeLessThan(BUDGET_MS);
+  });
+
+  it("stays linear across every format, not just the two that regressed", () => {
+    const n = 40_000;
+    const cases: [string, string][] = [
+      ["t.md", `a${" ".repeat(n)}b\n`],
+      ["t.md", "word ".repeat(n)],
+      ["t.html", `<div ${"a=1 ".repeat(n / 4)}>hi</div>`],
+      ["t.csv", `a,b\n"${"x".repeat(n)}",1\n`],
+      ["t.txt", `Usage: x\n\nOptions:\n  --flag${" ".repeat(n)}desc\n`],
+      ["t.log", `Error: it failed\n${"x".repeat(n)}\n`],
+    ];
+    for (const [address, text] of cases) {
+      const elapsed = timed(() => artifactFromText(address, text));
+      expect(elapsed, `${address} took ${elapsed.toFixed(0)}ms`).toBeLessThan(BUDGET_MS);
+    }
+  });
+
+  it("still recognizes every shell prompt shape it is meant to", () => {
+    const artifact = artifactFromText(
+      "s.log",
+      [
+        "$ npm test",
+        "> npm run deploy",
+        "user@host:~/dir$ ls -la",
+        "PS C:\\Users\\jo> Get-Item",
+        "~/src ❯ git status",
+        "➜  cd repo",
+      ].join("\n"),
+    );
+    expect(artifact.blocks.filter((b) => b.kind === "command").map((b) => b.text)).toEqual([
+      "npm test",
+      "npm run deploy",
+      "ls -la",
+      "Get-Item",
+      "git status",
+      "cd repo",
+    ]);
+  });
+
+  it("does not mistake output for a prompt", () => {
+    const artifact = artifactFromText(
+      "s.log",
+      ["$ npm test", "42 passed", "Tests: 1 failed", "  at Foo.bar (x.js:1)"].join("\n"),
+    );
+    expect(artifact.blocks.filter((b) => b.kind === "command")).toHaveLength(1);
+  });
+
+  it("requires a dash in a table divider, as markdown does", () => {
+    const notATable = artifactFromText("t.md", "| a | b |\n|   |   |\n| 1 | 2 |\n");
+    expect(notATable.blocks.some((b) => b.table)).toBe(false);
+
+    for (const divider of ["| --- | --- |", "|---|:---:|", "| :-- | --: |"]) {
+      const artifact = artifactFromText("t.md", `| a | b |\n${divider}\n| 1 | 2 |\n`);
+      expect(artifact.blocks.find((b) => b.table)?.table?.rows).toEqual([["1", "2"]]);
+    }
+  });
+});
+
 describe("metric recognition", () => {
   it("pulls value, unit and baseline out of a reported number", () => {
     expect(parseMetric("Revenue: $1.24M (up from $1.09M last quarter)")).toMatchObject({
