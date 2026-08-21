@@ -32,6 +32,8 @@ import {
   ListSchema,
   type MultimodalScanInput,
   MultimodalScanSchema,
+  type ReadArtifactInput,
+  ReadArtifactSchema,
   ResponseFormat,
   type RunSessionInput,
   RunSessionSchema,
@@ -53,6 +55,7 @@ import {
   runMultimodalScan,
   runPredictUX,
   runProductReport,
+  runReadArtifact,
   runSession,
   runTwinSessionTool,
   runUsabilityStudy,
@@ -266,6 +269,37 @@ export function createServer(): McpServer {
     async (input: MultimodalScanInput) => {
       try {
         return respond(await runMultimodalScan(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_read_artifact",
+    {
+      title: "Read a digital output like a human",
+      description:
+        "Put a simulated reader in front of something software *produced* " +
+        "rather than something it does: a report, a slide deck, an analytics " +
+        "or CSV export, a `--help` screen, a terminal transcript or CI log, an " +
+        "API payload, a README. Reports what the reader understood and what " +
+        "got in the way — terms used before they were defined, figures with no " +
+        "caption, numbers with no baseline, slides too dense to read at slide " +
+        "pace, an ending that never says what to do. Genuinely persona-relative " +
+        "(a specialist keeps a dense passage a first-time reader loses) and " +
+        "deterministic for a fixed seed. Reads files, http(s) URLs, or stdin.",
+      inputSchema: ReadArtifactSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: ReadArtifactInput) => {
+      try {
+        return respond(await runReadArtifact(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

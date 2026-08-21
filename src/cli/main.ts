@@ -7,6 +7,13 @@ import { LlmCognition } from "../cognition/llmCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
 import { type EveConfig, loadConfigFile, resolveConfig } from "../config/config.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
+import {
+  artifactWordCount,
+  DOC_SCHEME,
+  docTargetOf,
+  readArtifact,
+  renderComprehensionMarkdown,
+} from "../humanity/index.js";
 import { evaluateMcpServer, renderMcpEvalMarkdown } from "../mcpEval/index.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { runPanel } from "../panel/index.js";
@@ -48,6 +55,9 @@ const HELP = `eve — Experience Validation Engine ("AI that experiences softwar
 
 Usage:
   eve run <url> [options]     Run a simulated-human session against a URL
+  eve read <target> [options] Read a digital output like a human (documents,
+                              decks, analytics, transcripts, payloads, help
+                              screens). Use "-" to read standard input.
   eve study <url> [options]   Run a population usability study (many operators)
   eve mcp-eval <target>       Evaluate an MCP server (schema, conformance, fuzzing)
   eve personas                List built-in personas
@@ -112,6 +122,26 @@ Examples:
   eve study https://myapp.example.com --goal "sign up" --professions accountant,designer
   eve mcp-eval "node my-server.js"           # deterministic MCP server evaluation
   eve mcp-eval "node my-server.js" --no-fuzz # schema + conformance only
+  eve read ./docs/quarterly-report.md --persona elderly-user
+  eve read ./deck.md --genre presentation --persona impatient-user
+  eve read ./metrics.csv --goal "did signups grow"
+  git log --oneline | eve read - --genre transcript
+  eve read https://example.com/changelog.html --report .eve-output/reading.md
+
+Options for "read":
+  --persona <name>      Reader to simulate (default: first-time-user)
+  --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
+  --genre <name>        document | presentation | analytics | transcript |
+                        data | interface (default: inferred from content)
+  --format <fmt>        Force a reader: markdown | slides | html | json | yaml |
+                        csv | transcript | text (default: detected)
+  --goal <text>         What the reader came to find out
+  --seed <value>        Reproducibility seed
+  --steps <n>           Max reading steps (default: scales with length)
+  --out <dir>           Write session reports here (default .eve-output)
+  --report <file>       Also write the reading report as Markdown
+  --json                Print the comprehension analysis as JSON
+  --quiet               Only print the final summary
 
 Options for "mcp-eval":
   --no-fuzz             Skip robustness fuzzing (schema + conformance only)
@@ -168,6 +198,21 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (command === "mcp-eval") {
     return runMcpEvalCommand(rest);
+  }
+
+  if (command === "read") {
+    return runReadCommand(rest);
+  }
+
+  // `doc:` routes a target at the humanity seam, so a document can sit
+  // wherever a URL does — a config file, a CI matrix, a benchmark list —
+  // without the caller having to know which command reads it. `eve read` is
+  // the ergonomic form of the same thing.
+  if (command === "run") {
+    const docTarget = rest.find((arg) => arg.startsWith(DOC_SCHEME));
+    if (docTarget) {
+      return runReadCommand(rest.map((arg) => (arg === docTarget ? docTargetOf(docTarget) : arg)));
+    }
   }
 
   if (command !== "run") {
@@ -546,4 +591,139 @@ async function runMcpEvalCommand(rest: readonly string[]): Promise<number> {
     );
     return 1;
   }
+}
+
+/**
+ * `eve read <target>` — put a reader in front of a digital output.
+ *
+ * The reading counterpart of `eve run`: same personas, same session loop,
+ * same evidence-backed reports, but the operator reads rather than clicks.
+ * The console output is the reading experience in the order a person would
+ * describe it — what they understood, how long it took, and where they lost
+ * the thread — with the full findings in the written reports.
+ */
+async function runReadCommand(rest: readonly string[]): Promise<number> {
+  let values: Record<string, string | boolean | undefined>;
+  let positionals: string[];
+  try {
+    const parsed = parseArgs({
+      args: [...rest],
+      allowPositionals: true,
+      options: {
+        persona: { type: "string" },
+        profession: { type: "string" },
+        genre: { type: "string" },
+        format: { type: "string" },
+        goal: { type: "string" },
+        seed: { type: "string" },
+        steps: { type: "string" },
+        out: { type: "string" },
+        report: { type: "string" },
+        json: { type: "boolean" },
+        quiet: { type: "boolean" },
+      },
+    });
+    values = parsed.values as Record<string, string | boolean | undefined>;
+    positionals = parsed.positionals;
+  } catch (err) {
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    return 2;
+  }
+
+  const target = positionals[0];
+  if (!target) {
+    process.stderr.write(`"eve read" needs a file, a URL, or "-" for standard input.\n`);
+    return 2;
+  }
+
+  let persona: Persona;
+  try {
+    persona = getPersona(typeof values.persona === "string" ? values.persona : "first-time-user");
+    if (typeof values.profession === "string") {
+      persona = applyProfession(persona, getProfession(values.profession));
+    }
+  } catch (err) {
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    return 2;
+  }
+
+  const quiet = values.quiet === true;
+  const asJson = values.json === true;
+  const log = (line: string) => {
+    if (!quiet && !asJson) process.stdout.write(`  ${line}\n`);
+  };
+
+  if (!quiet && !asJson) {
+    process.stdout.write(`\nEVE — "${persona.name}" reading ${target}\n\n`);
+  }
+
+  try {
+    const result = await readArtifact(target, {
+      persona,
+      ...(typeof values.genre === "string" ? { genre: values.genre as never } : {}),
+      ...(typeof values.format === "string" ? { format: values.format as never } : {}),
+      ...(typeof values.goal === "string" ? { goal: values.goal } : {}),
+      ...(typeof values.seed === "string"
+        ? { seed: /^\d+$/.test(values.seed) ? Number(values.seed) : values.seed }
+        : {}),
+      ...(typeof values.steps === "string"
+        ? { maxSteps: parsePositiveInt(values.steps, "--steps") }
+        : {}),
+      onLog: log,
+    });
+
+    if (asJson) {
+      process.stdout.write(`${JSON.stringify(result.comprehension, null, 2)}\n`);
+      return exitCodeFor(result.findings);
+    }
+
+    const markdown = renderComprehensionMarkdown(result.comprehension, result.artifact);
+    if (typeof values.report === "string") await writeFile(values.report, markdown, "utf8");
+
+    const written = await writeReports(
+      result,
+      typeof values.out === "string" ? values.out : ".eve-output",
+    );
+    const critical = result.findings.filter((f) => f.severity === "critical").length;
+    const major = result.findings.filter((f) => f.severity === "major").length;
+    const artifact = result.artifact;
+    const noun = artifact.sections[0]?.noun ?? "section";
+
+    process.stdout.write(`\n${"─".repeat(64)}\n`);
+    process.stdout.write(
+      `Artifact                 : ${artifact.genre}, ${artifact.sections.length} ${noun}(s), ${artifactWordCount(artifact)} words (${artifact.format})\n`,
+    );
+    process.stdout.write(
+      `Understood               : ${result.comprehension.comprehensionScore}/100\n`,
+    );
+    process.stdout.write(
+      `Reading ease             : Flesch ${result.comprehension.readability.fleschReadingEase} (grade ${result.comprehension.readability.gradeLevel})\n`,
+    );
+    process.stdout.write(
+      `Reading time             : ${(result.comprehension.readingTimeMs / 60000).toFixed(1)} min at this reader's pace\n`,
+    );
+    process.stdout.write(
+      `Findings                 : ${critical} critical, ${major} major, ${result.findings.length - critical - major} other\n`,
+    );
+    process.stdout.write(
+      `Outcome                  : ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}\n`,
+    );
+    process.stdout.write(`Reports                  : ${written.html}\n`);
+    if (typeof values.report === "string") {
+      process.stdout.write(`Reading report           : ${values.report}\n`);
+    }
+    process.stdout.write("\n");
+
+    return exitCodeFor(result.findings);
+  } catch (err) {
+    process.stderr.write(
+      `\nEVE read failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+    return 1;
+  }
+}
+
+/** A critical finding fails the run, so `eve read` works as a CI gate. */
+function exitCodeFor(findings: readonly { severity: string }[]): number {
+  return findings.some((f) => f.severity === "critical") ? 1 : 0;
 }

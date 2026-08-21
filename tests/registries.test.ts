@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
 import { findingCategoryRegistry, registerFindingCategory } from "../src/core/findingCategories.js";
-import { EveRegistry, type ScoreDimensionEntry } from "../src/core/registry.js";
+import { ALL_MODALITIES, EveRegistry, type ScoreDimensionEntry } from "../src/core/registry.js";
 import { FINDING_CATEGORIES, SCORE_DIMENSIONS } from "../src/core/types.js";
 import { EveSession } from "../src/engine/session.js";
 import { PluginManager } from "../src/plugins/plugin.js";
@@ -116,7 +116,10 @@ describe("registry semantics", () => {
     const entry = findingCategoryRegistry.require("test.contract-violation");
     expect(entry.builtin).toBe(false);
     expect(entry.evidenceRequired).toBe(true);
-    expect(entry.appliesTo).toEqual(["visual", "textual"]);
+    // The default is "every modality there is", not a frozen list — adding a
+    // modality (the humanity seam's "document") must widen it, not orphan
+    // categories registered before it existed.
+    expect(entry.appliesTo).toEqual(ALL_MODALITIES);
   });
 
   it("registers custom action verbs as engine-side only", () => {

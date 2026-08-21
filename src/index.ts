@@ -34,6 +34,18 @@ export type { EveEventMap, EveEventName } from "./core/events.js";
 export { EventBus } from "./core/events.js";
 // Vocabulary registries (formerly closed unions; see src/core/registry.ts)
 export { findingCategoryRegistry, registerFindingCategory } from "./core/findingCategories.js";
+export type {
+  Affordance,
+  AffordanceLocator,
+  ContentBlock,
+  DocumentKernelPercept,
+  FrameIdentity,
+  KernelAction,
+  KernelPercept,
+  SurfaceSignal,
+  TextualKernelPercept,
+  VisualKernelPercept,
+} from "./core/kernel.js";
 export type { Rng } from "./core/random.js";
 export { createRng, seedFromString } from "./core/random.js";
 export type {
@@ -77,6 +89,9 @@ export { EveSession } from "./engine/session.js";
 export * from "./evebench/index.js";
 // Phase-2: experience forecasting
 export * from "./forecasting/index.js";
+// The humanity seam: EVE reads digital output (documents, decks, analytics,
+// transcripts, payloads) rather than only driving interactive surfaces.
+export * from "./humanity/index.js";
 // Expansion Phase-1: MCP server evaluation (deterministic oracles + vocabulary)
 export * from "./mcpEval/index.js";
 // Memory
@@ -111,7 +126,13 @@ export * from "./scoring/index.js";
 export * from "./study/index.js";
 // Non-browser surfaces (textual seam: CLI adapter, MCP adapter + connector)
 export type { SurfaceCapabilities } from "./surface/capabilities.js";
-export { TEXTUAL_SURFACE, TOUCH_VISUAL_SURFACE, VISUAL_SURFACE } from "./surface/capabilities.js";
+export {
+  DOCUMENT_SURFACE,
+  DOCUMENT_VERBS,
+  TEXTUAL_SURFACE,
+  TOUCH_VISUAL_SURFACE,
+  VISUAL_SURFACE,
+} from "./surface/capabilities.js";
 export { CliAdapter, type CliAdapterOptions } from "./surface/cli.js";
 export { McpAdapter, type McpAdapterOptions } from "./surface/mcp.js";
 export {

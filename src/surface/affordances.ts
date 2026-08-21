@@ -1,9 +1,16 @@
 import type { TextAffordance } from "./textFrame.js";
 
-/** Strip ANSI escape sequences so perceived text matches what a human reads. */
+/**
+ * Strip ANSI escape sequences so perceived text matches what a human reads.
+ *
+ * The escape byte is optional in the pattern because both forms reach EVE:
+ * live process output carries the real `ESC [ … m`, while transcripts pasted
+ * into issues and captured to files have often already lost the escape byte
+ * and kept the visible bracket. A reader sees neither, so both go.
+ */
 export function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\[[0-9;]*[A-Za-z]/g, "");
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the ANSI escape byte is the entire point — it is what a terminal emits and what a reader never sees.
+  return text.replace(/\u001B?\[[0-9;?]*[A-Za-z]/g, "");
 }
 
 const BACKTICK_COMMAND = /`([^`]+)`/;

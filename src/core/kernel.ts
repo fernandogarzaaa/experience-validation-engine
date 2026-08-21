@@ -68,7 +68,14 @@ export interface FrameIdentity {
 export type AffordanceLocator =
   | { readonly kind: "bbox"; readonly box: BoundingBox }
   | { readonly kind: "charCell"; readonly line: number; readonly column: number }
-  | { readonly kind: "schemaPath"; readonly path: string };
+  | { readonly kind: "schemaPath"; readonly path: string }
+  /**
+   * A position in a document's reading order: which section/page/slide, and
+   * how far into it. A reader does not point at pixels or cells — they are
+   * "in the third paragraph of section 2" — and that is the geometry a
+   * document surface actually has (`src/humanity/`).
+   */
+  | { readonly kind: "readingOrder"; readonly section: number; readonly block: number };
 
 /**
  * One thing the operator can act on.
@@ -148,7 +155,24 @@ export type SurfaceSignal =
    * The surface itself ceased to exist (server died, process exited) —
    * distinct from "this screen has no affordances" (ledger item 6).
    */
-  | { readonly type: "surface-terminated"; readonly reason: string };
+  | { readonly type: "surface-terminated"; readonly reason: string }
+  /**
+   * The reader reached the end of a document surface. A document ends; a
+   * page and a tool catalog do not, and conflating "nothing more to read"
+   * with "the surface died" would make a finished read look like a crash.
+   */
+  | { readonly type: "end-of-content"; readonly label: string }
+  /**
+   * Something the operator read but did not understand: an undefined term,
+   * an unlabeled figure, a number with no baseline. Emitted by the surface
+   * because comprehension failure is *perceived* — the reader knows they are
+   * lost — where a dialog or an error is something the surface announces.
+   */
+  | {
+      readonly type: "comprehension-gap";
+      readonly text: string;
+      readonly gap: "term" | "reference" | "figure" | "quantity" | "structure";
+    };
 
 /* ------------------------------------------------------------------ */
 /* Kernel percept                                                      */
@@ -180,11 +204,61 @@ export interface TextualKernelPercept extends KernelPerceptBase {
 }
 
 /**
- * Everything the operator perceives in one glance, in the surface's own
- * modality. Discriminated so modality-specific detail (screenshots, schema)
- * is present exactly where it is meaningful.
+ * One unit of read content: a heading, a paragraph, a bullet, a table, a
+ * figure, a metric. `kind` is an open string for the same reason
+ * {@link Affordance.kind} is — new artifact formats mint block kinds
+ * alongside their readers instead of editing core.
  */
-export type KernelPercept = VisualKernelPercept | TextualKernelPercept;
+export interface ContentBlock {
+  readonly id: string;
+  readonly kind: string;
+  /** What the eye actually reads. */
+  readonly text: string;
+  /** Heading level / list nesting, 0 for top-level prose. */
+  readonly depth: number;
+  /** Index of the section, page or slide this block belongs to. */
+  readonly section: number;
+  /**
+   * Structured content behind the text, when the block has any: table rows,
+   * a metric's value and baseline, a figure's alternative text. Perceived,
+   * never privileged — it is what the artifact itself puts on the page.
+   */
+  readonly detail?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * A document surface: a digital output the operator *reads* — a report, a
+ * deck, an analytics export, a terminal transcript, an API response someone
+ * has to make sense of.
+ *
+ * What makes it its own modality rather than a textual surface with extra
+ * fields: reading order is the geometry (not rows and columns), content is
+ * paginated into sections/slides/pages the reader moves between, and the
+ * failure modes are comprehension failures — a term never defined, a figure
+ * with no caption, a number with no baseline — not click targets that miss.
+ */
+export interface DocumentKernelPercept extends KernelPerceptBase {
+  readonly modality: "document";
+  /** The blocks currently in view, in reading order. */
+  readonly blocks: readonly ContentBlock[];
+  /** Index of the section/page/slide in view. */
+  readonly section: number;
+  /** How many sections the artifact has in total. */
+  readonly sectionCount: number;
+  /** Human-readable name for one unit: "page", "slide", "section", "screen". */
+  readonly sectionNoun: string;
+  /** Total blocks in the whole artifact — how much is left to read. */
+  readonly totalBlocks: number;
+  /** Blocks the operator has already read, across the whole artifact. */
+  readonly blocksRead: number;
+}
+
+/**
+ * Everything the operator perceives in one glance, in the surface's own
+ * modality. Discriminated so modality-specific detail (screenshots, schema,
+ * reading position) is present exactly where it is meaningful.
+ */
+export type KernelPercept = VisualKernelPercept | TextualKernelPercept | DocumentKernelPercept;
 
 /* ------------------------------------------------------------------ */
 /* Kernel actions                                                      */
@@ -250,6 +324,27 @@ export function kernelFromWebPercept(
       lines: [],
       windowRows: 0,
       scrollLine: 0,
+    };
+  }
+  if (modality === "document") {
+    // A legacy Percept has no reading order, so the projection is honest
+    // about that: every visible element becomes one block of the single
+    // section the web view can express.
+    return {
+      ...base,
+      modality,
+      blocks: percept.elements.map((el) => ({
+        id: `el:${el.id}`,
+        kind: el.role,
+        text: el.text,
+        depth: 0,
+        section: 0,
+      })),
+      section: 0,
+      sectionCount: 1,
+      sectionNoun: "section",
+      totalBlocks: percept.elements.length,
+      blocksRead: 0,
     };
   }
   return {

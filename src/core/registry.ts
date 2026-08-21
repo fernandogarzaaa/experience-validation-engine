@@ -30,11 +30,18 @@
  * Perceptual modality a registry entry is meaningful for. Mirrors
  * `SurfaceCapabilities.modality` (`src/surface/capabilities.ts`) — kept as a
  * local alias because `core` depends on nothing.
+ *
+ * `"document"` is the humanity seam (`src/humanity/`): a *digital output* an
+ * operator reads rather than operates — a report, a deck, an analytics
+ * export, a terminal transcript. It is not "textual with extra fields":
+ * a terminal has char-cell geometry and a live process, a document has
+ * reading order, sections/pages and figures, and the two fail in different
+ * ways. See `docs/humanity-adapter.md`.
  */
-export type Modality = "visual" | "textual";
+export type Modality = "visual" | "textual" | "document";
 
 /** Every modality current surfaces can declare; the default `appliesTo`. */
-export const ALL_MODALITIES: readonly Modality[] = ["visual", "textual"];
+export const ALL_MODALITIES: readonly Modality[] = ["visual", "textual", "document"];
 
 export interface RegistryEntry {
   /**

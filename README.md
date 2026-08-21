@@ -95,6 +95,12 @@ Three principles make it a simulation rather than automation:
   deterministic oracle suite (`eve mcp-eval`) checks schema quality,
   protocol conformance, and robustness under seeded fuzzing. See
   [docs/mcp-adapter.md](docs/mcp-adapter.md).
+- **Reading, not just driving** — `eve read` puts a simulated reader in front
+  of any *digital output*: reports, decks, analytics exports, `--help`
+  screens, CI logs, API payloads. It measures whether the reader understood
+  it — terms defined before use, figures that assert something, numbers with
+  a baseline, an ending that says what to do — and it is genuinely
+  persona-relative. See [docs/humanity-adapter.md](docs/humanity-adapter.md).
 
 ## Quick start
 
@@ -109,6 +115,12 @@ open .eve-output/report.html
 npm install playwright && npx playwright install chromium
 npx eve run https://staging.your-app.example.com \
   --persona impatient-user --goal "figure out what this product does"
+
+# Read what your software *produces*, not just what it does:
+npx eve read ./docs/getting-started.md --persona first-time-user
+npx eve read ./deck.md --genre presentation
+npx eve read ./metrics.csv --goal "did signups grow"
+git log --oneline | npx eve read - --genre transcript
 ```
 
 Programmatic:

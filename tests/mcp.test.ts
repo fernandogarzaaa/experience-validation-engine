@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -7,6 +7,7 @@ import {
   BenchmarkSchema,
   GetReportSchema,
   ListSchema,
+  ReadArtifactSchema,
   RunSessionSchema,
 } from "../src/mcp/schemas.js";
 import { createServer } from "../src/mcp/server.js";
@@ -16,6 +17,7 @@ import {
   listPersonasTool,
   listProfessionsTool,
   runBenchmark,
+  runReadArtifact,
   runSession,
   ToolInputError,
 } from "../src/mcp/tools.js";
@@ -114,6 +116,57 @@ describe("mcp eve_benchmark", () => {
     expect(out.structured.ordered).toBe(true);
     expect((out.structured.results as unknown[]).length).toBeGreaterThanOrEqual(3);
   }, 60_000);
+});
+
+describe("mcp eve_read_artifact", () => {
+  // Two separators, each followed by a heading: the shape that tells a
+  // reader (and the reader registry) this is a deck rather than a document.
+  const DECK = [
+    "# Platform Strategy",
+    "",
+    "Our plan for the year.",
+    "",
+    "---",
+    "",
+    "## Results",
+    "",
+    "Revenue grew.",
+    "",
+    "---",
+    "",
+    "## Risks",
+    "",
+    "It might not work.",
+  ].join("\n");
+
+  it("reads an artifact from disk and reports what the reader understood", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "eve-read-"));
+    const file = join(dir, "deck.md");
+    try {
+      await writeFile(file, DECK, "utf8");
+      const out = await runReadArtifact(ReadArtifactSchema.parse({ target: file, seed: 3 }));
+      const artifact = out.structured.artifact as Record<string, unknown>;
+      expect(artifact.genre).toBe("presentation");
+      expect(artifact.sections).toBe(3);
+      expect(out.markdown).toContain("Reading report");
+      const comprehension = out.structured.comprehension as { comprehensionScore: number };
+      expect(comprehension.comprehensionScore).toBeGreaterThan(0);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("reports an unreadable target as an input error, not a crash", async () => {
+    await expect(
+      runReadArtifact(ReadArtifactSchema.parse({ target: "/no/such/artifact.md" })),
+    ).rejects.toBeInstanceOf(ToolInputError);
+  });
+
+  it("rejects an unknown persona by name", async () => {
+    await expect(
+      runReadArtifact(ReadArtifactSchema.parse({ target: "-", persona: "nobody" })),
+    ).rejects.toBeInstanceOf(ToolInputError);
+  });
 });
 
 describe("mcp server registration", () => {
