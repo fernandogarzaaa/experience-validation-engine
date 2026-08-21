@@ -231,16 +231,57 @@ function emitProse(
 
 /** Strip the syntax a renderer consumes, leaving the text a reader sees. */
 export function stripInline(text: string): string {
-  return text
-    .replace(IMAGE, (_m, alt: string) => (alt ? `${alt} (image)` : "(image)"))
-    .replace(LINK, (_m, label: string) => label)
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/(^|[^*])\*([^*]+)\*/g, "$1$2")
-    .replace(/__([^_]+)__/g, "$1")
-    .replace(/<[^>]+>/g, "")
+  return stripHtmlTags(
+    text
+      .replace(IMAGE, (_m, alt: string) => (alt ? `${alt} (image)` : "(image)"))
+      .replace(LINK, (_m, label: string) => label)
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/(^|[^*])\*([^*]+)\*/g, "$1$2")
+      .replace(/__([^_]+)__/g, "$1"),
+  )
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * A tag: `<`, an optional `/`, then a name character — with or without the
+ * closing `>`. Unterminated tags are included deliberately: `<script` with
+ * no `>` is markup a renderer swallows, so a reader never sees it either.
+ * `[^<>]*` rather than `[^>]*` so a tag cannot swallow the `<` that starts
+ * the next one, which keeps nesting resolving innermost-first.
+ */
+const HTML_TAG = /<\/?[a-zA-Z][^<>]*>?/g;
+
+/** Nesting deeper than this is not markup anyone wrote; see the backstop. */
+const MAX_TAG_PASSES = 8;
+
+/**
+ * Remove HTML tags from markdown source.
+ *
+ * Repeated to a fixpoint rather than done in one pass: removing `<a>` from
+ * `<<a>script>` splices the halves back together into `<script>`, and a
+ * single global replace never revisits the ground it has already covered.
+ * The passes are bounded and the loop ends with a sweep for any `<` still
+ * beginning a tag, so deep nesting can neither outrun the fixpoint nor make
+ * a pathological line cost quadratic time.
+ *
+ * A lone `<` in prose ("if x < y") is not a tag and survives, because that
+ * is what a reader sees.
+ *
+ * This is **not** a sanitizer and must not be used as one. It exists so a
+ * block's perceived text is what a reader would read rather than the markup
+ * a renderer consumes. Escaping for output is the renderer's job and is done
+ * independently — see `escapeHtml` in `src/reporting/html.ts`.
+ */
+export function stripHtmlTags(text: string): string {
+  let stripped = text;
+  for (let pass = 0; pass < MAX_TAG_PASSES; pass++) {
+    const next = stripped.replace(HTML_TAG, "");
+    if (next === stripped) return next;
+    stripped = next;
+  }
+  return stripped.replace(/<(?=\/?[a-zA-Z])/g, "");
 }
 
 interface ParsedTable {

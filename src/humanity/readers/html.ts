@@ -15,7 +15,7 @@
 
 import type { Artifact, ReaderInput, TableDetail } from "../types.js";
 import { ArtifactBuilder } from "./builder.js";
-import { tableSummary } from "./markdown.js";
+import { stripHtmlTags, tableSummary } from "./markdown.js";
 import { parseMetric } from "./metrics.js";
 
 const INVISIBLE = /<(script|style|template|noscript|svg|head)\b[^>]*>[\s\S]*?<\/\1>/gi;
@@ -176,7 +176,11 @@ function attribute(attributes: string, name: string): string | null {
 }
 
 function normalize(text: string): string {
-  return decodeEntities(text).replace(/\s+/g, " ").trim();
+  // The tokenizer above consumes well-formed tags, but it needs a closing
+  // `>` to recognize one — so an unterminated `<script` falls through to
+  // here as text. A reader would not see it (a renderer swallows it), and
+  // neither should a block, so the same complete strip applies.
+  return stripHtmlTags(decodeEntities(text)).replace(/\s+/g, " ").trim();
 }
 
 const ENTITIES: Record<string, string> = {

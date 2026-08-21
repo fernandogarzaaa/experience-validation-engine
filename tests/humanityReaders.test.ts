@@ -168,6 +168,56 @@ describe("artifact readers", () => {
   });
 });
 
+describe("markup never survives into perceived text", () => {
+  /**
+   * `stripInline` is not a sanitizer and must not be used as one — EVE's HTML
+   * reporting escapes independently. But it is what decides *what a reader
+   * saw*, and a reader does not see markup, so no tag may survive it. A
+   * single global replace is not enough: it never revisits ground it has
+   * covered, so removing the inner tag of `<<a>script>` splices the halves
+   * back into `<script>`, and an unterminated `<script` never matches at all.
+   */
+  const markupSurvives = (text: string): boolean =>
+    artifactFromText("t.md", text)
+      .blocks.map((block) => block.text)
+      .join(" ")
+      .includes("<");
+
+  it("removes a tag spliced together by removing an inner one", () => {
+    expect(markupSurvives("<<a>script>alert(1)<</b>/script>")).toBe(false);
+  });
+
+  it("removes an unterminated tag, which no closing bracket ever matches", () => {
+    expect(markupSurvives("Read this <script")).toBe(false);
+    expect(markupSurvives("<img src=x onerror=alert(1)")).toBe(false);
+  });
+
+  it("removes deeply nested brackets without leaving a tag behind", () => {
+    const nested = `${"<".repeat(60)}script${">".repeat(60)}`;
+    const text = artifactFromText("t.md", nested)
+      .blocks.map((block) => block.text)
+      .join(" ");
+    expect(text).not.toContain("<script");
+  });
+
+  it("leaves a lone angle bracket in prose alone — a reader sees it", () => {
+    const artifact = artifactFromText("t.md", "Fails when x < y and y > z.");
+    expect(artifact.blocks[0]?.text).toBe("Fails when x < y and y > z.");
+  });
+
+  it("still strips ordinary inline HTML down to its text", () => {
+    const artifact = artifactFromText("t.md", "plain <b>bold</b> and <em>italic</em> text");
+    expect(artifact.blocks[0]?.text).toBe("plain bold and italic text");
+  });
+
+  it("removes an unterminated tag the HTML tokenizer cannot see either", () => {
+    const artifact = artifactFromText("p.html", "<p>Install it. <script</p>");
+    const text = artifact.blocks.map((block) => block.text).join(" ");
+    expect(text).toContain("Install it.");
+    expect(text).not.toContain("<script");
+  });
+});
+
 describe("readers on pathological input", () => {
   /**
    * A reader is pointed at whatever a caller hands it — a log from CI, a file
