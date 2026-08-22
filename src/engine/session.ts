@@ -13,6 +13,7 @@ import {
   comparePrediction,
   errorSnippets,
   inferAppTheory,
+  passiveText,
   visibleText,
 } from "../cognition/mentalModel.js";
 import { readingLoad, riskOf } from "../cognition/salience.js";
@@ -153,6 +154,17 @@ export interface SessionResult {
   readonly abandonReason: string | null;
   readonly endReason: string;
   readonly appTheory: string;
+  /**
+   * Advisories about the configured `goalSuccessSignals` — cases where a
+   * signal was satisfied by text that does not evidence task completion.
+   *
+   * Goal success is decided by substring presence in visible screen text,
+   * which is a proxy for task state rather than a measurement of it. These
+   * warnings surface the cases where the proxy is most likely to mislead, so
+   * a mis-chosen signal fails loudly instead of silently reporting success.
+   * Empty when no signals are configured or none looked suspicious.
+   */
+  readonly goalSignalWarnings: readonly string[];
 
   /* --- Phase-2 additions. `capturedScreens` is always present (one
      representative percept per unique screen, screenshots stripped). The
@@ -316,6 +328,18 @@ export class EveSession {
     let lastVia: string | null = null;
     let previousPercept: Percept | null = null;
 
+    // De-duplicated: the same mis-chosen signal is re-evaluated on every
+    // perception, and one advisory per session is the useful number.
+    const goalSignalWarnings: string[] = [];
+    // Set when the configured signals are already satisfied by the starting
+    // screen; see the goal success check below.
+    let goalSignalsUnusable = false;
+    const recordGoalSignalWarning = (message: string): void => {
+      if (goalSignalWarnings.includes(message)) return;
+      goalSignalWarnings.push(message);
+      this.log(`warning: ${message}`);
+    };
+
     let step = 0;
     while (step < this.options.maxSteps) {
       // Deterministic mode measures the budget in modeled human time, so a
@@ -367,11 +391,54 @@ export class EveSession {
       /* ---- goal success check ------------------------------------- */
       const text = visibleText(percept).toLowerCase();
       const goal = goals.root;
-      if (
-        !goalAchieved &&
+      const signalsPresent =
         goal.successSignals.length > 0 &&
-        goal.successSignals.every((s) => text.includes(s.toLowerCase()))
-      ) {
+        goal.successSignals.every((s) => text.includes(s.toLowerCase()));
+
+      // Success signals are matched against *all* visible text — the page
+      // title and every element's label included — so presence alone does not
+      // distinguish "the operator accomplished this" from "these words happen
+      // to be on screen". Two cases where that gap is widest are recorded as
+      // advisories, and the first is refused outright.
+      if (signalsPresent && step === 0) {
+        // Satisfied by the starting screen, before the operator has acted.
+        //
+        // A condition that is already true when the session begins cannot
+        // evidence that anything was accomplished — its truth carries no
+        // information about the task. So the signal set is retired for the
+        // whole session rather than merely deferred: delaying it by a step
+        // would just move the same false success to the next perception,
+        // since the text is typically still on screen.
+        //
+        // The usual cause is a word from the product's own name or tagline.
+        // Previously this ended the session immediately, reporting
+        // `goal-achieved` with zero interactions.
+        goalSignalsUnusable = true;
+        recordGoalSignalWarning(
+          `success signal(s) [${goal.successSignals.join(", ")}] were already satisfied by the ` +
+            `starting screen, before any action was taken. They cannot evidence completion and ` +
+            `have been ignored for this session — the goal will be reported as not achieved. ` +
+            `Choose text that appears only once the task is done.`,
+        );
+      }
+
+      if (!goalAchieved && signalsPresent && !goalSignalsUnusable) {
+        // A signal that no non-interactive text satisfies is being carried by
+        // the label of a control the operator may never have activated —
+        // "Export all" satisfying "export" while the export was never
+        // performed. Not refused, because a label can legitimately be the only
+        // wording of a completed state, but surfaced so the author can tell
+        // the two apart.
+        const passive = passiveText(percept).toLowerCase();
+        const labelOnly = goal.successSignals.filter((s) => !passive.includes(s.toLowerCase()));
+        if (labelOnly.length > 0) {
+          recordGoalSignalWarning(
+            `success signal(s) [${labelOnly.join(", ")}] were satisfied only by the label of an ` +
+              `interactive element on ${percept.url}, not by any other visible text. If the ` +
+              `operator never activated that control, this reports success for arriving at it.`,
+          );
+        }
+
         goalAchieved = true;
         goal.status = "achieved";
         endReason = "goal-achieved";
@@ -598,6 +665,7 @@ export class EveSession {
       abandonReason,
       endReason,
       appTheory,
+      goalSignalWarnings,
       capturedScreens: [...this.capturedScreens.values()],
       culture: this.culture.locale,
       trustTimeline: suite?.trustTimeline(),

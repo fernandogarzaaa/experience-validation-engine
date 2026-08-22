@@ -29,6 +29,10 @@ export function renderJson(report: ExperienceReport): string {
       abandoned: result.abandoned,
       abandonReason: result.abandonReason,
       appTheory: result.appTheory,
+      // Included so a mis-chosen success signal is visible to automated
+      // consumers, which is exactly the path where the log warning is
+      // suppressed by --quiet.
+      goalSignalWarnings: result.goalSignalWarnings,
       usage: result.usage,
       scores: result.scores,
       findings: result.findings,

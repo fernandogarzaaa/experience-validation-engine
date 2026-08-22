@@ -68,6 +68,21 @@ export function visibleText(percept: Percept): string {
 }
 
 /**
+ * Visible text excluding the labels of interactive controls.
+ *
+ * The difference between this and {@link visibleText} is the difference
+ * between "the screen says the export finished" and "the screen has a button
+ * that says Export". Used to tell whether a goal success signal is carried
+ * only by an affordance the operator may never have activated.
+ */
+export function passiveText(percept: Percept): string {
+  const parts = [percept.title];
+  for (const el of percept.elements) if (el.text && !el.interactive) parts.push(el.text);
+  for (const d of percept.dialogs) parts.push(d.text);
+  return parts.join(" \n ");
+}
+
+/**
  * Is a visible error message perceivable on this screen?
  *
  * The patterns match prose, which is the right call on a surface the operator

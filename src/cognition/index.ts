@@ -23,6 +23,7 @@ export {
   comparePrediction,
   errorSnippets,
   inferAppTheory,
+  passiveText,
   perceivesError,
   predictInteraction,
   tokenize,

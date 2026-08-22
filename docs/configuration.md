@@ -46,6 +46,21 @@ ends successfully the moment every `goalSuccessSignals` string is visible on
 screen. Choose signals a human would accept as proof ("invitation sent"),
 not internal markers.
 
+Because the check is substring presence in visible text, a signal is only as
+good as its exclusivity to the finished state. Two failure modes are detected
+and reported in `goalSignalWarnings` (and in `report.json`):
+
+- **Already true at the start.** A signal satisfied by the opening screen —
+  usually a word from the product's own name — cannot evidence that anything
+  was accomplished. Such a signal set is ignored for the whole session and the
+  goal is reported as not achieved.
+- **Carried only by a control's label.** "export" satisfied solely by an
+  `Export all` button means arriving at the button counts as exporting. This
+  is a warning rather than a refusal, because a label is sometimes the only
+  wording of a completed state — only you can tell the two apart.
+
+Pick text that appears *after* the work is done, not text that offers it.
+
 ### `seed`
 
 Any number or string. Same seed + same persona + same application state =
