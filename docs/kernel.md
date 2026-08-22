@@ -16,10 +16,11 @@ interface FrameIdentity { address: string; label: string; surfaceState?: string 
 interface Affordance {
   id: string;                    // stable while the entity persists (tool:<name>)
   kind: string;                  // OPEN, registry-aligned — ARIA roles on web, "mcp.tool" on MCP
-  locator:                       // bbox | charCell | schemaPath
+  locator:                       // bbox | charCell | schemaPath | readingOrder
     | { kind: "bbox"; box: BoundingBox }
     | { kind: "charCell"; line: number; column: number }
-    | { kind: "schemaPath"; path: string };
+    | { kind: "schemaPath"; path: string }
+    | { kind: "readingOrder"; section: number; block: number };  // document surfaces
   description: string;
   state: { enabled: boolean; editable?: boolean; metadata?: Record<string, unknown> };
 }
@@ -31,11 +32,15 @@ type SurfaceSignal =             // typed — no fake "dialog" slot
   | { type: "tool-result"; tool; isError; text; truncated }   // full text, explicit truncation
   | { type: "notification"; method }
   | { type: "await-input"; prompt }
-  | { type: "surface-terminated"; reason };
+  | { type: "surface-terminated"; reason }
+  | { type: "end-of-content"; label }                          // a document ends
+  | { type: "comprehension-gap"; text; gap: "term" | "reference" | "figure" | "quantity" | "structure" };
 
 type KernelPercept =             // discriminated over modality
   | { modality: "visual"; viewport; scrollY; scrollHeight; screenshot; …base }
-  | { modality: "textual"; lines; windowRows; scrollLine; …base };
+  | { modality: "textual"; lines; windowRows; scrollLine; …base }
+  | { modality: "document"; blocks; section; sectionCount; sectionNoun;
+                            totalBlocks; blocksRead; …base };   // see docs/humanity-adapter.md
 
 interface KernelAction { verb: string; target?: string; payload?: unknown }
 ```

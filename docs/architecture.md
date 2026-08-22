@@ -108,7 +108,14 @@ upgrade, not a rewrite.
 
 - `core` depends on nothing.
 - `browser` adapters implement a dumb actuate/perceive contract and never
-  decide anything. The cognition engine cannot tell adapters apart.
+  decide anything. The cognition engine cannot tell adapters apart. The one
+  sanctioned exception is `attachOperator`: a surface whose *perceivability*
+  depends on who is looking (a document's comprehension) is told the persona
+  before it opens. It may shape what is perceivable; never what is decided.
+- `humanity` is a surface, not a special case: it reads *digital output*
+  (documents, decks, analytics exports, transcripts, payloads) through the
+  same kernel, session loop and scoring as every driven surface. See
+  [humanity-adapter.md](./humanity-adapter.md).
 - `cognition` consumes percepts and internal state; it never touches the
   adapter. Decision-making and actuation are fully separated.
 - `engine` is the only module that wires everything together.

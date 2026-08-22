@@ -29,6 +29,10 @@ import { synthesizeArguments } from "./toolArgs.js";
  *  8. I'm going in circles → go back.
  *  9. Nothing left → step back or give up.
  *
+ * On a document surface (`src/humanity/`) the priorities are a reader's
+ * rather than an operator's, and {@link HeuristicCognition.handleDocumentSurface}
+ * runs its own cascade instead.
+ *
  * All stochastic choices go through the session RNG so runs are reproducible.
  */
 export class HeuristicCognition implements DecisionPolicy {
@@ -48,6 +52,12 @@ export class HeuristicCognition implements DecisionPolicy {
     //    do, so the cascade below is byte-for-byte the phase-1 behavior.
     const toolSurfaceDecision = this.handleToolSurface(ctx, sig);
     if (toolSurfaceDecision) return toolSurfaceDecision;
+
+    // 0b. Kernel-native document surface (the humanity seam): reading is its
+    //     own cascade, not clicking with different words. Only fires when the
+    //     kernel percept is a document, so web/CLI/MCP behavior is unchanged.
+    const documentDecision = this.handleDocumentSurface(ctx, sig);
+    if (documentDecision) return documentDecision;
 
     // 1. A dialog is blocking the screen.
     const dialogDecision = this.handleDialog(ctx);
@@ -431,6 +441,232 @@ export class HeuristicCognition implements DecisionPolicy {
     };
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Kernel-native document surfaces (the humanity seam)               */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Decide natively on a document surface (`src/humanity/`) — the reading
+   * cascade, which is a different cascade from the operating one.
+   *
+   * A person driving software asks "what can I click"; a person reading asks
+   * "do I understand this, and is it worth going on". So the priorities are
+   * the reader's own:
+   *
+   *  1. I reached the end — I am done, not stuck.
+   *  2. I'm too frustrated to keep reading → put it down.
+   *  3. I did not follow that → read it again, if I have the patience.
+   *  4. Something here answers what I came for → study it.
+   *  5. I haven't read this {section} yet → skim or read it, by thoroughness.
+   *  6. A reference leads where I'm trying to go → follow it.
+   *  7. There is more → turn the page.
+   *
+   * Returns null unless the kernel percept is a document, so no existing
+   * surface enters this branch and every legacy cascade is untouched.
+   */
+  private handleDocumentSurface(ctx: CognitiveContext, sig: string): Decision | null {
+    const kernel = ctx.kernel;
+    if (kernel?.modality !== "document") return null;
+    const { persona, emotion, memory, goals, rng } = ctx;
+
+    const sectionKey = `read:${kernel.frame.address}#${kernel.section}`;
+    const alreadyRead = memory.currentThoughts().some((t) => t.content === sectionKey);
+    const words = kernel.blocks.reduce(
+      (total, block) => total + block.text.split(/\s+/).filter(Boolean).length,
+      0,
+    );
+    const gaps = kernel.signals.filter(
+      (s): s is Extract<SurfaceSignal, { type: "comprehension-gap" }> =>
+        s.type === "comprehension-gap",
+    );
+
+    // 1. The end of the artifact. Finishing is an outcome, not an exit — but
+    //    a reader who finishes without what they came for does not sit on the
+    //    last page. They go back and look again, once, and then they stop.
+    const end = kernel.signals.find(
+      (s): s is Extract<SurfaceSignal, { type: "end-of-content" }> => s.type === "end-of-content",
+    );
+    if (end) {
+      const timesHere =
+        memory.knownScreens().find((screen) => screen.signature === sig)?.visits ?? 1;
+      if (timesHere <= 1) {
+        return {
+          action: { kind: "read", target: null, durationMs: readingTimeMs(persona, 20) },
+          rationale: `That's the end. I've read all ${kernel.sectionCount} ${kernel.sectionNoun}s.`,
+          prediction: {
+            description: "There is nothing after this.",
+            expectedSignals: [end.label],
+            expectsChange: false,
+            confidence: 0.95,
+          },
+          effort: 0.05,
+        };
+      }
+      if (timesHere === 2 && kernel.section > 0) {
+        return {
+          action: { kind: "invoke", verb: "doc.back", target: null },
+          rationale: `I got to the end and I still don't have what I came for (${goals.current.description}) — going back through it.`,
+          prediction: {
+            description: "Somewhere earlier said what I need.",
+            expectedSignals: [],
+            expectsChange: true,
+            confidence: 0.4,
+          },
+          effort: 0.25,
+        };
+      }
+      return {
+        action: {
+          kind: "abandon",
+          reason: `Read the whole ${kernel.sectionNoun === "slide" ? "deck" : "artifact"} and it never answered: ${goals.root.description}.`,
+        },
+        rationale: "I've read it all, twice. It doesn't say what I needed to know.",
+        prediction: {
+          description: "I stop reading.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 1,
+        },
+        effort: 0,
+      };
+    }
+
+    // 2. Reading has a breaking point too — it is just quieter than a rage
+    //    quit. People put documents down and never come back to them.
+    if (emotion.frustration >= abandonmentThreshold(persona)) {
+      return {
+        action: {
+          kind: "abandon",
+          reason: `Gave up reading at ${kernel.sectionNoun} ${kernel.section + 1} of ${kernel.sectionCount}: too much of this isn't landing.`,
+        },
+        rationale: "I've read the same thing three times and I still don't follow it. I'm done.",
+        prediction: {
+          description: "I stop reading.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 1,
+        },
+        effort: 0,
+      };
+    }
+
+    // 3. Something did not land. A thorough, patient reader goes back over
+    //    it; a skimmer shrugs and moves on — which is the difference that
+    //    makes an unexplained term expensive for some readers and free for
+    //    others.
+    const rereadKey = `reread:${kernel.frame.address}#${kernel.section}`;
+    const alreadyReread = memory.currentThoughts().some((t) => t.content === rereadKey);
+    if (gaps.length > 0 && !alreadyReread) {
+      const persistence = persona.traits.thoroughness * 0.6 + persona.traits.patience * 0.4;
+      if (rng.next() < persistence) {
+        memory.hold(rereadKey, ctx.step);
+        const gap = gaps[0] as Extract<SurfaceSignal, { type: "comprehension-gap" }>;
+        return {
+          action: {
+            kind: "invoke",
+            verb: "doc.reread",
+            target: null,
+          },
+          rationale: `I didn't follow that — ${gap.text}. Let me read it again.`,
+          prediction: {
+            description: "A second pass should make it clearer.",
+            expectedSignals: [],
+            expectsChange: false,
+            confidence: 0.45,
+          },
+          effort: clamp01(0.35 + words / 400),
+        };
+      }
+    }
+
+    // 4. Something on this page answers what I came for. Tables, figures and
+    //    numbers are the things a reader stops *on*, so a goal-matching one
+    //    gets studied rather than skated past.
+    const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
+    const studyTarget = kernel.affordances.find((a) => {
+      if (!STUDYABLE.has(a.kind)) return false;
+      if (memory.currentThoughts().some((t) => t.content === `studied:${a.id}`)) return false;
+      const tokens = tokenize(a.description);
+      return goalKeywords.some((keyword) => tokens.includes(keyword));
+    });
+    if (studyTarget) {
+      memory.hold(`studied:${studyTarget.id}`, ctx.step);
+      return {
+        action: { kind: "invoke", verb: "doc.study", target: null, payload: studyTarget.id },
+        rationale: `This looks like what I'm after (${goals.current.description}) — let me work through it.`,
+        prediction: {
+          description: `Studying "${truncateLabel(studyTarget.description)}" should tell me what it's claiming.`,
+          expectedSignals: goalKeywords,
+          expectsChange: false,
+          confidence: this.baseConfidence(ctx),
+        },
+        effort: 0.4,
+      };
+    }
+
+    // 5. Unread content in front of me. Thorough readers read; skimmers skim
+    //    — and a skimmer genuinely does not perceive what they skipped, which
+    //    is why the two produce different findings on the same artifact.
+    if (!alreadyRead) {
+      memory.hold(sectionKey, ctx.step);
+      const skims = rng.next() > persona.traits.thoroughness && words > 40;
+      return {
+        action: {
+          kind: "invoke",
+          verb: skims ? "doc.skim" : "doc.read",
+          target: null,
+        },
+        rationale: skims
+          ? `${words} words — I'll skim this ${kernel.sectionNoun} for anything that matters.`
+          : `Reading "${kernel.frame.label}".`,
+        prediction: {
+          description: skims
+            ? "Skimming should tell me whether this is worth reading properly."
+            : "Reading this should tell me what it says.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 0.8,
+        },
+        effort: clamp01(0.15 + words / 500),
+      };
+    }
+
+    // 6. A cross-reference pointing where I'm trying to get to.
+    const reference = kernel.affordances.find((a) => {
+      if (a.kind !== "doc.reference") return false;
+      if (memory.currentThoughts().some((t) => t.content === `followed:${a.id}`)) return false;
+      const tokens = tokenize(a.description);
+      return goalKeywords.some((keyword) => tokens.includes(keyword));
+    });
+    if (reference) {
+      memory.hold(`followed:${reference.id}`, ctx.step);
+      return {
+        action: { kind: "invoke", verb: "doc.follow", target: null, payload: reference.id },
+        rationale: `"${truncateLabel(reference.description)}" should lead to what I'm looking for.`,
+        prediction: {
+          description: "Following this should take me somewhere relevant.",
+          expectedSignals: [],
+          expectsChange: true,
+          confidence: 0.6,
+        },
+        effort: 0.2,
+      };
+    }
+
+    // 7. Turn the page.
+    return {
+      action: { kind: "invoke", verb: "doc.next", target: null },
+      rationale: `Done with this ${kernel.sectionNoun} — moving on.`,
+      prediction: {
+        description: `The next ${kernel.sectionNoun} should follow on from this one.`,
+        expectedSignals: [],
+        expectsChange: true,
+        confidence: 0.85,
+      },
+      effort: 0.1,
+    };
+  }
+
   private handleDialog(ctx: CognitiveContext): Decision | null {
     const { percept, persona } = ctx;
     if (percept.dialogs.length === 0) return null;
@@ -588,3 +824,12 @@ export function plausibleInput(field: VisibleElement, personaName: string): stri
 }
 
 export type { Action };
+
+/** Blocks a reader stops *on* — the things worth working out, not reading past. */
+const STUDYABLE: ReadonlySet<string> = new Set(["doc.table", "doc.figure", "doc.metric"]);
+
+/** Shorten an affordance description for first-person rationale text. */
+function truncateLabel(text: string, max = 60): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+}

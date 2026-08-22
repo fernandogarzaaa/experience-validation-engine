@@ -301,6 +301,10 @@ export class EveSession {
     });
     await this.plugins.sessionStart(pluginCtx);
 
+    // Surfaces whose perception depends on who is looking (a document's
+    // comprehension) are told the operator before they open. Every other
+    // adapter leaves the hook undefined and is unaffected.
+    adapter.attachOperator?.(this.persona);
     await adapter.open(startUrl, this.options.viewport);
     const observer = new Observer(adapter, startedAt, this.clock);
 
@@ -332,7 +336,10 @@ export class EveSession {
       /* ---- INTERPRET / UPDATE MENTAL MODEL ------------------------ */
       const signature = screenSignature(percept);
       const prevSignature = previousPercept ? screenSignature(previousPercept) : null;
-      const errorNow = errorSnippets(percept).length > 0;
+      // Error perception is modality-gated for the same reason the geometry
+      // checks are: on a document surface there is nothing to retry or
+      // dismiss, so prose *about* failures is not a failure the reader faces.
+      const errorNow = errorSnippets(percept, adapter.capabilities.modality).length > 0;
       memory.observeScreen(percept, step);
       if (prevSignature && prevSignature !== signature && lastVia) {
         memory.recordTransition(prevSignature, signature, lastVia);
@@ -460,6 +467,7 @@ export class EveSession {
         percept,
         after.percept,
         perceivedLatencyMs,
+        adapter.capabilities.modality,
       );
       await this.events.emit("loop:outcome", { step, outcome });
 

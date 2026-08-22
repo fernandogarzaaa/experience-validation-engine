@@ -250,6 +250,47 @@ export const MultimodalScanSchema = z
   })
   .strict();
 
+/**
+ * `eve_read_artifact` — read a digital output like a human.
+ *
+ * The reading counterpart of `eve_run_session`: the target is something the
+ * operator *receives* rather than drives (a report, a deck, an analytics
+ * export, a `--help` screen, a transcript, an API payload).
+ */
+export const ReadArtifactSchema = z
+  .object({
+    target: z
+      .string()
+      .min(1)
+      .describe(
+        "File path or http(s) URL. Standard input (`-`) is not available here — the MCP server uses stdio for the protocol itself.",
+      ),
+    persona: z.string().default("first-time-user").describe("The reader to simulate."),
+    profession: z.string().optional().describe("Professional overlay for the reader."),
+    genre: z
+      .enum(["document", "presentation", "analytics", "transcript", "data", "interface"])
+      .optional()
+      .describe("Force the genre instead of inferring it from the content."),
+    format: z
+      .enum(["markdown", "slides", "html", "json", "yaml", "csv", "transcript", "text"])
+      .optional()
+      .describe("Force a reader instead of letting detection choose."),
+    goal: z.string().optional().describe("What the reader came to find out."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Seed for reproducibility."),
+    max_steps: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .optional()
+      .describe("Max reading steps (default scales with the artifact's length)."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' reading report or 'json'."),
+  })
+  .strict();
+
 /** `eve_calibrate` — score EVE's realism against a human study. */
 export const CalibrateSchema = z
   .object({
@@ -436,6 +477,7 @@ export type ApplicationMapInput = z.infer<typeof ApplicationMapSchema>;
 export type TwinSessionInput = z.infer<typeof TwinSessionSchema>;
 export type CalibrateInput = z.infer<typeof CalibrateSchema>;
 export type MultimodalScanInput = z.infer<typeof MultimodalScanSchema>;
+export type ReadArtifactInput = z.infer<typeof ReadArtifactSchema>;
 export type EveBenchInput = z.infer<typeof EveBenchSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;

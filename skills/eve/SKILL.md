@@ -71,6 +71,20 @@ prefer them over shelling out.
   human usability traces: a 0–100 similarity score plus behavior/navigation/
   timing similarity and frustration/confidence alignment. Use to validate (and
   improve) how human-like EVE is for a given app.
+- **`eve_read_artifact`** — read what software *produced* rather than driving
+  what it does: a report, a slide deck, an analytics or CSV export, a `--help`
+  screen, a terminal transcript or CI log, an API payload, a README. Returns
+  what the reader understood (0–100) and what got in the way — terms used
+  before they were defined, figures with no caption, numbers with no baseline,
+  slides too dense to read at slide pace, an ending that never says what to do.
+  - `target`: a file path, an `https://…` URL, or `-` for standard input.
+  - `persona` (default `first-time-user`) genuinely changes the result: a
+    specialist keeps a dense passage a first-time reader loses.
+  - `genre` / `format` override detection when you know better than the file
+    extension does; `seed` for reproducibility.
+  - Use this when the question is "would someone understand this?", not "can
+    someone use this?" — and reach for it on docs, decks and reports the way
+    you reach for `eve_run_session` on an app.
 - **`eve_multimodal_scan`** — perceive **visual cues** (icons, charts, media,
   loading states, toasts, text-in-images, motion) across an app and flag
   unlabeled visuals that are ambiguous to humans / invisible to screen readers.
@@ -98,7 +112,9 @@ prefer them over shelling out.
    highlights. If findings need more depth, call `eve_get_report`.
 
 An outcome of `abandoned` means the simulated user churned — treat it as a
-critical result and explain where the experience broke.
+critical result and explain where the experience broke. On a reading session
+(`eve_read_artifact`) it means the reader put the artifact down unfinished,
+which is the same signal for a document that churn is for an app.
 
 ## Prerequisites
 

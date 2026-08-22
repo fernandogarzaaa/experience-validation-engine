@@ -1,3 +1,5 @@
+import type { Modality } from "../core/registry.js";
+
 /**
  * What kind of surface an adapter perceives.
  *
@@ -9,7 +11,7 @@
 export interface SurfaceCapabilities {
   /** Pixel geometry and visual styling (font size, color, contrast) are meaningful. */
   readonly spatial: boolean;
-  readonly modality: "visual" | "textual";
+  readonly modality: Modality;
   readonly canScreenshot: boolean;
   readonly canGoBack: boolean;
   readonly canScroll: boolean;
@@ -93,3 +95,43 @@ export const TOUCH_VISUAL_SURFACE: SurfaceCapabilities = {
   pointer: "touch",
   canHover: false,
 };
+
+/**
+ * A document surface (`src/humanity/`): a digital output the operator reads
+ * rather than operates — a report, a deck, an analytics export, a terminal
+ * transcript.
+ *
+ * Reading order is its geometry, so pixel geometry and visual styling are
+ * not meaningful (`spatial: false`) and there is nothing to screenshot. The
+ * reader *can* go back — turning back a page is a real, everyday act, unlike
+ * a terminal's absent back button — and moves through content, which the
+ * legacy `canScroll` names. Pointer and hover are inert defaults for the
+ * same reason they are on a textual surface: there is no rendered surface to
+ * point at.
+ */
+export const DOCUMENT_SURFACE: SurfaceCapabilities = {
+  spatial: false,
+  modality: "document",
+  canScreenshot: false,
+  canGoBack: true,
+  canScroll: true,
+  pointer: "mouse",
+  canHover: false,
+};
+
+/**
+ * The verbs a reader actuates on a document surface. Reading is not clicking:
+ * a reader skims, reads closely, turns pages, goes back for a re-read,
+ * follows a cross-reference, and studies a table or a figure.
+ */
+export const DOCUMENT_VERBS = [
+  "doc.skim",
+  "doc.read",
+  "doc.study",
+  "doc.next",
+  "doc.back",
+  "doc.reread",
+  "doc.follow",
+  "read",
+  "wait",
+] as const;

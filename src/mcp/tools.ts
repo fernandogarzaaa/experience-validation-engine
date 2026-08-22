@@ -24,6 +24,7 @@ import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
 import { renderEveBenchMarkdown, runEveBench } from "../evebench/index.js";
+import { artifactWordCount, readArtifact, renderComprehensionMarkdown } from "../humanity/index.js";
 import { FileMemoryStore } from "../memory/longTerm.js";
 import { analyzeMultimodal, renderMultimodalMarkdown } from "../multimodal/index.js";
 import {
@@ -52,6 +53,7 @@ import type {
   EveBenchInput,
   GetReportInput,
   MultimodalScanInput,
+  ReadArtifactInput,
   RunSessionInput,
   RunUsabilityStudyInput,
   TwinSessionInput,
@@ -593,6 +595,81 @@ export async function runMultimodalScan(input: MultimodalScanInput): Promise<Too
 
   const report = analyzeMultimodal(result);
   return { markdown: truncate(renderMultimodalMarkdown(report)), structured: { ...report } };
+}
+
+/**
+ * Read a digital output like a human and report what the reader understood.
+ *
+ * The reading counterpart of `runSession`: the artifact is received rather
+ * than driven, so the result carries a comprehension analysis alongside the
+ * ordinary session scores and findings.
+ */
+export async function runReadArtifact(input: ReadArtifactInput): Promise<ToolOutput> {
+  // `-` means "read standard input", which is a perfectly good target for the
+  // CLI and an impossible one here: the shipped MCP server speaks JSON-RPC
+  // over stdio, so `process.stdin` *is* the transport. Consuming it would
+  // hang the call or corrupt the protocol stream.
+  if (input.target.trim() === "-") {
+    throw new ToolInputError(
+      "This tool cannot read standard input: the MCP server uses stdio for the protocol itself. Pass a file path or an http(s) URL instead.",
+    );
+  }
+
+  let persona: Persona;
+  try {
+    persona = getPersona(input.persona);
+    if (input.profession) persona = applyProfession(persona, getProfession(input.profession));
+  } catch {
+    throw new ToolInputError(`Unknown persona "${input.persona}". Call eve_list_personas.`);
+  }
+
+  let result: Awaited<ReturnType<typeof readArtifact>>;
+  try {
+    result = await readArtifact(input.target, {
+      persona,
+      ...(input.genre ? { genre: input.genre } : {}),
+      ...(input.format ? { format: input.format } : {}),
+      ...(input.goal ? { goal: input.goal } : {}),
+      ...(input.seed !== undefined ? { seed: input.seed } : {}),
+      ...(input.max_steps !== undefined ? { maxSteps: input.max_steps } : {}),
+    });
+  } catch (err) {
+    throw new ToolInputError(
+      `Could not read "${input.target}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const { artifact, comprehension } = result;
+  const markdown = [
+    renderComprehensionMarkdown(comprehension, artifact),
+    "",
+    "## Session",
+    "",
+    `- Outcome: ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}`,
+    `- Steps: ${result.usage.steps}`,
+    ...result.scores
+      .filter((score) => score.dimension.startsWith("humanity.") || score.dimension === "overall")
+      .map((score) => `- ${score.dimension}: ${score.value}/100`),
+  ].join("\n");
+
+  return {
+    markdown: truncate(markdown),
+    structured: {
+      artifact: {
+        address: artifact.address,
+        title: artifact.title,
+        format: artifact.format,
+        genre: artifact.genre,
+        sections: artifact.sections.length,
+        words: artifactWordCount(artifact),
+      },
+      comprehension,
+      scores: result.scores,
+      findings: result.findings,
+      endReason: result.endReason,
+      usage: result.usage,
+    },
+  };
 }
 
 /** Curiosity-weighted default explorer personas (fall back to the library). */

@@ -1,5 +1,6 @@
 import type { KernelAction, KernelPercept } from "../core/kernel.js";
 import type { Percept, Point, Viewport } from "../core/types.js";
+import type { Persona } from "../personas/persona.js";
 import type { SurfaceCapabilities } from "../surface/capabilities.js";
 
 /**
@@ -47,6 +48,19 @@ export interface BrowserAdapter {
 
   /** Physical measurements of this surface, when it has any worth modeling. */
   readonly deviceMetrics?: DeviceMetrics;
+
+  /**
+   * Optional: told which operator is about to use this surface, before
+   * {@link open}. Almost no surface cares — a page renders identically for
+   * everyone, and *how* the operator reacts to it is cognition's business,
+   * not the adapter's. A document surface is the exception: comprehension
+   * is a property of the reader as much as of the text, so the adapter needs
+   * the persona to report what this reader actually perceived.
+   *
+   * Adapters that implement it must stay dumb in the usual sense: the
+   * persona may shape what is *perceivable*, never what gets decided.
+   */
+  attachOperator?(persona: Persona): void;
 
   /** Launch/attach and navigate to the starting URL. */
   open(url: string, viewport: Viewport): Promise<void>;

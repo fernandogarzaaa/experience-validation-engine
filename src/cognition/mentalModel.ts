@@ -1,4 +1,5 @@
 import { clamp01 } from "../core/random.js";
+import type { Modality } from "../core/registry.js";
 import type { Percept, Prediction, PredictionOutcome, VisibleElement } from "../core/types.js";
 import { screenSignature } from "../memory/memory.js";
 
@@ -66,14 +67,30 @@ export function visibleText(percept: Percept): string {
   return parts.join(" \n ");
 }
 
-/** Is a visible error message perceivable on this screen? */
-export function perceivesError(percept: Percept): boolean {
+/**
+ * Is a visible error message perceivable on this screen?
+ *
+ * The patterns match prose, which is the right call on a surface the operator
+ * is *driving*: "Invalid password" on a login form is an error they are
+ * facing. On a document surface it is the wrong call, and badly so — a
+ * quarterly report line reading "Error rate: 0.4%" is a *topic*, not a
+ * failure, and a stack trace quoted in a bug report is something the reader
+ * is reading about rather than something happening to them. There is nothing
+ * to retry or dismiss on a page of text, so a document never presents the
+ * reader with an error to recover from. What the artifact says about errors
+ * is the comprehension model's business (`src/humanity/comprehension.ts`),
+ * where an unexplained failure with no next step is a finding about the
+ * *writing*.
+ */
+export function perceivesError(percept: Percept, modality: Modality = "visual"): boolean {
+  if (modality === "document") return false;
   const text = visibleText(percept);
   return ERROR_PATTERNS.some((re) => re.test(text));
 }
 
-/** Error text snippets, for evidence in findings. */
-export function errorSnippets(percept: Percept): string[] {
+/** Error text snippets, for evidence in findings. See {@link perceivesError}. */
+export function errorSnippets(percept: Percept, modality: Modality = "visual"): string[] {
+  if (modality === "document") return [];
   const snippets: string[] = [];
   for (const el of percept.elements) {
     if (el.text && ERROR_PATTERNS.some((re) => re.test(el.text))) {
@@ -130,6 +147,7 @@ export function comparePrediction(
   before: Percept,
   after: Percept,
   perceivedLatencyMs: number,
+  modality: Modality = "visual",
 ): PredictionOutcome {
   const screenChanged =
     screenSignature(before) !== screenSignature(after) || significantTextChange(before, after);
@@ -140,7 +158,7 @@ export function comparePrediction(
     if (afterText.includes(signal.toLowerCase())) matched.push(signal);
     else missed.push(signal);
   }
-  const errorPerceived = perceivesError(after) && !perceivesError(before);
+  const errorPerceived = perceivesError(after, modality) && !perceivesError(before, modality);
 
   let surprise = 0;
   if (prediction.expectsChange && !screenChanged) {
