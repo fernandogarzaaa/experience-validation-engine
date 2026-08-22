@@ -1,4 +1,5 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { validateBenchmarks } from "../benchmarks/index.js";
 import { createAdapter } from "../browser/index.js";
@@ -678,7 +679,14 @@ async function runReadCommand(rest: readonly string[]): Promise<number> {
     }
 
     const markdown = renderComprehensionMarkdown(result.comprehension, result.artifact);
-    if (typeof values.report === "string") await writeFile(values.report, markdown, "utf8");
+    if (typeof values.report === "string") {
+      // The reading report can land anywhere, including inside an output
+      // directory that `writeReports` has not created yet — the documented
+      // `--report .eve-output/reading.md` on a fresh checkout is exactly that
+      // case. Failing here would throw away a read that already succeeded.
+      await mkdir(dirname(values.report), { recursive: true });
+      await writeFile(values.report, markdown, "utf8");
+    }
 
     const written = await writeReports(
       result,

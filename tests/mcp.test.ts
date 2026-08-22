@@ -164,8 +164,16 @@ describe("mcp eve_read_artifact", () => {
 
   it("rejects an unknown persona by name", async () => {
     await expect(
-      runReadArtifact(ReadArtifactSchema.parse({ target: "-", persona: "nobody" })),
+      runReadArtifact(ReadArtifactSchema.parse({ target: "x.md", persona: "nobody" })),
     ).rejects.toBeInstanceOf(ToolInputError);
+  });
+
+  it("refuses to read standard input, which is the protocol transport here", async () => {
+    // The shipped server speaks JSON-RPC over stdio, so consuming stdin would
+    // hang the call or corrupt the stream. The CLI keeps `-`; this tool cannot.
+    await expect(runReadArtifact(ReadArtifactSchema.parse({ target: "-" }))).rejects.toThrow(
+      /cannot read standard input/i,
+    );
   });
 });
 

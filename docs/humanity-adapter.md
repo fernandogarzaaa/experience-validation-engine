@@ -257,6 +257,11 @@ const analysis = analyzeComprehension(artifact, getPersona("power-user"));
 the documentation and reports a product ships — the same way `eve run` gates
 the product itself.
 
+The `eve_read_artifact` MCP tool takes the same targets with one exception:
+standard input. The server speaks JSON-RPC over stdio, so `process.stdin` is
+the transport itself and a tool that consumed it would hang the call. Pass a
+path or a URL there.
+
 ## 8. Where the perception boundary sits
 
 Unchanged, and if anything tighter. A reader perceives the artifact's

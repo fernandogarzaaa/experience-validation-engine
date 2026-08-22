@@ -10,6 +10,21 @@ import {
 import { getPersona } from "../src/personas/index.js";
 import { webPerceptFromKernel } from "../src/surface/kernelView.js";
 
+/**
+ * A document whose final section is long enough (>40 words) that a skimming
+ * persona will skim rather than read it — the shape that used to strand the
+ * reader on the last section.
+ */
+const LONG_TAIL = [
+  "# Intro",
+  "",
+  "Short.",
+  "",
+  "## Last",
+  "",
+  "This final section is deliberately long enough to pass the threshold above which a reader who skims will skim rather than read closely, which is the condition that has to keep working if a skimming persona is ever going to reach the end of anything.",
+].join("\n");
+
 const DOC = [
   "# Onboarding",
   "",
@@ -103,6 +118,21 @@ describe("HumanityAdapter — perception", () => {
     const percept = await surface.kernelPercept();
     const gaps = percept.signals.filter((s) => s.type === "comprehension-gap");
     expect(gaps.length).toBeGreaterThan(0);
+  });
+
+  it("counts a skimmed section as reached, so a skimmer can finish", async () => {
+    // Skimming and reading answer different questions: what the reader
+    // retained, and where they have been. Requiring a close read to reach the
+    // end stranded skimming personas on the last section, turning them back
+    // against a clamped index until they gave up.
+    const surface = humanityAdapterFor("d.md", LONG_TAIL);
+    await surface.actKernel({ verb: "doc.read" });
+    await surface.actKernel({ verb: "doc.next" });
+    await surface.actKernel({ verb: "doc.skim" });
+
+    const percept = await surface.kernelPercept();
+    expect(percept.signals.some((s) => s.type === "end-of-content")).toBe(true);
+    expect(percept.blocksRead).toBe(percept.totalBlocks);
   });
 
   it("rejects a verb the surface does not have", async () => {
@@ -215,6 +245,16 @@ describe("reading sessions", () => {
     );
     expect(a.comprehension.comprehensionScore).toBe(b.comprehension.comprehensionScore);
   });
+
+  it("finishes for skimming personas, at every seed", async () => {
+    // The failure this pins was seed-dependent: whether the last section got
+    // skimmed came off the session RNG, so a third of seeds ended `abandoned`
+    // on a document the reader had in fact reached the end of.
+    for (let seed = 1; seed <= 12; seed++) {
+      const result = await readText("d.md", LONG_TAIL, { persona: "first-time-user", seed });
+      expect(result.endReason, `seed ${seed}`).toBe("goal-achieved");
+    }
+  }, 30_000);
 
   it("scores the document-only dimensions and skips the visual ones", async () => {
     const result = await readText(

@@ -80,14 +80,24 @@ export function selectReader(input: ReaderInput): ArtifactReader {
 export function readArtifactText(
   input: ReaderInput & { readonly format?: ArtifactFormat },
 ): Artifact {
-  const forced = input.format
-    ? READERS.find((reader) => reader.format === input.format)
+  // "slides" is a markdown *shape*, not a reader of its own: no entry
+  // advertises it, so forcing it has to route to the markdown reader and
+  // tell it which shape to expect. Relabelling afterwards would keep
+  // whatever detection picked — the plain-text reader, for a deck piped in
+  // with no extension — and silently lose `---` breaks, links and tables,
+  // in exactly the case the override exists to handle.
+  const effective: ReaderInput & { readonly format?: ArtifactFormat } =
+    input.format === "slides" ? { ...input, genre: input.genre ?? "presentation" } : input;
+
+  const forced = effective.format
+    ? (READERS.find((reader) => reader.format === effective.format) ??
+      (effective.format === "slides"
+        ? READERS.find((reader) => reader.format === "markdown")
+        : undefined))
     : undefined;
-  const reader = forced ?? selectReader(input);
-  const artifact = reader.read(input);
-  // "slides" is a markdown *shape*, not a separate reader; the markdown
-  // reader reports which one it found, and a forced format is honored.
-  if (input.format === "slides" && artifact.format !== "slides") {
+  const reader = forced ?? selectReader(effective);
+  const artifact = reader.read(effective);
+  if (effective.format === "slides" && artifact.format !== "slides") {
     return { ...artifact, format: "slides", genre: "presentation" };
   }
   return artifact;

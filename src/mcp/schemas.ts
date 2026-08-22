@@ -259,7 +259,12 @@ export const MultimodalScanSchema = z
  */
 export const ReadArtifactSchema = z
   .object({
-    target: z.string().min(1).describe("File path, http(s) URL, or `-` to read standard input."),
+    target: z
+      .string()
+      .min(1)
+      .describe(
+        "File path or http(s) URL. Standard input (`-`) is not available here — the MCP server uses stdio for the protocol itself.",
+      ),
     persona: z.string().default("first-time-user").describe("The reader to simulate."),
     profession: z.string().optional().describe("Professional overlay for the reader."),
     genre: z

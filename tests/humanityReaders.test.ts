@@ -162,6 +162,24 @@ describe("artifact readers", () => {
     expect(fields).toContain("serve");
   });
 
+  it("parses a forced slides format as markdown, not as plain text", () => {
+    // No reader advertises "slides" — it is a markdown shape. Forcing it has
+    // to route to the markdown reader, or a deck piped in with no extension
+    // gets read as prose and relabelled, losing its `---` breaks entirely.
+    const deck = "# One\n\nFirst.\n\n---\n\n# Two\n\nSecond.";
+    const artifact = readArtifactText({
+      address: "-",
+      text: deck,
+      extension: null,
+      format: "slides",
+    });
+
+    expect(artifact.format).toBe("slides");
+    expect(artifact.genre).toBe("presentation");
+    expect(artifact.sections).toHaveLength(2);
+    expect(artifact.sections[0]?.noun).toBe("slide");
+  });
+
   it("falls back to the plain-text reader for input nothing else claims", () => {
     const reader = selectReader({ address: "x", text: "just a sentence.", extension: null });
     expect(reader.format).toBe("text");

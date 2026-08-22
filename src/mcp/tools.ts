@@ -605,6 +605,16 @@ export async function runMultimodalScan(input: MultimodalScanInput): Promise<Too
  * ordinary session scores and findings.
  */
 export async function runReadArtifact(input: ReadArtifactInput): Promise<ToolOutput> {
+  // `-` means "read standard input", which is a perfectly good target for the
+  // CLI and an impossible one here: the shipped MCP server speaks JSON-RPC
+  // over stdio, so `process.stdin` *is* the transport. Consuming it would
+  // hang the call or corrupt the protocol stream.
+  if (input.target.trim() === "-") {
+    throw new ToolInputError(
+      "This tool cannot read standard input: the MCP server uses stdio for the protocol itself. Pass a file path or an http(s) URL instead.",
+    );
+  }
+
   let persona: Persona;
   try {
     persona = getPersona(input.persona);

@@ -72,6 +72,14 @@ export interface HumanityAdapterOptions {
 interface SectionState {
   /** Blocks read closely (as opposed to skimmed). */
   readonly read: Set<string>;
+  /**
+   * The reader has passed their eyes over the whole section, without taking
+   * in the detail. Tracked separately from {@link read} because the two
+   * answer different questions: `read` is what the reader *understood* and
+   * drives comprehension gaps, `skimmed` is where they have *been*. A
+   * skimmer does not retain what they skipped, but they do know they reached
+   * the end of the document — those are not the same faculty.
+   */
   skimmed: boolean;
   rereads: number;
 }
@@ -462,18 +470,38 @@ export class HumanityAdapter implements BrowserAdapter, KernelSurface {
   }
 
   /** True when the reader has read the last section of the artifact. */
+  /**
+   * The reader has reached the end and consumed the last section — closely or
+   * by skimming it. Skimming counts: someone who skims the last page still
+   * knows the document is over, and requiring a close read here stranded
+   * skimming personas on the final section, turning them back with `doc.next`
+   * against a clamped index until they gave up.
+   */
   private atEnd(): boolean {
     const artifact = this.requireArtifact();
     if (this.section !== artifact.sections.length - 1) return false;
     const state = this.sections.get(this.section);
     if (!state) return false;
-    const blocks = this.blocksOf(this.section);
-    return blocks.every((block) => state.read.has(block.id));
+    return this.isConsumed(this.section, state);
   }
 
+  /** True when the reader has been through every block of a section. */
+  private isConsumed(section: number, state: SectionState): boolean {
+    if (state.skimmed) return true;
+    const blocks = this.blocksOf(section);
+    return blocks.length > 0 && blocks.every((block) => state.read.has(block.id));
+  }
+
+  /**
+   * How much of the artifact the reader has been through — the numerator of
+   * the progress a reader feels. A skimmed section counts in full: they have
+   * moved past it, whatever they retained of it.
+   */
   private blocksRead(): number {
     let total = 0;
-    for (const state of this.sections.values()) total += state.read.size;
+    for (const [section, state] of this.sections) {
+      total += state.skimmed ? this.blocksOf(section).length : state.read.size;
+    }
     return total;
   }
 
