@@ -40,7 +40,12 @@ is internal.
 `iterations`, `findings`, `scores`, `emotionTimeline`, `workflows`,
 `workflowNodes`, `workflowTransitions`, `screenshots`, `usage`,
 `goalAchieved`, `abandoned`, `abandonReason`, `endReason`, `appTheory`,
-`personaName`, `seed`, `startUrl`.
+`goalSignalWarnings`, `personaName`, `seed`, `startUrl`.
+
+`goalSignalWarnings: readonly string[]` reports configured
+`goalSuccessSignals` that were satisfied by text which does not evidence
+completion — see the goal semantics in `docs/configuration.md`. Empty when no
+signals are configured or none looked suspicious.
 
 ## Browser layer
 
@@ -72,7 +77,7 @@ is internal.
 - `LlmCognition(options?)` — Anthropic-backed; graceful fallback.
 - Mental model: `predictInteraction`, `comparePrediction`,
   `perceivesError`, `errorSnippets`, `inferAppTheory`, `tokenize`,
-  `visibleText`.
+  `visibleText`, `passiveText` (visible text minus interactive labels).
 - Attention: `scoreAffordances`, `prominenceOf`, `goalRelevanceOf`,
   `riskOf`, `readingLoad`, `choiceLoad`.
 

@@ -80,6 +80,140 @@ describe("end-to-end simulation on the mock app", () => {
     expect(result.endReason).toBe("goal-achieved");
   }, 30_000);
 
+  /*
+   * Goal success is decided by substring presence in visible screen text,
+   * which is a proxy for task state rather than a measurement of it. These
+   * cover the two ways that proxy was found to mislead.
+   *
+   * A purpose-built three-screen app rather than DEMO_APP: each assertion
+   * depends on exactly which text is on which screen and whether it belongs
+   * to an interactive control, and pinning that down beats depending on how a
+   * persona happens to navigate a larger app.
+   */
+  const SIGNAL_APP = {
+    name: "Signal Fixture",
+    start: "home",
+    screens: [
+      {
+        id: "home",
+        title: "Widget Factory",
+        elements: [
+          { role: "heading" as const, text: "Widget Factory" },
+          { role: "button" as const, text: "Continue", goto: "notes" },
+        ],
+      },
+      {
+        id: "notes",
+        title: "Your notes",
+        elements: [
+          { role: "heading" as const, text: "Your notes" },
+          { role: "button" as const, text: "Export all", goto: "done" },
+        ],
+      },
+      {
+        // The product name persists into the title here, as a real product's
+        // would. That is what makes a stale brand-name signal still match on
+        // the final screen — see the mixed-signal tests.
+        id: "done",
+        title: "Widget Factory — Done",
+        elements: [{ role: "heading" as const, text: "Download ready" }],
+      },
+    ],
+  };
+
+  const runSignalSession = async (signals: string[]) => {
+    const session = new EveSession({
+      adapter: new MockAdapter(SIGNAL_APP),
+      startUrl: "mock:home",
+      persona: "office-worker",
+      goal: "export the notes",
+      goalSuccessSignals: signals,
+      seed: 11,
+      maxSteps: 20,
+      paceScale: 0,
+    });
+    return session.run();
+  };
+
+  it("refuses success signals already satisfied by the starting screen", async () => {
+    // "widget" is the product's own name, visible before the operator acts.
+    // Previously this ended the session at once with goal-achieved and zero
+    // interactions.
+    const result = await runSignalSession(["widget"]);
+
+    expect(result.goalAchieved).toBe(false);
+    expect(result.endReason).not.toBe("goal-achieved");
+    expect(result.goalSignalWarnings.join(" ")).toContain(
+      "already satisfied by the starting screen",
+    );
+  }, 30_000);
+
+  it("retires such a signal for the whole session, not just the first step", async () => {
+    // The text is still on screen a step later, so deferring rather than
+    // retiring would just move the same false success one perception along.
+    const result = await runSignalSession(["widget"]);
+
+    expect(result.usage.steps).toBeGreaterThan(1);
+    expect(result.goalAchieved).toBe(false);
+  }, 30_000);
+
+  it("still accepts a signal that only appears once the task is done", async () => {
+    const result = await runSignalSession(["download ready"]);
+
+    expect(result.goalAchieved).toBe(true);
+    expect(result.endReason).toBe("goal-achieved");
+    // Reached as a heading on the final screen, so nothing to warn about.
+    expect(result.goalSignalWarnings).toEqual([]);
+  }, 30_000);
+
+  /*
+   * Mixed sets — one signal true at the start, one only true at the end — are
+   * the case that judging the set as a whole gets wrong. At step 0 the *set*
+   * does not match, so an all-or-nothing check retires nothing and the stale
+   * signal survives to be counted as evidence. The two tests below are the two
+   * ways that plays out, depending on whether the stale text is still on the
+   * final screen.
+   */
+  it("retires only the stale half of a mixed signal set, and still completes", async () => {
+    // "widget" is the product name — present at the start and, because the
+    // fixture keeps it in the title, still present at the end. Judged as a
+    // set, this reported success with no warning at all. Judged per-signal,
+    // "widget" drops out and "download ready" alone decides.
+    const result = await runSignalSession(["widget", "download ready"]);
+
+    expect(result.goalAchieved).toBe(true);
+    expect(result.endReason).toBe("goal-achieved");
+
+    const warnings = result.goalSignalWarnings.join(" ");
+    expect(warnings).toContain("already satisfied by the starting screen");
+    expect(warnings).toContain("widget");
+    // Says what completion actually rested on, rather than only what it dropped.
+    expect(warnings).toContain("completion now rests on [download ready] alone");
+  }, 30_000);
+
+  it("does not let a stale signal block completion once it leaves the screen", async () => {
+    // "continue" is the home screen's button, gone by the final screen. Judged
+    // as a set this could never match again after step 0, so a genuine
+    // completion was reported as a failure.
+    const result = await runSignalSession(["continue", "download ready"]);
+
+    expect(result.goalAchieved).toBe(true);
+    expect(result.goalSignalWarnings.join(" ")).toContain("continue");
+  }, 30_000);
+
+  it("warns when a signal is carried only by an interactive control's label", async () => {
+    // "Export all" is a button on the notes screen. Arriving there satisfies
+    // the signal without the export ever being performed. Reported rather
+    // than refused: a label can legitimately be the only wording of a
+    // completed state, and only the author can tell the two apart.
+    const result = await runSignalSession(["export all"]);
+
+    expect(result.goalAchieved).toBe(true);
+    expect(result.goalSignalWarnings.join(" ")).toContain(
+      "only by the label of an interactive element",
+    );
+  }, 30_000);
+
   it("emits typed events during the loop", async () => {
     const session = new EveSession({
       adapter: new MockAdapter(DEMO_APP),
