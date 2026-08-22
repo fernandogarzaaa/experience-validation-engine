@@ -331,9 +331,10 @@ export class EveSession {
     // De-duplicated: the same mis-chosen signal is re-evaluated on every
     // perception, and one advisory per session is the useful number.
     const goalSignalWarnings: string[] = [];
-    // Set when the configured signals are already satisfied by the starting
-    // screen; see the goal success check below.
-    let goalSignalsUnusable = false;
+    // The success signals still able to evidence completion: the configured
+    // set minus those the starting screen already satisfied. Null until the
+    // first perception decides it; see the goal success check below.
+    let activeSignals: readonly string[] | null = null;
     const recordGoalSignalWarning = (message: string): void => {
       if (goalSignalWarnings.includes(message)) return;
       goalSignalWarnings.push(message);
@@ -391,38 +392,52 @@ export class EveSession {
       /* ---- goal success check ------------------------------------- */
       const text = visibleText(percept).toLowerCase();
       const goal = goals.root;
-      const signalsPresent =
-        goal.successSignals.length > 0 &&
-        goal.successSignals.every((s) => text.includes(s.toLowerCase()));
 
       // Success signals are matched against *all* visible text — the page
       // title and every element's label included — so presence alone does not
       // distinguish "the operator accomplished this" from "these words happen
-      // to be on screen". Two cases where that gap is widest are recorded as
-      // advisories, and the first is refused outright.
-      if (signalsPresent && step === 0) {
-        // Satisfied by the starting screen, before the operator has acted.
+      // to be on screen". Two cases where that gap is widest are handled: the
+      // first is refused outright, the second recorded as an advisory.
+      if (activeSignals === null) {
+        // First perception. Retire *each* signal the starting screen already
+        // satisfies, one by one.
         //
         // A condition that is already true when the session begins cannot
         // evidence that anything was accomplished — its truth carries no
-        // information about the task. So the signal set is retired for the
-        // whole session rather than merely deferred: delaying it by a step
-        // would just move the same false success to the next perception,
-        // since the text is typically still on screen.
+        // information about the task. Such a signal is retired for the whole
+        // session rather than merely deferred: delaying it by a step would
+        // just move the same false success to the next perception, since the
+        // text is typically still on screen.
         //
-        // The usual cause is a word from the product's own name or tagline.
-        // Previously this ended the session immediately, reporting
-        // `goal-achieved` with zero interactions.
-        goalSignalsUnusable = true;
-        recordGoalSignalWarning(
-          `success signal(s) [${goal.successSignals.join(", ")}] were already satisfied by the ` +
-            `starting screen, before any action was taken. They cannot evidence completion and ` +
-            `have been ignored for this session — the goal will be reported as not achieved. ` +
-            `Choose text that appears only once the task is done.`,
-        );
+        // Retiring per-signal rather than all-or-nothing matters when the set
+        // is mixed — `["Widget Factory", "Download ready"]`, the product's own
+        // name alongside a real terminal state. Judged as a set, nothing is
+        // retired (the set does not match at step 0) and the stale name is
+        // later counted as evidence. Judged individually, the name drops out
+        // and completion rests on "Download ready" alone, which is what the
+        // author meant.
+        //
+        // Previously a signal like this ended the session immediately,
+        // reporting `goal-achieved` with zero interactions.
+        const retired = goal.successSignals.filter((s) => text.includes(s.toLowerCase()));
+        const retiredSet = new Set(retired);
+        activeSignals = goal.successSignals.filter((s) => !retiredSet.has(s));
+        if (retired.length > 0) {
+          recordGoalSignalWarning(
+            `success signal(s) [${retired.join(", ")}] were already satisfied by the starting ` +
+              `screen, before any action was taken. They cannot evidence completion and have ` +
+              `been ignored for this session — ` +
+              (activeSignals.length > 0
+                ? `completion now rests on [${activeSignals.join(", ")}] alone.`
+                : `no usable signal remains, so the goal will be reported as not achieved.`) +
+              ` Choose text that appears only once the task is done.`,
+          );
+        }
       }
 
-      if (!goalAchieved && signalsPresent && !goalSignalsUnusable) {
+      // `goalAchieved` is not re-tested: the branch below breaks out of the
+      // loop, so it cannot be reached a second time.
+      if (activeSignals.length > 0 && activeSignals.every((s) => text.includes(s.toLowerCase()))) {
         // A signal that no non-interactive text satisfies is being carried by
         // the label of a control the operator may never have activated —
         // "Export all" satisfying "export" while the export was never
@@ -430,7 +445,7 @@ export class EveSession {
         // wording of a completed state, but surfaced so the author can tell
         // the two apart.
         const passive = passiveText(percept).toLowerCase();
-        const labelOnly = goal.successSignals.filter((s) => !passive.includes(s.toLowerCase()));
+        const labelOnly = activeSignals.filter((s) => !passive.includes(s.toLowerCase()));
         if (labelOnly.length > 0) {
           recordGoalSignalWarning(
             `success signal(s) [${labelOnly.join(", ")}] were satisfied only by the label of an ` +
