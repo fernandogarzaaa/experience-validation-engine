@@ -150,6 +150,25 @@ describe("LlmCognition", () => {
     expect(createMock).toHaveBeenCalledWith(expect.anything(), { timeout: 30_000 });
   });
 
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "falls back to the 30s default for an invalid timeoutMs (%s)",
+    async (invalid) => {
+      createMock.mockResolvedValue(
+        jsonResponse({
+          action: "wait",
+          rationale: "Waiting.",
+          expectedOutcome: "Nothing changes.",
+          expectedSignals: [],
+          confidence: 0.5,
+        }),
+      );
+      const policy = new LlmCognition({ apiKey: "sk-test", timeoutMs: invalid });
+      await policy.decide(buildContext());
+
+      expect(createMock).toHaveBeenCalledWith(expect.anything(), { timeout: 30_000 });
+    },
+  );
+
   it("falls back to heuristic cognition and records why when the call throws", async () => {
     createMock.mockRejectedValue(new Error("rate limit exceeded"));
     const policy = new LlmCognition({ apiKey: "sk-test" });

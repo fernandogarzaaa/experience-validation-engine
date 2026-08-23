@@ -90,6 +90,19 @@ describe("LlmCriticPlugin", () => {
     expect(createMock).toHaveBeenCalledWith(expect.anything(), { timeout: 5_000 });
   });
 
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "falls back to the 30s default for an invalid timeoutMs (%s)",
+    async (invalid) => {
+      createMock.mockResolvedValue(jsonResponse([]));
+      const plugin = new LlmCriticPlugin({ apiKey: "sk-test", timeoutMs: invalid });
+      const { ctx } = buildCtx();
+
+      await plugin.onPercept(ctx, percept());
+
+      expect(createMock).toHaveBeenCalledWith(expect.anything(), { timeout: 30_000 });
+    },
+  );
+
   it("critiques a screen only once", async () => {
     createMock.mockResolvedValue(jsonResponse([]));
     const plugin = new LlmCriticPlugin({ apiKey: "sk-test" });

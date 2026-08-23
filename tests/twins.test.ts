@@ -141,6 +141,27 @@ describe("twin stores", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("treats a valid-JSON but wrong-shaped twins field as empty, not a crash", async () => {
+    // `typeof null === "object"`, so a naive shape check would accept
+    // `twins: null` as-is and crash later dereferencing it.
+    const dir = await mkdtemp(join(tmpdir(), "eve-twins-null-shape-"));
+    try {
+      const file = join(dir, "twins.json");
+      await writeFile(file, JSON.stringify({ version: 1, twins: null }), "utf8");
+      const store = new FileTwinStore(file);
+      await expect(store.load("sr")).resolves.toBeNull();
+      await expect(store.list()).resolves.toEqual([]);
+
+      const arrayFile = join(dir, "twins-array.json");
+      await writeFile(arrayFile, JSON.stringify({ version: 1, twins: [] }), "utf8");
+      const arrayStore = new FileTwinStore(arrayFile);
+      await expect(arrayStore.load("sr")).resolves.toBeNull();
+      await expect(arrayStore.list()).resolves.toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("mcp eve_twin_session", () => {

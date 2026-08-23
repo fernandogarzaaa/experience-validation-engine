@@ -1,4 +1,5 @@
 import { clamp01 } from "../core/random.js";
+import { isValidTimeoutMs } from "../core/timeouts.js";
 import type {
   CognitiveContext,
   Decision,
@@ -82,7 +83,7 @@ export class LlmCognition implements DecisionPolicy, FallbackReportingPolicy {
     this.model = options.model ?? "claude-opus-4-8";
     this.apiKey = options.apiKey;
     this.maxTokens = options.maxTokens ?? 1024;
-    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.timeoutMs = isValidTimeoutMs(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
   }
 
   /** Consumed on read — see {@link FallbackReportingPolicy}. */

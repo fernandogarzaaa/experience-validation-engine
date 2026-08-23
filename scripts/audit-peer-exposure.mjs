@@ -34,7 +34,24 @@ function runAudit() {
 }
 
 const report = runAudit();
-const vulnerabilities = report.vulnerabilities ?? {};
+// A registry-side failure (e.g. HTTP 500) makes `npm audit --json` print an
+// error object to stdout with no `vulnerabilities` field, and exit non-zero
+// exactly like a real advisory does. Falling back to `{}` would read that as
+// "zero vulnerabilities" and pass this blocking gate on a request that never
+// actually ran — fail closed instead.
+if (
+  report.vulnerabilities === null ||
+  typeof report.vulnerabilities !== "object" ||
+  Array.isArray(report.vulnerabilities)
+) {
+  console.error(
+    "Blocking: `npm audit --json` did not return a vulnerability report (got: " +
+      `${JSON.stringify(report).slice(0, 500)}). Treating an unreadable audit as failed rather ` +
+      "than silently passing.",
+  );
+  process.exit(1);
+}
+const vulnerabilities = report.vulnerabilities;
 
 const findings = [];
 for (const name of WATCHED_PACKAGES) {

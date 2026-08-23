@@ -117,6 +117,24 @@ describe("FileMemoryStore", () => {
     }
   });
 
+  it("treats a valid-JSON but wrong-shaped applications field as empty, not a crash", async () => {
+    // `typeof null === "object"`, so a naive shape check would accept
+    // `applications: null` as-is and crash later dereferencing it.
+    const dir = await mkdtemp(join(tmpdir(), "eve-memory-null-shape-"));
+    try {
+      const file = join(dir, "memory.json");
+      await writeFile(file, JSON.stringify({ version: 2, applications: null }), "utf8");
+      const store = new FileMemoryStore(file);
+      await expect(store.load("app-1")).resolves.toBeNull();
+
+      const arrayFile = join(dir, "memory-array.json");
+      await writeFile(arrayFile, JSON.stringify({ version: 2, applications: [] }), "utf8");
+      await expect(new FileMemoryStore(arrayFile).load("app-1")).resolves.toBeNull();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("does not leak one store's data into another that has no file yet", async () => {
     // Regression guard: an "empty store" built by shallow-copying a shared
     // module-level constant leaves every instance's collection pointing at

@@ -1,4 +1,5 @@
 import { visibleText } from "../cognition/mentalModel.js";
+import { isValidTimeoutMs } from "../core/timeouts.js";
 import type { Percept } from "../core/types.js";
 import type { EvePlugin, PluginContext } from "./plugin.js";
 
@@ -72,7 +73,7 @@ export class LlmCriticPlugin implements EvePlugin {
     this.model = options.model ?? "claude-opus-4-8";
     this.apiKey = options.apiKey;
     this.maxScreens = options.maxScreens ?? 5;
-    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.timeoutMs = isValidTimeoutMs(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
   }
 
   async onPercept(ctx: PluginContext, percept: Percept): Promise<void> {

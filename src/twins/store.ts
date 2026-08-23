@@ -57,7 +57,14 @@ export class FileTwinStore implements TwinStore {
     }
     try {
       const parsed = JSON.parse(text) as TwinStoreBody;
-      if (parsed.version !== 1 || typeof parsed.twins !== "object") return empty();
+      if (
+        parsed.version !== 1 ||
+        parsed.twins === null ||
+        typeof parsed.twins !== "object" ||
+        Array.isArray(parsed.twins)
+      ) {
+        return empty();
+      }
       return parsed;
     } catch (error) {
       throw new Error(`could not read twin store at ${this.path}: ${String(error)}`);

@@ -19,7 +19,8 @@
  * very same Chrome-for-Testing release, fetched via `@puppeteer/browsers`.
  */
 
-import { dirname } from "node:path";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { Browser, Cache, install } from "@puppeteer/browsers";
 import puppeteer from "puppeteer";
 
@@ -28,10 +29,19 @@ export interface SeleniumChromePair {
   readonly chromedriverPath: string;
 }
 
-/** Puppeteer's cache root, derived from its own resolved executable path. */
-function cacheDirFor(chromeExecutablePath: string): string {
-  // <cacheDir>/chrome/<platform>-<buildId>/<archive>/<binary>
-  return dirname(dirname(dirname(dirname(chromeExecutablePath))));
+/**
+ * Puppeteer's own configured cache root. Deriving this by walking `dirname()`
+ * up from the resolved executable path looks appealing but is wrong on
+ * macOS: Chrome for Testing's `.app/Contents/MacOS/...` bundle nests one
+ * level deeper there than on Linux/Windows, so a fixed dirname-count lands
+ * inside the browser's own archive directory instead of the cache root.
+ * `puppeteer.configuration()` reports the real cache directory Puppeteer
+ * itself used (`PUPPETEER_CACHE_DIR`, a `.puppeteerrc.js` override, or the
+ * `~/.cache/puppeteer` default) regardless of platform-specific path shape.
+ */
+async function cacheDir(): Promise<string> {
+  const config = await puppeteer.configuration();
+  return config.cacheDirectory ?? join(homedir(), ".cache", "puppeteer");
 }
 
 function buildIdFor(cacheDir: string, chromeExecutablePath: string): string {
@@ -58,13 +68,13 @@ let cached: Promise<SeleniumChromePair> | null = null;
 export function prepareSeleniumChromePair(): Promise<SeleniumChromePair> {
   cached ??= (async () => {
     const chromeBinaryPath = await puppeteer.executablePath();
-    const cacheDir = cacheDirFor(chromeBinaryPath);
-    const buildId = buildIdFor(cacheDir, chromeBinaryPath);
+    const resolvedCacheDir = await cacheDir();
+    const buildId = buildIdFor(resolvedCacheDir, chromeBinaryPath);
 
     const { executablePath: chromedriverPath } = await install({
       browser: Browser.CHROMEDRIVER,
       buildId,
-      cacheDir,
+      cacheDir: resolvedCacheDir,
     });
 
     return { chromeBinaryPath, chromedriverPath };

@@ -138,7 +138,14 @@ export class FileMemoryStore implements PersistentMemory {
     }
     try {
       const parsed = JSON.parse(text) as MemoryStore;
-      if (parsed.version !== 2 || typeof parsed.applications !== "object") return emptyStore();
+      if (
+        parsed.version !== 2 ||
+        parsed.applications === null ||
+        typeof parsed.applications !== "object" ||
+        Array.isArray(parsed.applications)
+      ) {
+        return emptyStore();
+      }
       return parsed;
     } catch (error) {
       throw new Error(`could not read memory store at ${this.path}: ${String(error)}`);

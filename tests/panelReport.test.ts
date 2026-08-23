@@ -109,6 +109,6 @@ describe("renderPanelMarkdown", () => {
     const doc = renderPanelMarkdown(panel);
     const expectedTasks = toMarkdownTasks(panel.tickets).split("\n").slice(1).join("\n");
 
-    expect(doc).toContain(expectedTasks.trim().split("\n")[0] ?? "");
+    expect(doc).toContain(expectedTasks.trim());
   }, 30_000);
 });
