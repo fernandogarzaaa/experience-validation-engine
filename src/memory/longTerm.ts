@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { isFileNotFoundError } from "../core/fsErrors.js";
 import type { LearnedFact, ScreenEdge, ScreenNode } from "./memory.js";
 
 /**
@@ -81,7 +82,13 @@ export interface MemoryStore {
   applications: Record<string, ApplicationMemory>;
 }
 
-const EMPTY_STORE: MemoryStore = { version: 2, applications: {} };
+// A function, not a shared constant: `{ ...emptyStore() }` would still copy
+// only the top level, leaving every caller's `.applications` pointing at the
+// same nested object. A fresh literal per call is the only way an "empty
+// store" from one read doesn't become every read's shared, mutable state.
+function emptyStore(): MemoryStore {
+  return { version: 2, applications: {} };
+}
 
 /** Derive a stable application id from a URL (origin, or full mock id). */
 export function appIdForUrl(url: string): string {
@@ -122,14 +129,19 @@ export class FileMemoryStore implements PersistentMemory {
   constructor(private readonly path: string) {}
 
   private async read(): Promise<MemoryStore> {
+    let text: string;
     try {
-      const text = await readFile(this.path, "utf8");
+      text = await readFile(this.path, "utf8");
+    } catch (error) {
+      if (isFileNotFoundError(error)) return emptyStore();
+      throw new Error(`could not read memory store at ${this.path}: ${String(error)}`);
+    }
+    try {
       const parsed = JSON.parse(text) as MemoryStore;
-      if (parsed.version !== 2 || typeof parsed.applications !== "object")
-        return { ...EMPTY_STORE };
+      if (parsed.version !== 2 || typeof parsed.applications !== "object") return emptyStore();
       return parsed;
-    } catch {
-      return { ...EMPTY_STORE };
+    } catch (error) {
+      throw new Error(`could not read memory store at ${this.path}: ${String(error)}`);
     }
   }
 

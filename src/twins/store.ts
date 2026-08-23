@@ -6,6 +6,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
+import { isFileNotFoundError } from "../core/fsErrors.js";
 import type { TwinProfile } from "./types.js";
 
 interface TwinStoreBody {
@@ -13,7 +14,13 @@ interface TwinStoreBody {
   twins: Record<string, TwinProfile>;
 }
 
-const EMPTY: TwinStoreBody = { version: 1, twins: {} };
+// A function, not a shared constant: `{ ...empty() }` would still copy only
+// the top level, leaving every caller's `.twins` pointing at the same nested
+// object. A fresh literal per call is the only way an "empty store" from one
+// read doesn't become every read's shared, mutable state.
+function empty(): TwinStoreBody {
+  return { version: 1, twins: {} };
+}
 
 export interface TwinStore {
   load(id: string): Promise<TwinProfile | null>;
@@ -41,12 +48,19 @@ export class FileTwinStore implements TwinStore {
   constructor(private readonly path: string) {}
 
   private async read(): Promise<TwinStoreBody> {
+    let text: string;
     try {
-      const parsed = JSON.parse(await readFile(this.path, "utf8")) as TwinStoreBody;
-      if (parsed.version !== 1 || typeof parsed.twins !== "object") return { ...EMPTY };
+      text = await readFile(this.path, "utf8");
+    } catch (error) {
+      if (isFileNotFoundError(error)) return empty();
+      throw new Error(`could not read twin store at ${this.path}: ${String(error)}`);
+    }
+    try {
+      const parsed = JSON.parse(text) as TwinStoreBody;
+      if (parsed.version !== 1 || typeof parsed.twins !== "object") return empty();
       return parsed;
-    } catch {
-      return { ...EMPTY };
+    } catch (error) {
+      throw new Error(`could not read twin store at ${this.path}: ${String(error)}`);
     }
   }
 
