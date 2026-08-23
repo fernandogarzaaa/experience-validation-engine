@@ -73,6 +73,16 @@ degraded.
 - `PlaywrightAdapter(options?)`, `PuppeteerAdapter(options?)`,
   `SeleniumAdapter(options?)` — optional-peer-backed; throw with install
   instructions when the peer is missing.
+  - `PuppeteerAdapter`/`SeleniumAdapter` accept an `args?: readonly string[]`
+    launch-flags escape hatch (e.g. `--no-sandbox` for a root container or a
+    CI image without a usable Chrome sandbox) — not a default; a real
+    user's machine should never need it.
+  - `SeleniumAdapter` additionally accepts `chromeBinaryPath?`/
+    `chromedriverPath?: string` to bypass PATH-based (or Selenium Manager's
+    own auto-detected) browser/driver resolution entirely, for environments
+    where both are unreliable — see `tests/browser/seleniumChromeSetup.ts`
+    for a working example that pairs both from Puppeteer's own bundled
+    Chromium.
 - `MockAdapter(app?: MockAppSpec)` + `DEMO_APP` — in-memory application.
 - `createAdapter(name, options)` — factory for `"playwright" | "puppeteer" |
   "selenium" | "mock"`.
