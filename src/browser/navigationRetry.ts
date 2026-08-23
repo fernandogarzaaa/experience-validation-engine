@@ -20,6 +20,9 @@ const NAVIGATION_TEARDOWN_PATTERNS = [
   "frame was detached",
   "frame got detached",
   "navigating and changing the document",
+  // Selenium (ChromeDriver/GeckoDriver): executeScript racing a navigation.
+  "document unloaded while waiting for result",
+  "browsing context has been discarded",
 ];
 
 /** True when the failure is a page navigation rather than a dead browser. */

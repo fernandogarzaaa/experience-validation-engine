@@ -45,6 +45,7 @@
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "mcp": "node bin/eve-mcp.js",
     "mcp:smoke": "node scripts/mcp-smoke.mjs",
+    "audit:peer-exposure": "node scripts/audit-peer-exposure.mjs",
     "cp1": "node bin/eve-cp1.js",
     "cp1:smoke": "node scripts/cp1-smoke.mjs",
     "cp1:vendor": "node scripts/vendor-protocol.mjs",
@@ -102,10 +103,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
+    "@puppeteer/browsers": "^3.2.1",
     "@types/node": "^20.11.0",
     "@types/pngjs": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
     "playwright": "^1.62.0",
+    "puppeteer": "^25.8.0",
+    "selenium-webdriver": "^4.16.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

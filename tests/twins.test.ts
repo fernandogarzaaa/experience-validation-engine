@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -94,6 +94,70 @@ describe("twin stores", () => {
       );
       const reloaded = new FileTwinStore(join(dir, "twins.json"));
       expect((await reloaded.load("sr"))?.name).toBe("Senior Accountant");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("treats a missing file as an empty store, not an error", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "eve-twins-missing-"));
+    try {
+      const store = new FileTwinStore(join(dir, "does-not-exist.json"));
+      await expect(store.load("anyone")).resolves.toBeNull();
+      await expect(store.list()).resolves.toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not leak one store's data into another that has no file yet", async () => {
+    // Regression guard: an "empty store" built by shallow-copying a shared
+    // module-level constant leaves every instance's collection pointing at
+    // the very same object, so writing through one store corrupts every
+    // other store's view of "nothing here yet" for the rest of the process.
+    const dirA = await mkdtemp(join(tmpdir(), "eve-twins-leak-a-"));
+    const dirB = await mkdtemp(join(tmpdir(), "eve-twins-leak-b-"));
+    try {
+      const storeA = new FileTwinStore(join(dirA, "twins.json"));
+      await storeA.save(createTwin({ id: "a", name: "A", basePersona: "office-worker" }));
+
+      const storeB = new FileTwinStore(join(dirB, "twins.json"));
+      await expect(storeB.list()).resolves.toEqual([]);
+    } finally {
+      await rm(dirA, { recursive: true, force: true });
+      await rm(dirB, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces a corrupted file instead of silently resetting to empty", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "eve-twins-corrupt-"));
+    try {
+      const file = join(dir, "twins.json");
+      await writeFile(file, "{ this is not valid JSON", "utf8");
+      const store = new FileTwinStore(file);
+      await expect(store.load("sr")).rejects.toThrow(/could not read/);
+      await expect(store.list()).rejects.toThrow(/could not read/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("treats a valid-JSON but wrong-shaped twins field as empty, not a crash", async () => {
+    // `typeof null === "object"`, so a naive shape check would accept
+    // `twins: null` as-is and crash later dereferencing it.
+    const dir = await mkdtemp(join(tmpdir(), "eve-twins-null-shape-"));
+    try {
+      const file = join(dir, "twins.json");
+      await writeFile(file, JSON.stringify({ version: 1, twins: null }), "utf8");
+      const store = new FileTwinStore(file);
+      await expect(store.load("sr")).resolves.toBeNull();
+      await expect(store.list()).resolves.toEqual([]);
+
+      const arrayFile = join(dir, "twins-array.json");
+      await writeFile(arrayFile, JSON.stringify({ version: 1, twins: [] }), "utf8");
+      const arrayStore = new FileTwinStore(arrayFile);
+      await expect(arrayStore.load("sr")).resolves.toBeNull();
+      await expect(arrayStore.list()).resolves.toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

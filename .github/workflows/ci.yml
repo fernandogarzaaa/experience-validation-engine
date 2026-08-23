@@ -96,6 +96,15 @@ jobs:
       # dependency breaks the build.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      # playwright/puppeteer/selenium-webdriver/@anthropic-ai/sdk are optional
+      # peer dependencies that are *also* devDependencies (so their duck-typed
+      # adapters get checked against the real packages above) — npm's
+      # --omit=dev therefore excludes a high/critical advisory in any of them
+      # from the gate above, even though a real user installs them as a plain
+      # peer dependency and is exposed regardless. See
+      # scripts/audit-peer-exposure.mjs.
+      - name: Audit peer-dependency exposure
+        run: npm run audit:peer-exposure
       # Dev-tooling advisories are worth seeing but must not block a PR on
       # someone else's release schedule.
       - name: Audit everything (advisory only)

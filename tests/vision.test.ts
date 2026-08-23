@@ -4,6 +4,7 @@ import type { Percept, VisibleElement } from "../src/core/types.js";
 import { DEFAULT_ACCESSIBILITY } from "../src/personas/index.js";
 import {
   checkGeometry,
+  checkRegression,
   contrastRatio,
   decodePng,
   frameDiffRatio,
@@ -143,5 +144,44 @@ describe("geometry checks", () => {
     const distance = Math.hypot(red[0] - green[0], red[1] - green[1], red[2] - green[2]);
     const originalDistance = Math.hypot(220 - 40, 40 - 180, 40 - 40);
     expect(distance).toBeLessThan(originalDistance * 0.5);
+  });
+});
+
+describe("checkRegression", () => {
+  it("flags a major visual regression when pixels churn a lot but the text didn't change", () => {
+    const previous = solidPng(50, 50, [200, 200, 200]);
+    const current = solidPng(50, 50, [10, 10, 10]); // frameDiffRatio 1, well over the 0.35 gate
+    const issue = checkRegression(previous, current, true);
+
+    expect(issue).not.toBeNull();
+    expect(issue?.kind).toBe("visual-regression");
+    expect(issue?.severityHint).toBe("major");
+    expect(issue?.detail).toContain("100%");
+  });
+
+  it("does not flag identical frames", () => {
+    const previous = solidPng(50, 50, [200, 200, 200]);
+    const current = solidPng(50, 50, [200, 200, 200]);
+    expect(checkRegression(previous, current, true)).toBeNull();
+  });
+
+  it("does not flag pixel churn when the visible text also changed", () => {
+    // Large pixel diff is expected when the content itself is different —
+    // that's a normal navigation, not layout instability.
+    const previous = solidPng(50, 50, [200, 200, 200]);
+    const current = solidPng(50, 50, [10, 10, 10]);
+    expect(checkRegression(previous, current, false)).toBeNull();
+  });
+
+  it("does not flag a moderate pixel diff below the regression threshold", () => {
+    // A soft gradient-ish shift that stays under the 0.35 diff gate.
+    const previous = solidPng(50, 50, [200, 200, 200]);
+    const current = solidPng(50, 50, [195, 195, 195]);
+    expect(checkRegression(previous, current, true)).toBeNull();
+  });
+
+  it("degrades to null rather than throwing on undecodable image data", () => {
+    const garbage = Buffer.from([1, 2, 3, 4]);
+    expect(checkRegression(garbage, garbage, true)).toBeNull();
   });
 });

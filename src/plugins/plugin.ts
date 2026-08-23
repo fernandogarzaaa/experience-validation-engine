@@ -27,6 +27,14 @@ export interface PluginContext {
   readonly capabilities: SurfaceCapabilities;
   /** Report a finding into the session. Deduplicated by (title, url). */
   report(finding: Omit<Finding, "id" | "timestamp">): void;
+  /**
+   * Report that this plugin's own LLM call degraded to a non-LLM fallback
+   * (missing/invalid API key, network error, refusal, malformed response).
+   * Surfaced on `SessionResult.llmFallbackWarnings` and the `llm:fallback`
+   * event so a degraded run is visible rather than silently indistinguishable
+   * from a fully LLM-backed one.
+   */
+  reportLlmFallback(reason: string): void;
 }
 
 export interface EvePlugin {

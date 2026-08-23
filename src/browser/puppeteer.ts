@@ -43,15 +43,25 @@ export class PuppeteerAdapter implements BrowserAdapter {
   private page: PuppeteerPage | null = null;
   private pendingNativeDialogs: string[] = [];
   private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
+  private readonly launchArgs: readonly string[];
 
-  constructor(options: AdapterOptions = {}) {
+  /**
+   * `args` is a launch-flags escape hatch, not a general option — a real
+   * user's machine has a working Chrome sandbox and should never need it. It
+   * exists for environments like a root-run container or a hardened CI
+   * runner image, where the sandbox helper isn't usable and Chrome refuses
+   * to start at all without `--no-sandbox`.
+   */
+  constructor(options: AdapterOptions & { args?: readonly string[] } = {}) {
     this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
+    this.launchArgs = options.args ?? [];
   }
 
   async open(url: string, viewport: Viewport): Promise<void> {
     const puppeteer = await importPuppeteer();
     this.browser = (await puppeteer.launch({
       headless: this.options.headless,
+      args: [...this.launchArgs],
     })) as PuppeteerBrowser;
     this.page = await this.browser.newPage();
     await this.page.setViewport(viewport);
@@ -155,7 +165,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function importPuppeteer(): Promise<{
-  launch(opts: { headless: boolean }): Promise<unknown>;
+  launch(opts: { headless: boolean; args: string[] }): Promise<unknown>;
 }> {
   try {
     // Variable specifier: optional peer — must not be resolved at compile time.

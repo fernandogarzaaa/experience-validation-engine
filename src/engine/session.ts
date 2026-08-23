@@ -8,6 +8,7 @@ import {
   planTyping,
 } from "../browser/humanizer.js";
 import type { Decision, DecisionPolicy } from "../cognition/cognition.js";
+import { asFallbackReportingPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import {
   comparePrediction,
@@ -155,6 +156,15 @@ export interface SessionResult {
   readonly endReason: string;
   readonly appTheory: string;
   /**
+   * Set when the run loop threw and was caught rather than completing
+   * normally (`endReason` is then `"crashed"`) — a network drop, a browser
+   * crash, an unguarded plugin. The adapter is still closed and every
+   * finding/score/iteration gathered before the throw is still returned;
+   * this is the caller's only signal that the result is partial rather than
+   * a complete, successfully-finished session.
+   */
+  readonly error: string | null;
+  /**
    * Advisories about the configured `goalSuccessSignals` — cases where a
    * signal was satisfied by text that does not evidence task completion.
    *
@@ -165,6 +175,17 @@ export interface SessionResult {
    * Empty when no signals are configured or none looked suspicious.
    */
   readonly goalSignalWarnings: readonly string[];
+  /**
+   * Advisories recorded whenever an LLM-backed policy or plugin degraded to
+   * its non-LLM fallback (missing/invalid API key, network error, refusal,
+   * malformed response) — so a degraded run is visible here and on the
+   * `llm:fallback` event, rather than silently indistinguishable from a
+   * fully LLM-backed one. De-duplicated the same way as
+   * `goalSignalWarnings`: a policy/plugin failing the same way every step
+   * reads as one advisory. Empty when no LLM policy/plugin was configured,
+   * or none degraded.
+   */
+  readonly llmFallbackWarnings: readonly string[];
 
   /* --- Phase-2 additions. `capturedScreens` is always present (one
      representative percept per unique screen, screenshots stripped). The
@@ -186,6 +207,24 @@ export interface SessionResult {
   readonly learningMetrics?: LearningMetrics;
   /** The reconstructed user journey toward the goal. */
   readonly journey?: DiscoveredJourney;
+}
+
+/**
+ * Matches a goal-success signal against already-lowercased text, requiring a
+ * word boundary at each edge where the signal itself starts/ends with a word
+ * character. Plain substring matching lets a signal like "cart" match inside
+ * "cartoon"; a naive `\bsignal\b` overcorrects and stops matching a signal
+ * like "[end of document]" entirely, because `\b` cannot hold at an edge that
+ * is already punctuation rather than a word/non-word transition. Requiring
+ * the boundary only where the signal's own edge is a word character handles
+ * both.
+ */
+function matchesSignal(haystack: string, signal: string): boolean {
+  const lower = signal.toLowerCase();
+  const escaped = lower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const left = /^\w/.test(lower) ? "\\b" : "";
+  const right = /\w$/.test(lower) ? "\\b" : "";
+  return new RegExp(`${left}${escaped}${right}`).test(haystack);
 }
 
 export class EveSession {
@@ -299,11 +338,29 @@ export class EveSession {
       ? new CognitiveSuite(this.persona, this.rng, appMemory, this.options.cognitive)
       : null;
 
+    // Same dedup rationale as goalSignalWarnings below: a policy/plugin that
+    // fails identically every step should read as one advisory, not one per
+    // step. Declared before `pluginCtx` — `reportLlmFallback` can be called
+    // from a plugin's `onSessionStart`, which runs before anything declared
+    // later in this function would have finished initializing.
+    const llmFallbackWarnings: string[] = [];
+    const recordLlmFallback = (source: "cognition" | "plugin", reason: string): void => {
+      void this.events.emit("llm:fallback", { source, reason });
+      const message =
+        source === "cognition"
+          ? `LLM cognition fallback: ${reason}`
+          : `LLM critic plugin fallback: ${reason}`;
+      if (llmFallbackWarnings.includes(message)) return;
+      llmFallbackWarnings.push(message);
+      this.log(`warning: ${message}`);
+    };
+
     const pluginCtx: PluginContext = {
       persona: this.persona,
       startUrl,
       capabilities: adapter.capabilities,
       report: (f) => this.addFinding({ ...f, timestamp: this.simClock }),
+      reportLlmFallback: (reason) => recordLlmFallback("plugin", reason),
     };
 
     await this.events.emit("session:start", {
@@ -312,13 +369,6 @@ export class EveSession {
       seed: this.seed,
     });
     await this.plugins.sessionStart(pluginCtx);
-
-    // Surfaces whose perception depends on who is looking (a document's
-    // comprehension) are told the operator before they open. Every other
-    // adapter leaves the hook undefined and is unaffected.
-    adapter.attachOperator?.(this.persona);
-    await adapter.open(startUrl, this.options.viewport);
-    const observer = new Observer(adapter, startedAt, this.clock);
 
     let endReason = "budget-exhausted";
     let abandoned = false;
@@ -341,271 +391,322 @@ export class EveSession {
       this.log(`warning: ${message}`);
     };
 
-    let step = 0;
-    while (step < this.options.maxSteps) {
-      // Deterministic mode measures the budget in modeled human time, so a
-      // slow host cannot truncate the trajectory and change the score.
-      if (this.clock.now() - startedAt > this.options.maxDurationMs) {
-        endReason = "time-budget-exhausted";
-        break;
-      }
+    // A mid-loop throw (network drop, browser crash, an unguarded plugin)
+    // must never leak the adapter's underlying browser process, and a caller
+    // that gathered real findings/scores before the crash should get them
+    // back rather than a bare rejection. The `finally` guarantees cleanup;
+    // the `catch` records the failure and lets the normal result-building
+    // code below run anyway, over whatever was collected before the throw.
+    let crashMessage: string | null = null;
+    try {
+      // Surfaces whose perception depends on who is looking (a document's
+      // comprehension) are told the operator before they open. Every other
+      // adapter leaves the hook undefined and is unaffected.
+      adapter.attachOperator?.(this.persona);
+      await adapter.open(startUrl, this.options.viewport);
+      const observer = new Observer(adapter, startedAt, this.clock);
 
-      /* ---- OBSERVE ------------------------------------------------ */
-      const { percept, settleMs } = await observer.observe({
-        withScreenshot: this.options.screenshots,
-        settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
-      });
-      this.simClock = Math.max(this.simClock, percept.timestamp);
-      await this.events.emit("loop:perceive", { percept, step });
-
-      /* ---- INTERPRET / UPDATE MENTAL MODEL ------------------------ */
-      const signature = screenSignature(percept);
-      const prevSignature = previousPercept ? screenSignature(previousPercept) : null;
-      // Error perception is modality-gated for the same reason the geometry
-      // checks are: on a document surface there is nothing to retry or
-      // dismiss, so prose *about* failures is not a failure the reader faces.
-      const errorNow = errorSnippets(percept, adapter.capabilities.modality).length > 0;
-      memory.observeScreen(percept, step);
-      if (prevSignature && prevSignature !== signature && lastVia) {
-        memory.recordTransition(prevSignature, signature, lastVia);
-      }
-      workflowGraph.observe(percept, step, lastVia, errorNow);
-      if (!appTheory || memory.isNovelScreen(percept)) appTheory = inferAppTheory(percept);
-      const dropped = memory.maybeForgetWorkingItem();
-      if (dropped) this.log(`(mind wandered — forgot: ${dropped})`);
-      memory.decayEpisodes();
-
-      this.runVisionChecks(percept, signature);
-      const screenshotIndex = this.storeScreenshot(percept, signature);
-      this.captureScreen(percept, signature);
-      await this.plugins.percept(pluginCtx, percept, step);
-
-      /* ---- Enhanced perception: attention + cognitive load ---- */
-      const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
-      const stepPerception = suite ? suite.perceive(percept, previousPercept, goalKeywords) : null;
-      const perceptForDecision = stepPerception?.perceptForDecision ?? percept;
-      if (suite && !memory.isNovelScreen(percept)) {
-        // Revisiting a known screen that looks the same reinforces consistency.
-        suite.reinforceConsistency(true);
-      }
-
-      /* ---- goal success check ------------------------------------- */
-      const text = visibleText(percept).toLowerCase();
-      const goal = goals.root;
-
-      // Success signals are matched against *all* visible text — the page
-      // title and every element's label included — so presence alone does not
-      // distinguish "the operator accomplished this" from "these words happen
-      // to be on screen". Two cases where that gap is widest are handled: the
-      // first is refused outright, the second recorded as an advisory.
-      if (activeSignals === null) {
-        // First perception. Retire *each* signal the starting screen already
-        // satisfies, one by one.
-        //
-        // A condition that is already true when the session begins cannot
-        // evidence that anything was accomplished — its truth carries no
-        // information about the task. Such a signal is retired for the whole
-        // session rather than merely deferred: delaying it by a step would
-        // just move the same false success to the next perception, since the
-        // text is typically still on screen.
-        //
-        // Retiring per-signal rather than all-or-nothing matters when the set
-        // is mixed — `["Widget Factory", "Download ready"]`, the product's own
-        // name alongside a real terminal state. Judged as a set, nothing is
-        // retired (the set does not match at step 0) and the stale name is
-        // later counted as evidence. Judged individually, the name drops out
-        // and completion rests on "Download ready" alone, which is what the
-        // author meant.
-        //
-        // Previously a signal like this ended the session immediately,
-        // reporting `goal-achieved` with zero interactions.
-        const retired = goal.successSignals.filter((s) => text.includes(s.toLowerCase()));
-        const retiredSet = new Set(retired);
-        activeSignals = goal.successSignals.filter((s) => !retiredSet.has(s));
-        if (retired.length > 0) {
-          recordGoalSignalWarning(
-            `success signal(s) [${retired.join(", ")}] were already satisfied by the starting ` +
-              `screen, before any action was taken. They cannot evidence completion and have ` +
-              `been ignored for this session — ` +
-              (activeSignals.length > 0
-                ? `completion now rests on [${activeSignals.join(", ")}] alone.`
-                : `no usable signal remains, so the goal will be reported as not achieved.`) +
-              ` Choose text that appears only once the task is done.`,
-          );
-        }
-      }
-
-      // `goalAchieved` is not re-tested: the branch below breaks out of the
-      // loop, so it cannot be reached a second time.
-      if (activeSignals.length > 0 && activeSignals.every((s) => text.includes(s.toLowerCase()))) {
-        // A signal that no non-interactive text satisfies is being carried by
-        // the label of a control the operator may never have activated —
-        // "Export all" satisfying "export" while the export was never
-        // performed. Not refused, because a label can legitimately be the only
-        // wording of a completed state, but surfaced so the author can tell
-        // the two apart.
-        const passive = passiveText(percept).toLowerCase();
-        const labelOnly = activeSignals.filter((s) => !passive.includes(s.toLowerCase()));
-        if (labelOnly.length > 0) {
-          recordGoalSignalWarning(
-            `success signal(s) [${labelOnly.join(", ")}] were satisfied only by the label of an ` +
-              `interactive element on ${percept.url}, not by any other visible text. If the ` +
-              `operator never activated that control, this reports success for arriving at it.`,
-          );
+      let step = 0;
+      while (step < this.options.maxSteps) {
+        // Deterministic mode measures the budget in modeled human time, so a
+        // slow host cannot truncate the trajectory and change the score.
+        if (this.clock.now() - startedAt > this.options.maxDurationMs) {
+          endReason = "time-budget-exhausted";
+          break;
         }
 
-        goalAchieved = true;
-        goal.status = "achieved";
-        endReason = "goal-achieved";
-        this.log(`goal achieved: ${goal.description}`);
-        await this.events.emit("goal:changed", { goal: goal.description, subgoal: null });
-        break;
-      }
-
-      /* ---- error subgoal management ------------------------------- */
-      if (errorNow && !goals.subgoal) {
-        goals.push(
-          createGoal("recover from the error on screen", {
-            keywords: ["back", "retry", "again", "close", "dismiss", "ok"],
-          }),
-        );
-        await this.events.emit("goal:changed", {
-          goal: goals.root.description,
-          subgoal: goals.current.description,
+        /* ---- OBSERVE ------------------------------------------------ */
+        const { percept, settleMs } = await observer.observe({
+          withScreenshot: this.options.screenshots,
+          settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
         });
-      } else if (!errorNow && goals.subgoal?.description.includes("recover from the error")) {
-        goals.resolve("achieved");
-        await this.events.emit("goal:changed", { goal: goals.root.description, subgoal: null });
-      }
+        this.simClock = Math.max(this.simClock, percept.timestamp);
+        await this.events.emit("loop:perceive", { percept, step });
 
-      /* ---- PREDICT + DECIDE --------------------------------------- */
-      // Phase 2: cognition receives the kernel view alongside the legacy
-      // percept — the real thing on kernel-native surfaces, the projection
-      // of the decision percept elsewhere (identical content either way).
-      const kernelPercept = await this.kernelOf(adapter, perceptForDecision);
-      const enrichment = suite ? suite.contextEnrichment(stepPerception?.load ?? null) : {};
-      const decision = await this.policy.decide({
-        percept: perceptForDecision,
-        previousPercept,
-        persona: this.persona,
-        emotion: emotion.snapshot(),
-        memory,
-        goals,
-        rng: this.rng,
-        step,
-        elapsedMs: this.simClock,
-        kernel: kernelPercept,
-        ...enrichment,
-      });
-      goals.tickEffort();
-      await this.events.emit("loop:decide", {
-        step,
-        action: decision.action,
-        rationale: decision.rationale,
-        prediction: decision.prediction,
-      });
-      this.log(
-        `#${step} [${goals.current.description.slice(0, 40)}] ${describeAction(decision.action)} — ${decision.rationale}`,
-      );
+        /* ---- INTERPRET / UPDATE MENTAL MODEL ------------------------ */
+        const signature = screenSignature(percept);
+        const prevSignature = previousPercept ? screenSignature(previousPercept) : null;
+        // Error perception is modality-gated for the same reason the geometry
+        // checks are: on a document surface there is nothing to retry or
+        // dismiss, so prose *about* failures is not a failure the reader faces.
+        const errorNow = errorSnippets(percept, adapter.capabilities.modality).length > 0;
+        memory.observeScreen(percept, step);
+        if (prevSignature && prevSignature !== signature && lastVia) {
+          memory.recordTransition(prevSignature, signature, lastVia);
+        }
+        workflowGraph.observe(percept, step, lastVia, errorNow);
+        if (!appTheory || memory.isNovelScreen(percept)) appTheory = inferAppTheory(percept);
+        const dropped = memory.maybeForgetWorkingItem();
+        if (dropped) this.log(`(mind wandered — forgot: ${dropped})`);
+        memory.decayEpisodes();
 
-      if (decision.action.kind === "abandon") {
-        abandoned = true;
-        abandonReason = decision.action.reason;
-        endReason = "abandoned";
-        this.addFinding({
-          severity: "critical",
-          category: "workflow",
-          title: "The operator gave up",
-          description: decision.action.reason,
-          evidence: [
-            `Persona: ${this.persona.name}`,
-            `Goal: ${goals.root.description}`,
-            `Final screen: ${percept.title || percept.url}`,
-          ],
-          url: percept.url,
-          timestamp: this.simClock,
-          screenshotIndex: screenshotIndex ?? undefined,
+        this.runVisionChecks(percept, signature);
+        const screenshotIndex = this.storeScreenshot(percept, signature);
+        this.captureScreen(percept, signature);
+        await this.plugins.percept(pluginCtx, percept, step);
+
+        /* ---- Enhanced perception: attention + cognitive load ---- */
+        const goalKeywords = [...new Set([...goals.current.keywords, ...goals.root.keywords])];
+        const stepPerception = suite
+          ? suite.perceive(percept, previousPercept, goalKeywords)
+          : null;
+        const perceptForDecision = stepPerception?.perceptForDecision ?? percept;
+        if (suite && !memory.isNovelScreen(percept)) {
+          // Revisiting a known screen that looks the same reinforces consistency.
+          suite.reinforceConsistency(true);
+        }
+
+        /* ---- goal success check ------------------------------------- */
+        const text = visibleText(percept).toLowerCase();
+        const goal = goals.root;
+
+        // Success signals are matched against *all* visible text — the page
+        // title and every element's label included — so presence alone does not
+        // distinguish "the operator accomplished this" from "these words happen
+        // to be on screen". Two cases where that gap is widest are handled: the
+        // first is refused outright, the second recorded as an advisory.
+        if (activeSignals === null) {
+          // First perception. Retire *each* signal the starting screen already
+          // satisfies, one by one.
+          //
+          // A condition that is already true when the session begins cannot
+          // evidence that anything was accomplished — its truth carries no
+          // information about the task. Such a signal is retired for the whole
+          // session rather than merely deferred: delaying it by a step would
+          // just move the same false success to the next perception, since the
+          // text is typically still on screen.
+          //
+          // Retiring per-signal rather than all-or-nothing matters when the set
+          // is mixed — `["Widget Factory", "Download ready"]`, the product's own
+          // name alongside a real terminal state. Judged as a set, nothing is
+          // retired (the set does not match at step 0) and the stale name is
+          // later counted as evidence. Judged individually, the name drops out
+          // and completion rests on "Download ready" alone, which is what the
+          // author meant.
+          //
+          // Previously a signal like this ended the session immediately,
+          // reporting `goal-achieved` with zero interactions.
+          const retired = goal.successSignals.filter((s) => matchesSignal(text, s));
+          const retiredSet = new Set(retired);
+          activeSignals = goal.successSignals.filter((s) => !retiredSet.has(s));
+          if (retired.length > 0) {
+            recordGoalSignalWarning(
+              `success signal(s) [${retired.join(", ")}] were already satisfied by the starting ` +
+                `screen, before any action was taken. They cannot evidence completion and have ` +
+                `been ignored for this session — ` +
+                (activeSignals.length > 0
+                  ? `completion now rests on [${activeSignals.join(", ")}] alone.`
+                  : `no usable signal remains, so the goal will be reported as not achieved.`) +
+                ` Choose text that appears only once the task is done.`,
+            );
+          }
+        }
+
+        // `goalAchieved` is not re-tested: the branch below breaks out of the
+        // loop, so it cannot be reached a second time.
+        if (activeSignals.length > 0 && activeSignals.every((s) => matchesSignal(text, s))) {
+          // A signal that no non-interactive text satisfies is being carried by
+          // the label of a control the operator may never have activated —
+          // "Export all" satisfying "export" while the export was never
+          // performed. Not refused, because a label can legitimately be the only
+          // wording of a completed state, but surfaced so the author can tell
+          // the two apart.
+          const passive = passiveText(percept).toLowerCase();
+          const labelOnly = activeSignals.filter((s) => !matchesSignal(passive, s));
+          if (labelOnly.length > 0) {
+            recordGoalSignalWarning(
+              `success signal(s) [${labelOnly.join(", ")}] were satisfied only by the label of an ` +
+                `interactive element on ${percept.url}, not by any other visible text. If the ` +
+                `operator never activated that control, this reports success for arriving at it.`,
+            );
+          }
+
+          goalAchieved = true;
+          goal.status = "achieved";
+          endReason = "goal-achieved";
+          this.log(`goal achieved: ${goal.description}`);
+          await this.events.emit("goal:changed", { goal: goal.description, subgoal: null });
+          break;
+        }
+
+        /* ---- error subgoal management ------------------------------- */
+        if (errorNow && !goals.subgoal) {
+          goals.push(
+            createGoal("recover from the error on screen", {
+              keywords: ["back", "retry", "again", "close", "dismiss", "ok"],
+            }),
+          );
+          await this.events.emit("goal:changed", {
+            goal: goals.root.description,
+            subgoal: goals.current.description,
+          });
+        } else if (!errorNow && goals.subgoal?.description.includes("recover from the error")) {
+          goals.resolve("achieved");
+          await this.events.emit("goal:changed", { goal: goals.root.description, subgoal: null });
+        }
+
+        /* ---- PREDICT + DECIDE --------------------------------------- */
+        // Phase 2: cognition receives the kernel view alongside the legacy
+        // percept — the real thing on kernel-native surfaces, the projection
+        // of the decision percept elsewhere (identical content either way).
+        const kernelPercept = await this.kernelOf(adapter, perceptForDecision);
+        const enrichment = suite ? suite.contextEnrichment(stepPerception?.load ?? null) : {};
+        const decision = await this.policy.decide({
+          percept: perceptForDecision,
+          previousPercept,
+          persona: this.persona,
+          emotion: emotion.snapshot(),
+          memory,
+          goals,
+          rng: this.rng,
+          step,
+          elapsedMs: this.simClock,
+          kernel: kernelPercept,
+          ...enrichment,
         });
-        iterations.push(
-          this.makeIteration(step, percept, goals, decision, null, emotion, screenshotIndex, null),
+        const cognitionFallback = asFallbackReportingPolicy(this.policy)?.takeFallbackReason();
+        if (cognitionFallback) recordLlmFallback("cognition", cognitionFallback);
+        goals.tickEffort();
+        await this.events.emit("loop:decide", {
+          step,
+          action: decision.action,
+          rationale: decision.rationale,
+          prediction: decision.prediction,
+        });
+        this.log(
+          `#${step} [${goals.current.description.slice(0, 40)}] ${describeAction(decision.action)} — ${decision.rationale}`,
         );
-        break;
+
+        if (decision.action.kind === "abandon") {
+          abandoned = true;
+          abandonReason = decision.action.reason;
+          endReason = "abandoned";
+          this.addFinding({
+            severity: "critical",
+            category: "workflow",
+            title: "The operator gave up",
+            description: decision.action.reason,
+            evidence: [
+              `Persona: ${this.persona.name}`,
+              `Goal: ${goals.root.description}`,
+              `Final screen: ${percept.title || percept.url}`,
+            ],
+            url: percept.url,
+            timestamp: this.simClock,
+            screenshotIndex: screenshotIndex ?? undefined,
+          });
+          iterations.push(
+            this.makeIteration(
+              step,
+              percept,
+              goals,
+              decision,
+              null,
+              emotion,
+              screenshotIndex,
+              null,
+            ),
+          );
+          break;
+        }
+
+        /* ---- INTERACT ----------------------------------------------- */
+        const actStart = this.clock.now();
+        const clickPoint = await this.execute(adapter, decision, percept);
+        lastVia = describeAction(decision.action);
+        await this.events.emit("loop:act", { step, action: decision.action });
+
+        /* ---- OBSERVE AGAIN + COMPARE -------------------------------- */
+        const after = await observer.observe({
+          withScreenshot: false,
+          settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
+        });
+        const perceivedLatencyMs = this.clock.now() - actStart + settleMs;
+        const outcome = comparePrediction(
+          decision.prediction,
+          percept,
+          after.percept,
+          perceivedLatencyMs,
+          adapter.capabilities.modality,
+        );
+        await this.events.emit("loop:outcome", { step, outcome });
+
+        /* ---- ADJUST INTERNAL STATE ---------------------------------- */
+        const novelScreen = memory.isNovelScreen(after.percept);
+        const madeProgress =
+          outcome.screenChanged &&
+          !outcome.errorPerceived &&
+          (outcome.matchedSignals.length > 0 || novelScreen);
+        appraise(emotion, this.persona, {
+          outcome,
+          madeProgress,
+          novelScreen,
+          cognitiveEffort: clamp01(decision.effort + readingLoad(after.percept) * 0.3),
+        });
+        emotion.decay(decayRate(this.persona, emotion.get("fatigue")));
+        // Phase-2: trust model, expectation engine and fatigue feed back in.
+        if (suite) suite.afterOutcome(decision, outcome, percept, after.percept, emotion, step);
+        emotion.record(step, this.simClock);
+        await this.events.emit("emotion:update", { emotion: emotion.snapshot(), step });
+
+        /* ---- learn + remember --------------------------------------- */
+        const episodeOutcome = outcome.errorPerceived
+          ? "error"
+          : outcome.prediction.expectsChange && !outcome.screenChanged
+            ? "nothing"
+            : outcome.surprise > 0.5
+              ? "surprise"
+              : "success";
+        memory.recordEpisode(step, percept, decision.action, lastVia, episodeOutcome);
+        this.learnFromOutcome(memory, decision, outcome, percept, after.percept);
+        this.reportOutcomeFindings(decision, outcome, percept, screenshotIndex);
+        await this.plugins.outcome(pluginCtx, outcome, after.percept, step);
+
+        const iteration = this.makeIteration(
+          step,
+          percept,
+          goals,
+          decision,
+          outcome,
+          emotion,
+          screenshotIndex,
+          clickPoint,
+        );
+        iterations.push(iteration);
+        await this.events.emit("loop:iteration", { iteration });
+
+        previousPercept = after.percept;
+        step += 1;
       }
-
-      /* ---- INTERACT ----------------------------------------------- */
-      const actStart = this.clock.now();
-      const clickPoint = await this.execute(adapter, decision, percept);
-      lastVia = describeAction(decision.action);
-      await this.events.emit("loop:act", { step, action: decision.action });
-
-      /* ---- OBSERVE AGAIN + COMPARE -------------------------------- */
-      const after = await observer.observe({
-        withScreenshot: false,
-        settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
-      });
-      const perceivedLatencyMs = this.clock.now() - actStart + settleMs;
-      const outcome = comparePrediction(
-        decision.prediction,
-        percept,
-        after.percept,
-        perceivedLatencyMs,
-        adapter.capabilities.modality,
-      );
-      await this.events.emit("loop:outcome", { step, outcome });
-
-      /* ---- ADJUST INTERNAL STATE ---------------------------------- */
-      const novelScreen = memory.isNovelScreen(after.percept);
-      const madeProgress =
-        outcome.screenChanged &&
-        !outcome.errorPerceived &&
-        (outcome.matchedSignals.length > 0 || novelScreen);
-      appraise(emotion, this.persona, {
-        outcome,
-        madeProgress,
-        novelScreen,
-        cognitiveEffort: clamp01(decision.effort + readingLoad(after.percept) * 0.3),
-      });
-      emotion.decay(decayRate(this.persona, emotion.get("fatigue")));
-      // Phase-2: trust model, expectation engine and fatigue feed back in.
-      if (suite) suite.afterOutcome(decision, outcome, percept, after.percept, emotion, step);
-      emotion.record(step, this.simClock);
-      await this.events.emit("emotion:update", { emotion: emotion.snapshot(), step });
-
-      /* ---- learn + remember --------------------------------------- */
-      const episodeOutcome = outcome.errorPerceived
-        ? "error"
-        : outcome.prediction.expectsChange && !outcome.screenChanged
-          ? "nothing"
-          : outcome.surprise > 0.5
-            ? "surprise"
-            : "success";
-      memory.recordEpisode(step, percept, decision.action, lastVia, episodeOutcome);
-      this.learnFromOutcome(memory, decision, outcome, percept, after.percept);
-      this.reportOutcomeFindings(decision, outcome, percept, screenshotIndex);
-      await this.plugins.outcome(pluginCtx, outcome, after.percept, step);
-
-      const iteration = this.makeIteration(
-        step,
-        percept,
-        goals,
-        decision,
-        outcome,
-        emotion,
-        screenshotIndex,
-        clickPoint,
-      );
-      iterations.push(iteration);
-      await this.events.emit("loop:iteration", { iteration });
-
-      previousPercept = after.percept;
-      step += 1;
+      if (step >= this.options.maxSteps) endReason = "step-budget-exhausted";
+      if (goalAchieved) endReason = "goal-achieved";
+      if (abandoned) endReason = "abandoned";
+    } catch (error) {
+      crashMessage = error instanceof Error ? error.message : String(error);
+      endReason = "crashed";
+      this.log(`session crashed: ${crashMessage}`);
+    } finally {
+      // `sessionEnd` must run before `close()` — some adapters (the humanity
+      // reader among them) tear down state a plugin's session-end pass reads
+      // (e.g. the artifact being closed out) — and both must run even when
+      // the loop threw, so an open browser process never outlives the
+      // session that launched it and a crash never costs the session-end
+      // findings a normal run would have gotten.
+      try {
+        await this.plugins.sessionEnd(pluginCtx, iterations);
+      } catch (sessionEndError) {
+        this.log(
+          `warning: plugins.sessionEnd() failed during cleanup: ${sessionEndError instanceof Error ? sessionEndError.message : String(sessionEndError)}`,
+        );
+      }
+      try {
+        await adapter.close();
+      } catch (closeError) {
+        this.log(
+          `warning: adapter.close() failed during cleanup: ${closeError instanceof Error ? closeError.message : String(closeError)}`,
+        );
+      }
     }
-    if (step >= this.options.maxSteps) endReason = "step-budget-exhausted";
-    if (goalAchieved) endReason = "goal-achieved";
-    if (abandoned) endReason = "abandoned";
-
-    await this.plugins.sessionEnd(pluginCtx, iterations);
-    await adapter.close();
 
     const usage: SessionUsage = {
       steps: iterations.length,
@@ -680,7 +781,9 @@ export class EveSession {
       abandonReason,
       endReason,
       appTheory,
+      error: crashMessage,
       goalSignalWarnings,
+      llmFallbackWarnings,
       capturedScreens: [...this.capturedScreens.values()],
       culture: this.culture.locale,
       trustTimeline: suite?.trustTimeline(),

@@ -27,6 +27,8 @@ export interface EveEventMap {
   finding: { finding: Finding };
   "goal:changed": { goal: string; subgoal: string | null };
   "emotion:update": { emotion: Readonly<Record<string, number>>; step: number };
+  /** An LLM-backed policy or plugin degraded to its non-LLM fallback. */
+  "llm:fallback": { source: "cognition" | "plugin"; reason: string };
 }
 
 export type EveEventName = keyof EveEventMap;
