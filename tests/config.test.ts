@@ -54,4 +54,30 @@ describe("configuration", () => {
     });
     expect(config.plugins.llmCritic).toMatchObject({ maxScreens: 2 });
   });
+
+  it("rejects a null viewport with a ConfigError instead of crashing", () => {
+    expect(() => resolveConfig({ url: "https://x.test", viewport: null })).toThrow(ConfigError);
+    expect(() => resolveConfig({ url: "https://x.test", viewport: null })).toThrow(/viewport/);
+  });
+
+  it("rejects a non-object viewport", () => {
+    expect(() => resolveConfig({ url: "https://x.test", viewport: "1280x800" })).toThrow(
+      ConfigError,
+    );
+    expect(() => resolveConfig({ url: "https://x.test", viewport: [1280, 800] })).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("rejects a null plugins config with a ConfigError instead of crashing", () => {
+    expect(() => resolveConfig({ url: "https://x.test", plugins: null })).toThrow(ConfigError);
+    expect(() => resolveConfig({ url: "https://x.test", plugins: null })).toThrow(/plugins/);
+  });
+
+  it("rejects a non-object plugins config", () => {
+    expect(() => resolveConfig({ url: "https://x.test", plugins: "all" })).toThrow(ConfigError);
+    expect(() => resolveConfig({ url: "https://x.test", plugins: [true, false] })).toThrow(
+      ConfigError,
+    );
+  });
 });

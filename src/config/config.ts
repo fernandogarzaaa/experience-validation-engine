@@ -106,6 +106,13 @@ export function resolveConfig(raw: unknown): EveConfig {
   }
   if (input.headless !== undefined) config.headless = expectBoolean(input, "headless");
   if (input.viewport !== undefined) {
+    if (
+      typeof input.viewport !== "object" ||
+      input.viewport === null ||
+      Array.isArray(input.viewport)
+    ) {
+      throw new ConfigError("viewport must be an object with width and height");
+    }
     const v = input.viewport as Record<string, unknown>;
     config.viewport = {
       width: expectNumber(v, "width", 320, 7680),
@@ -158,6 +165,13 @@ export function resolveConfig(raw: unknown): EveConfig {
   }
   if (input.language !== undefined) config.language = expectString(input, "language");
   if (input.plugins !== undefined) {
+    if (
+      typeof input.plugins !== "object" ||
+      input.plugins === null ||
+      Array.isArray(input.plugins)
+    ) {
+      throw new ConfigError("plugins must be an object");
+    }
     const p = input.plugins as Record<string, unknown>;
     if (p.accessibility !== undefined)
       config.plugins.accessibility = expectBoolean(p, "accessibility");
