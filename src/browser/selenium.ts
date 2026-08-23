@@ -43,24 +43,60 @@ export class SeleniumAdapter implements BrowserAdapter {
   private keyMap: Record<string, string> = {};
   private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
   private readonly browserName: string;
+  private readonly launchArgs: readonly string[];
+  private readonly chromeBinaryPath: string | undefined;
+  private readonly chromedriverPath: string | undefined;
 
-  constructor(options: AdapterOptions & { browser?: string } = {}) {
+  /**
+   * `args`, `chromeBinaryPath` and `chromedriverPath` are escape hatches, not
+   * general options — a real user's machine has a working Chrome sandbox and
+   * a correctly matched chromedriver on PATH (or lets Selenium Manager
+   * resolve one) and should never need any of them.
+   *
+   * `chromeBinaryPath`/`chromedriverPath` exist because PATH-based resolution
+   * is unreliable in exactly the environments this most needs to work in: a
+   * CI image or dev container can have *any* pre-existing chromedriver on
+   * PATH (a leftover from base-image tooling, a different project's install)
+   * that outranks Selenium Manager's own version-matched pairing — Selenium
+   * warns about a mismatch but still uses it. Passing both paths explicitly
+   * via `Options.setChromeBinaryPath`/`Builder.setChromeService` bypasses
+   * PATH (and Selenium Manager's own auto-detection of an unrelated
+   * system-installed Chrome) entirely.
+   */
+  constructor(
+    options: AdapterOptions & {
+      browser?: string;
+      args?: readonly string[];
+      chromeBinaryPath?: string;
+      chromedriverPath?: string;
+    } = {},
+  ) {
     this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
     this.browserName = options.browser ?? "chrome";
+    this.launchArgs = options.args ?? [];
+    this.chromeBinaryPath = options.chromeBinaryPath;
+    this.chromedriverPath = options.chromedriverPath;
   }
 
   async open(url: string, viewport: Viewport): Promise<void> {
     const webdriver = await importSelenium();
     const builder = new webdriver.Builder().forBrowser(this.browserName);
-    if (this.options.headless && this.browserName === "chrome") {
+    if (this.browserName === "chrome") {
       const chrome = await importChromeOptions();
       if (chrome) {
         const chromeOptions = new chrome.Options();
-        chromeOptions.addArguments(
-          "--headless=new",
-          `--window-size=${viewport.width},${viewport.height + 120}`,
-        );
+        if (this.launchArgs.length > 0) chromeOptions.addArguments(...this.launchArgs);
+        if (this.options.headless) {
+          chromeOptions.addArguments(
+            "--headless=new",
+            `--window-size=${viewport.width},${viewport.height + 120}`,
+          );
+        }
+        if (this.chromeBinaryPath) chromeOptions.setChromeBinaryPath(this.chromeBinaryPath);
         builder.setChromeOptions(chromeOptions);
+        if (this.chromedriverPath) {
+          builder.setChromeService(new chrome.ServiceBuilder(this.chromedriverPath));
+        }
       }
     }
     this.driver = (await builder.build()) as SeleniumDriver;
@@ -259,7 +295,11 @@ async function importSelenium(): Promise<
 }
 
 async function importChromeOptions(): Promise<{
-  Options: new () => { addArguments(...args: string[]): void };
+  Options: new () => {
+    addArguments(...args: string[]): void;
+    setChromeBinaryPath(path: string): void;
+  };
+  ServiceBuilder: new (execPath: string) => unknown;
 } | null> {
   try {
     const spec = "selenium-webdriver/chrome.js";

@@ -12,8 +12,14 @@
  * though `snapshot()`'s `executeScript` can race the navigation tearing down
  * its execution context (`src/browser/navigationRetry.ts`).
  *
- * See `seleniumChromeSetup.ts` for why the browser+driver pair is resolved
- * explicitly rather than left to whatever happens to be on the host's PATH.
+ * `chromeBinaryPath`/`chromedriverPath` are passed explicitly (resolved by
+ * `seleniumChromeSetup.ts`) rather than left to PATH or Selenium Manager's
+ * own auto-detection. Both of the alternatives failed in practice: a stale
+ * `chromedriver` already on PATH from unrelated base-image tooling wins over
+ * Selenium Manager's own resolution (Selenium warns but uses it anyway), and
+ * Selenium Manager's own auto-detection has independently produced a
+ * mismatched pair from stale internal cache metadata. Explicit paths
+ * sidestep both failure modes at once.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -21,28 +27,36 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SeleniumAdapter } from "../../src/browser/selenium.js";
 import { EveSession } from "../../src/engine/session.js";
 import { type StaticSite, startStaticSite } from "../fixtures/staticSite.js";
-import { prepareSeleniumChromePair } from "./seleniumChromeSetup.js";
+import { prepareSeleniumChromePair, type SeleniumChromePair } from "./seleniumChromeSetup.js";
 
 const VIEWPORT = { width: 1280, height: 800 };
 
+// See the identical constant in puppeteer.integration.test.ts.
+const CI_LAUNCH_ARGS = ["--no-sandbox", "--disable-setuid-sandbox"];
+
 let site: StaticSite;
-let restorePath: string;
+let chromePair: SeleniumChromePair;
+
+function newAdapter(): SeleniumAdapter {
+  return new SeleniumAdapter({
+    headless: true,
+    args: CI_LAUNCH_ARGS,
+    chromeBinaryPath: chromePair.chromeBinaryPath,
+    chromedriverPath: chromePair.chromedriverPath,
+  });
+}
 
 beforeAll(async () => {
-  site = await startStaticSite();
-  const { binDir } = await prepareSeleniumChromePair();
-  restorePath = process.env.PATH ?? "";
-  process.env.PATH = `${binDir}:${restorePath}`;
+  [site, chromePair] = await Promise.all([startStaticSite(), prepareSeleniumChromePair()]);
 }, 120_000);
 
 afterAll(async () => {
   await site?.close();
-  if (restorePath !== undefined) process.env.PATH = restorePath;
 });
 
 describe("SeleniumAdapter against a real browser", () => {
   it("perceives a rendered page the way the contract promises", async () => {
-    const adapter = new SeleniumAdapter({ headless: true });
+    const adapter = newAdapter();
     try {
       await adapter.open(site.origin, VIEWPORT);
       const snap = await adapter.snapshot();
@@ -78,7 +92,7 @@ describe("SeleniumAdapter against a real browser", () => {
     // The exact race `perceiveAcrossNavigation` exists to protect against
     // (item 1): a click that navigates, then perceiving right away with no
     // extra wait beyond the adapter's own settle — must not throw.
-    const adapter = new SeleniumAdapter({ headless: true });
+    const adapter = newAdapter();
     try {
       await adapter.open(site.origin, VIEWPORT);
       const home = await adapter.snapshot();
@@ -99,7 +113,7 @@ describe("SeleniumAdapter against a real browser", () => {
   }, 120_000);
 
   it("actuates: clicking, typing, scrolling, history and native dialogs", async () => {
-    const adapter = new SeleniumAdapter({ headless: true });
+    const adapter = newAdapter();
     try {
       await adapter.open(site.origin, VIEWPORT);
 
@@ -159,7 +173,7 @@ describe("SeleniumAdapter against a real browser", () => {
   }, 120_000);
 
   it("captures a real PNG screenshot", async () => {
-    const adapter = new SeleniumAdapter({ headless: true });
+    const adapter = newAdapter();
     try {
       await adapter.open(site.origin, VIEWPORT);
       const png = await adapter.screenshot();
@@ -171,7 +185,7 @@ describe("SeleniumAdapter against a real browser", () => {
   }, 120_000);
 
   it("runs a full session end to end through a real browser", async () => {
-    const adapter = new SeleniumAdapter({ headless: true });
+    const adapter = newAdapter();
     const result = await new EveSession({
       adapter,
       startUrl: site.origin,

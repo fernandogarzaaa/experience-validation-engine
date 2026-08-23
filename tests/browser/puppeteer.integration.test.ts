@@ -16,6 +16,12 @@ import { type StaticSite, startStaticSite } from "../fixtures/staticSite.js";
 
 const VIEWPORT = { width: 1280, height: 800 };
 
+// CI runners (and root-run local containers) commonly lack a usable Chrome
+// sandbox — Puppeteer's own downloaded Chrome build has no setuid sandbox
+// helper set up the way an OS package install would. A real user's machine
+// needs neither flag; this is a test-environment-only concession.
+const CI_LAUNCH_ARGS = ["--no-sandbox", "--disable-setuid-sandbox"];
+
 let site: StaticSite;
 
 beforeAll(async () => {
@@ -28,7 +34,7 @@ afterAll(async () => {
 
 describe("PuppeteerAdapter against a real browser", () => {
   it("perceives a rendered page the way the contract promises", async () => {
-    const adapter = new PuppeteerAdapter({ headless: true });
+    const adapter = new PuppeteerAdapter({ headless: true, args: CI_LAUNCH_ARGS });
     try {
       await adapter.open(site.origin, VIEWPORT);
       const snap = await adapter.snapshot();
@@ -62,7 +68,7 @@ describe("PuppeteerAdapter against a real browser", () => {
   }, 120_000);
 
   it("actuates: clicking, typing, scrolling, history and native dialogs", async () => {
-    const adapter = new PuppeteerAdapter({ headless: true });
+    const adapter = new PuppeteerAdapter({ headless: true, args: CI_LAUNCH_ARGS });
     try {
       await adapter.open(site.origin, VIEWPORT);
 
@@ -125,7 +131,7 @@ describe("PuppeteerAdapter against a real browser", () => {
   }, 120_000);
 
   it("captures a real PNG screenshot", async () => {
-    const adapter = new PuppeteerAdapter({ headless: true });
+    const adapter = new PuppeteerAdapter({ headless: true, args: CI_LAUNCH_ARGS });
     try {
       await adapter.open(site.origin, VIEWPORT);
       const png = await adapter.screenshot();
@@ -137,7 +143,7 @@ describe("PuppeteerAdapter against a real browser", () => {
   }, 120_000);
 
   it("runs a full session end to end through a real browser", async () => {
-    const adapter = new PuppeteerAdapter({ headless: true });
+    const adapter = new PuppeteerAdapter({ headless: true, args: CI_LAUNCH_ARGS });
     const result = await new EveSession({
       adapter,
       startUrl: site.origin,
