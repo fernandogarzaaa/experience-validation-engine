@@ -67,3 +67,27 @@ export interface DecisionPolicy {
   readonly name: string;
   decide(ctx: CognitiveContext): Promise<Decision>;
 }
+
+/**
+ * Optional capability: a policy that can silently degrade to a fallback
+ * implementation (e.g. `LlmCognition` degrading to `HeuristicCognition`) and
+ * wants the degradation surfaced rather than left invisible. `takeFallbackReason`
+ * is consumed on read — it returns the most recent reason once, then `null`,
+ * so a caller polling every step reports each degradation exactly once.
+ */
+export interface FallbackReportingPolicy {
+  takeFallbackReason(): string | null;
+}
+
+/** Narrows to {@link FallbackReportingPolicy} if `policy` implements it, else `null`. */
+export function asFallbackReportingPolicy(policy: unknown): FallbackReportingPolicy | null {
+  if (
+    typeof policy === "object" &&
+    policy !== null &&
+    "takeFallbackReason" in policy &&
+    typeof (policy as { takeFallbackReason: unknown }).takeFallbackReason === "function"
+  ) {
+    return policy as FallbackReportingPolicy;
+  }
+  return null;
+}

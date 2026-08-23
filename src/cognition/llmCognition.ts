@@ -1,5 +1,10 @@
 import { clamp01 } from "../core/random.js";
-import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
+import type {
+  CognitiveContext,
+  Decision,
+  DecisionPolicy,
+  FallbackReportingPolicy,
+} from "./cognition.js";
 import { HeuristicCognition } from "./heuristicCognition.js";
 
 /**
@@ -21,7 +26,16 @@ export interface LlmCognitionOptions {
   /** API key; defaults to the SDK's environment resolution. */
   apiKey?: string;
   maxTokens?: number;
+  /**
+   * Per-request timeout passed to the Anthropic client, in ms. Without this,
+   * a hung call can ride the SDK's own ~10-minute default (times retries),
+   * and because the session's wall-clock budget is only checked between loop
+   * iterations, one hung call can blow through the whole session's budget.
+   */
+  timeoutMs?: number;
 }
+
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 interface LlmDecisionShape {
   action: "click" | "type" | "press" | "scroll" | "back" | "wait" | "read" | "abandon";
@@ -53,7 +67,7 @@ const DECISION_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-export class LlmCognition implements DecisionPolicy {
+export class LlmCognition implements DecisionPolicy, FallbackReportingPolicy {
   readonly name = "llm";
   private readonly fallback = new HeuristicCognition();
   private client: unknown | null = null;
@@ -61,41 +75,72 @@ export class LlmCognition implements DecisionPolicy {
   private readonly model: string;
   private readonly apiKey: string | undefined;
   private readonly maxTokens: number;
+  private readonly timeoutMs: number;
+  private pendingFallbackReason: string | null = null;
 
   constructor(options: LlmCognitionOptions = {}) {
     this.model = options.model ?? "claude-opus-4-8";
     this.apiKey = options.apiKey;
     this.maxTokens = options.maxTokens ?? 1024;
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  }
+
+  /** Consumed on read — see {@link FallbackReportingPolicy}. */
+  takeFallbackReason(): string | null {
+    const reason = this.pendingFallbackReason;
+    this.pendingFallbackReason = null;
+    return reason;
+  }
+
+  private fallbackTo(ctx: CognitiveContext, reason: string): Promise<Decision> {
+    this.pendingFallbackReason = `${reason} — falling back to heuristic cognition.`;
+    return this.fallback.decide(ctx);
   }
 
   async decide(ctx: CognitiveContext): Promise<Decision> {
     const client = await this.getClient();
-    if (!client) return this.fallback.decide(ctx);
+    if (!client) {
+      // getClient() has already set pendingFallbackReason for a load/construct
+      // failure; nothing to add here.
+      return this.fallback.decide(ctx);
+    }
     try {
       const response = await (
         client as {
           messages: {
-            create: (params: Record<string, unknown>) => Promise<{
+            create: (
+              params: Record<string, unknown>,
+              options: { timeout: number },
+            ) => Promise<{
               stop_reason?: string;
               content: Array<{ type: string; text?: string }>;
             }>;
           };
         }
-      ).messages.create({
-        model: this.model,
-        max_tokens: this.maxTokens,
-        system: this.systemPrompt(ctx),
-        output_config: { format: { type: "json_schema", schema: DECISION_SCHEMA } },
-        messages: [{ role: "user", content: this.scenePrompt(ctx) }],
-      });
-      if (response.stop_reason === "refusal") return this.fallback.decide(ctx);
+      ).messages.create(
+        {
+          model: this.model,
+          max_tokens: this.maxTokens,
+          system: this.systemPrompt(ctx),
+          output_config: { format: { type: "json_schema", schema: DECISION_SCHEMA } },
+          messages: [{ role: "user", content: this.scenePrompt(ctx) }],
+        },
+        { timeout: this.timeoutMs },
+      );
+      if (response.stop_reason === "refusal") {
+        return this.fallbackTo(ctx, "the model refused to respond");
+      }
       const text = response.content.find((b) => b.type === "text")?.text;
-      if (!text) return this.fallback.decide(ctx);
+      if (!text) return this.fallbackTo(ctx, "the model's response contained no text content");
       const parsed = JSON.parse(text) as LlmDecisionShape;
       const mapped = this.toDecision(parsed, ctx);
-      return mapped ?? (await this.fallback.decide(ctx));
-    } catch {
-      return this.fallback.decide(ctx);
+      if (mapped) return mapped;
+      return this.fallbackTo(ctx, "the model's response could not be mapped to a valid action");
+    } catch (error) {
+      return this.fallbackTo(
+        ctx,
+        `LLM call failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -110,8 +155,9 @@ export class LlmCognition implements DecisionPolicy {
       };
       this.client = this.apiKey ? new mod.default({ apiKey: this.apiKey }) : new mod.default();
       return this.client;
-    } catch {
+    } catch (error) {
       this.clientLoadFailed = true;
+      this.pendingFallbackReason = `Anthropic client is unavailable: ${error instanceof Error ? error.message : String(error)} — falling back to heuristic cognition.`;
       return null;
     }
   }

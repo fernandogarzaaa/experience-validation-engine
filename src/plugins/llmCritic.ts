@@ -17,7 +17,14 @@ export interface LlmCriticOptions {
   apiKey?: string;
   /** Max screens to critique per session (cost control). */
   maxScreens?: number;
+  /**
+   * Per-request timeout passed to the Anthropic client, in ms. Without this,
+   * a hung call can ride the SDK's own ~10-minute default (times retries).
+   */
+  timeoutMs?: number;
 }
+
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 interface CritiqueShape {
   issues: Array<{
@@ -54,15 +61,18 @@ export class LlmCriticPlugin implements EvePlugin {
   readonly name = "llm-critic";
   private client: unknown | null = null;
   private loadFailed = false;
+  private clientFailureReason: string | null = null;
   private readonly critiqued = new Set<string>();
   private readonly model: string;
   private readonly apiKey: string | undefined;
   private readonly maxScreens: number;
+  private readonly timeoutMs: number;
 
   constructor(options: LlmCriticOptions = {}) {
     this.model = options.model ?? "claude-opus-4-8";
     this.apiKey = options.apiKey;
     this.maxScreens = options.maxScreens ?? 5;
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
   async onPercept(ctx: PluginContext, percept: Percept): Promise<void> {
@@ -72,7 +82,15 @@ export class LlmCriticPlugin implements EvePlugin {
     this.critiqued.add(key);
 
     const client = await this.getClient();
-    if (!client) return;
+    if (!client) {
+      // Reported once: getClient() caches the failure, so a later screen
+      // hitting the same cached `null` would otherwise re-report forever.
+      if (this.clientFailureReason) {
+        ctx.reportLlmFallback(this.clientFailureReason);
+        this.clientFailureReason = null;
+      }
+      return;
+    }
 
     const content: Array<Record<string, unknown>> = [];
     if (percept.screenshot) {
@@ -101,21 +119,33 @@ export class LlmCriticPlugin implements EvePlugin {
       const response = await (
         client as {
           messages: {
-            create: (params: Record<string, unknown>) => Promise<{
+            create: (
+              params: Record<string, unknown>,
+              options: { timeout: number },
+            ) => Promise<{
               stop_reason?: string;
               content: Array<{ type: string; text?: string }>;
             }>;
           };
         }
-      ).messages.create({
-        model: this.model,
-        max_tokens: 2048,
-        output_config: { format: { type: "json_schema", schema: CRITIQUE_SCHEMA } },
-        messages: [{ role: "user", content }],
-      });
-      if (response.stop_reason === "refusal") return;
+      ).messages.create(
+        {
+          model: this.model,
+          max_tokens: 2048,
+          output_config: { format: { type: "json_schema", schema: CRITIQUE_SCHEMA } },
+          messages: [{ role: "user", content }],
+        },
+        { timeout: this.timeoutMs },
+      );
+      if (response.stop_reason === "refusal") {
+        ctx.reportLlmFallback("the model refused to critique this screen.");
+        return;
+      }
       const text = response.content.find((b) => b.type === "text")?.text;
-      if (!text) return;
+      if (!text) {
+        ctx.reportLlmFallback("the model's response contained no text content.");
+        return;
+      }
       const parsed = JSON.parse(text) as CritiqueShape;
       for (const issue of parsed.issues.slice(0, 6)) {
         ctx.report({
@@ -128,8 +158,10 @@ export class LlmCriticPlugin implements EvePlugin {
           recommendation: issue.recommendation,
         });
       }
-    } catch {
-      /* critique is best-effort; never disturb the session */
+    } catch (error) {
+      ctx.reportLlmFallback(
+        `critique call failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -144,8 +176,9 @@ export class LlmCriticPlugin implements EvePlugin {
       };
       this.client = this.apiKey ? new mod.default({ apiKey: this.apiKey }) : new mod.default();
       return this.client;
-    } catch {
+    } catch (error) {
       this.loadFailed = true;
+      this.clientFailureReason = `Anthropic client is unavailable: ${error instanceof Error ? error.message : String(error)}`;
       return null;
     }
   }

@@ -214,6 +214,110 @@ describe("end-to-end simulation on the mock app", () => {
     );
   }, 30_000);
 
+  /*
+   * Signal matching is case-insensitive substring presence with no
+   * word-boundary check added on top — plain `.includes()` — so a signal
+   * like "cart" silently matched "cartoon". Worse than a false positive: it
+   * meant "cart" got retired as "already satisfied by the starting screen"
+   * (see the retirement logic above) the moment any unrelated screen
+   * mentioned "cartoon", permanently disabling a signal that later
+   * genuinely appeared as its own word.
+   */
+  const CART_APP = {
+    name: "Cart Fixture",
+    start: "home",
+    screens: [
+      {
+        id: "home",
+        // Contains "cart" only as a substring of an unrelated word.
+        title: "Cartoon Network",
+        elements: [
+          { role: "heading" as const, text: "Cartoon Network" },
+          { role: "button" as const, text: "Continue", goto: "cart" },
+        ],
+      },
+      {
+        id: "cart",
+        title: "Your cart",
+        elements: [{ role: "heading" as const, text: "Your cart is ready" }],
+      },
+    ],
+  };
+
+  it("does not match a signal against a screen containing it only as a substring", async () => {
+    const result = await new EveSession({
+      adapter: new MockAdapter(CART_APP),
+      startUrl: "mock:home",
+      persona: "office-worker",
+      goal: "reach the cart",
+      goalSuccessSignals: ["cart"],
+      seed: 1,
+      maxSteps: 1,
+      paceScale: 0,
+    }).run();
+
+    // "cartoon" must not retire (or satisfy) the "cart" signal.
+    expect(result.goalAchieved).toBe(false);
+    expect(result.goalSignalWarnings).toEqual([]);
+  });
+
+  it("still matches a signal against a screen where it appears as a whole word", async () => {
+    const result = await new EveSession({
+      adapter: new MockAdapter(CART_APP),
+      startUrl: "mock:home",
+      persona: "office-worker",
+      goal: "reach the cart",
+      goalSuccessSignals: ["cart"],
+      seed: 1,
+      maxSteps: 10,
+      paceScale: 0,
+    }).run();
+
+    expect(result.goalAchieved).toBe(true);
+    expect(result.endReason).toBe("goal-achieved");
+    // Not wrongly retired at step 0, so no advisory should be recorded.
+    expect(result.goalSignalWarnings).toEqual([]);
+  });
+
+  it("still matches a signal whose own edges are punctuation, not a word character", async () => {
+    // Regression guard: a naive `\bsignal\b` never matches a signal like
+    // "[end of document]" at all, because `\b` only holds at a transition
+    // between a word and non-word character, and both of that signal's
+    // edges are already punctuation.
+    const BRACKET_APP = {
+      name: "Bracket Fixture",
+      start: "home",
+      screens: [
+        {
+          id: "home",
+          title: "Report",
+          elements: [
+            { role: "heading" as const, text: "Report" },
+            { role: "button" as const, text: "Continue", goto: "end" },
+          ],
+        },
+        {
+          id: "end",
+          title: "Report — Done",
+          elements: [{ role: "text" as const, text: "[end of document]" }],
+        },
+      ],
+    };
+    const result = await new EveSession({
+      adapter: new MockAdapter(BRACKET_APP),
+      startUrl: "mock:home",
+      persona: "office-worker",
+      goal: "finish reading",
+      goalSuccessSignals: ["[end of document]"],
+      seed: 1,
+      maxSteps: 5,
+      paceScale: 0,
+    }).run();
+
+    expect(result.goalAchieved).toBe(true);
+    expect(result.endReason).toBe("goal-achieved");
+  });
+
   it("emits typed events during the loop", async () => {
     const session = new EveSession({
       adapter: new MockAdapter(DEMO_APP),
