@@ -46,9 +46,11 @@ ends successfully the moment every `goalSuccessSignals` string is visible on
 screen. Choose signals a human would accept as proof ("invitation sent"),
 not internal markers.
 
-Because the check is substring presence in visible text, a signal is only as
-good as its exclusivity to the finished state. Two failure modes are detected
-and reported in `goalSignalWarnings` (and in `report.json`):
+Because the check is word-boundary-aware text matching (a signal like "cart"
+will not match inside "cartoon", but does not need its own edges to be word
+characters — a signal like "[end of document]" still matches), a signal is
+only as good as its exclusivity to the finished state. Two failure modes are
+detected and reported in `goalSignalWarnings` (and in `report.json`):
 
 - **Already true at the start.** A signal satisfied by the opening screen —
   usually a word from the product's own name — cannot evidence that anything
@@ -94,8 +96,14 @@ bailout or dead end), `maxSteps` iterations, `maxDurationMinutes` wall-clock.
 `llmCognition` replaces the offline heuristic mind with an Anthropic-powered
 one; `plugins.llmCritic` adds a per-screen design critique. Both need
 `npm install @anthropic-ai/sdk` and an `ANTHROPIC_API_KEY` in the
-environment, degrade gracefully when missing, and default to the
-`claude-opus-4-8` model.
+environment, default to the `claude-opus-4-8` model, and bound each API call
+to a 30s timeout (`timeoutMs` on `LlmCognitionOptions`/`LlmCriticOptions`
+when constructed programmatically). Degradation (missing/invalid API key,
+network error, refusal, a malformed response) is not silent: it falls back
+to the offline heuristic mind / skips that screen's critique, and is
+reported in `SessionResult.llmFallbackWarnings` (and `report.json`) and the
+`llm:fallback` event, so a degraded run never looks indistinguishable from a
+fully LLM-backed one.
 
 ## Exit codes (`eve run`)
 

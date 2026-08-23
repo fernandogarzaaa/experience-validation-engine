@@ -40,12 +40,30 @@ is internal.
 `iterations`, `findings`, `scores`, `emotionTimeline`, `workflows`,
 `workflowNodes`, `workflowTransitions`, `screenshots`, `usage`,
 `goalAchieved`, `abandoned`, `abandonReason`, `endReason`, `appTheory`,
-`goalSignalWarnings`, `personaName`, `seed`, `startUrl`.
+`goalSignalWarnings`, `llmFallbackWarnings`, `error`, `personaName`, `seed`,
+`startUrl`.
 
 `goalSignalWarnings: readonly string[]` reports configured
 `goalSuccessSignals` that were satisfied by text which does not evidence
 completion — see the goal semantics in `docs/configuration.md`. Empty when no
-signals are configured or none looked suspicious.
+signals are configured or none looked suspicious. Matching is word-boundary
+aware ("cart" does not match inside "cartoon").
+
+`error: string | null` is set when the run loop threw and was caught rather
+than completing normally (`endReason` is then `"crashed"`) — a network drop,
+a browser crash, an unguarded plugin. The adapter is still closed and every
+finding/score/iteration gathered before the throw is still returned; this is
+the only signal that the result is partial rather than a complete,
+successfully-finished session.
+
+`llmFallbackWarnings: readonly string[]` reports whenever an LLM-backed
+policy (`LlmCognition`) or plugin (`LlmCriticPlugin`) degraded to its
+non-LLM fallback — missing/invalid API key, network error, refusal, or a
+malformed response. Also emitted as the `llm:fallback` event
+(`{ source: "cognition" | "plugin", reason: string }`). De-duplicated like
+`goalSignalWarnings`: a policy/plugin failing the same way every step reads
+as one advisory. Empty when no LLM policy/plugin was configured, or none
+degraded.
 
 ## Browser layer
 
@@ -75,6 +93,15 @@ signals are configured or none looked suspicious.
 - `interface DecisionPolicy { name; decide(ctx): Promise<Decision> }`
 - `HeuristicCognition(strategy?)` — offline default.
 - `LlmCognition(options?)` — Anthropic-backed; graceful fallback.
+  `LlmCognitionOptions.timeoutMs` (default 30s) bounds each API call so a
+  hung request cannot ride the SDK's own multi-minute default.
+- `interface FallbackReportingPolicy { takeFallbackReason(): string | null }`,
+  `asFallbackReportingPolicy(policy)` — narrows any `DecisionPolicy` to this
+  optional capability, or returns `null`. `LlmCognition` implements it:
+  `takeFallbackReason()` returns the most recent degradation reason once
+  (consumed on read), or `null` if none is pending. `EveSession` polls this
+  after every `decide()` call and surfaces it on
+  `SessionResult.llmFallbackWarnings` and the `llm:fallback` event.
 - Mental model: `predictInteraction`, `comparePrediction`,
   `perceivesError`, `errorSnippets`, `inferAppTheory`, `tokenize`,
   `visibleText`, `passiveText` (visible text minus interactive labels).
@@ -119,8 +146,14 @@ signals are configured or none looked suspicious.
 
 - `interface EvePlugin` — `onSessionStart?`, `onPercept?`, `onOutcome?`,
   `onSessionEnd?`.
+- `interface PluginContext` — `persona`, `startUrl`, `capabilities`,
+  `report(finding)`, `reportLlmFallback(reason)` (surfaces an LLM-backed
+  plugin's own degradation to `SessionResult.llmFallbackWarnings` and the
+  `llm:fallback` event, exactly like `LlmCognition`'s fallback reporting).
 - `PluginManager`, `AccessibilityPlugin`, `PerformancePlugin`,
-  `LlmCriticPlugin(options?)`.
+  `LlmCriticPlugin(options?)` — `LlmCriticOptions.timeoutMs` (default 30s)
+  bounds each critique call the same way `LlmCognitionOptions.timeoutMs`
+  does.
 
 ## Configuration
 
