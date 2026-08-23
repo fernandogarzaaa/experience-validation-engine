@@ -4,6 +4,7 @@ import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
 import { LlmCognition } from "../src/cognition/llmCognition.js";
 import { EveSession } from "../src/engine/session.js";
 import { LlmCriticPlugin } from "../src/plugins/llmCritic.js";
+import type { EvePlugin, PluginContext } from "../src/plugins/plugin.js";
 
 /**
  * End-to-end check that a session-level `LlmCognition`/`LlmCriticPlugin`
@@ -94,6 +95,43 @@ describe("EveSession surfaces LLM fallback", () => {
 
     expect(result.llmFallbackWarnings.some((w) => w.includes("cognition"))).toBe(true);
     expect(result.llmFallbackWarnings.some((w) => w.includes("plugin"))).toBe(true);
+  }, 30_000);
+
+  it("accepts a fallback reported from a plugin's onSessionStart, before the loop runs", async () => {
+    // Regression guard: reportLlmFallback's underlying recorder must be
+    // initialized before plugins.sessionStart() runs, since a plugin may
+    // call it from onSessionStart — the very first plugin hook invoked.
+    // Declaring the recorder after that call would make this throw a
+    // ReferenceError (TDZ), silently swallowed as a generic plugin error.
+    class EagerFallbackPlugin implements EvePlugin {
+      readonly name = "eager-fallback";
+      onSessionStart(ctx: PluginContext): void {
+        ctx.reportLlmFallback("reported during onSessionStart");
+      }
+    }
+
+    const errors: Array<{ err: unknown; plugin: string }> = [];
+    const session = new EveSession({
+      adapter: new MockAdapter(DEMO_APP),
+      startUrl: "mock:landing",
+      persona: "curious-explorer",
+      plugins: [new EagerFallbackPlugin()],
+      seed: 42,
+      maxSteps: 5,
+      paceScale: 0,
+      onLog: (line) => {
+        if (line.startsWith("plugin ") && line.includes("error")) {
+          errors.push({ err: line, plugin: "eager-fallback" });
+        }
+      },
+    });
+
+    const result = await session.run();
+
+    expect(errors).toEqual([]);
+    expect(
+      result.llmFallbackWarnings.some((w) => w.includes("reported during onSessionStart")),
+    ).toBe(true);
   }, 30_000);
 
   it("is empty when llmCognition is not used at all", async () => {

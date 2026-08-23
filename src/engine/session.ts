@@ -338,6 +338,23 @@ export class EveSession {
       ? new CognitiveSuite(this.persona, this.rng, appMemory, this.options.cognitive)
       : null;
 
+    // Same dedup rationale as goalSignalWarnings below: a policy/plugin that
+    // fails identically every step should read as one advisory, not one per
+    // step. Declared before `pluginCtx` — `reportLlmFallback` can be called
+    // from a plugin's `onSessionStart`, which runs before anything declared
+    // later in this function would have finished initializing.
+    const llmFallbackWarnings: string[] = [];
+    const recordLlmFallback = (source: "cognition" | "plugin", reason: string): void => {
+      void this.events.emit("llm:fallback", { source, reason });
+      const message =
+        source === "cognition"
+          ? `LLM cognition fallback: ${reason}`
+          : `LLM critic plugin fallback: ${reason}`;
+      if (llmFallbackWarnings.includes(message)) return;
+      llmFallbackWarnings.push(message);
+      this.log(`warning: ${message}`);
+    };
+
     const pluginCtx: PluginContext = {
       persona: this.persona,
       startUrl,
@@ -371,20 +388,6 @@ export class EveSession {
     const recordGoalSignalWarning = (message: string): void => {
       if (goalSignalWarnings.includes(message)) return;
       goalSignalWarnings.push(message);
-      this.log(`warning: ${message}`);
-    };
-
-    // Same dedup rationale as goalSignalWarnings: a policy/plugin that fails
-    // identically every step should read as one advisory, not one per step.
-    const llmFallbackWarnings: string[] = [];
-    const recordLlmFallback = (source: "cognition" | "plugin", reason: string): void => {
-      void this.events.emit("llm:fallback", { source, reason });
-      const message =
-        source === "cognition"
-          ? `LLM cognition fallback: ${reason}`
-          : `LLM critic plugin fallback: ${reason}`;
-      if (llmFallbackWarnings.includes(message)) return;
-      llmFallbackWarnings.push(message);
       this.log(`warning: ${message}`);
     };
 
