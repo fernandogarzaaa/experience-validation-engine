@@ -16,6 +16,7 @@
  */
 
 import {
+  type ConversationalKernelPercept,
   type DocumentKernelPercept,
   type KernelPercept,
   type SurfaceSignal,
@@ -28,6 +29,7 @@ import { layoutTextFrame } from "./textFrame.js";
 export function webPerceptFromKernel(kernel: KernelPercept): Percept {
   if (kernel.modality === "visual") return webPerceptFromVisualKernel(kernel);
   if (kernel.modality === "document") return webPerceptFromDocumentKernel(kernel);
+  if (kernel.modality === "conversational") return webPerceptFromConversationKernel(kernel);
 
   const laid = layoutTextFrame({
     lines: [...kernel.lines],
@@ -57,6 +59,60 @@ export function webPerceptFromKernel(kernel: KernelPercept): Percept {
     elements: laid.elements,
     dialogs: legacyDialogs(kernel.signals),
     loadingIndicator: kernel.signals.some((s) => s.type === "loading" && s.active),
+  };
+}
+
+/**
+ * Project a conversational kernel into the deprecated web view.
+ *
+ * A transcript is the closest the web view can come to a dialogue: each turn
+ * becomes a labelled line, most recent last, the way a chat window shows it.
+ * What is lost is everything that makes the modality its own — who is
+ * waiting, how long the last reply took, how many times the operator has
+ * already rephrased. Consumers that need those read the kernel directly.
+ */
+function webPerceptFromConversationKernel(kernel: ConversationalKernelPercept): Percept {
+  const lines: string[] = [];
+  const lineOfTurn = new Map<string, number>();
+  for (const turn of kernel.turns) {
+    lineOfTurn.set(turn.id, lines.length);
+    const label = turn.speaker === "operator" ? "You" : "Assistant";
+    for (const [index, line] of turn.text.split("\n").entries()) {
+      lines.push(index === 0 ? `${label}: ${line}` : line);
+    }
+    lines.push("");
+  }
+  for (const signal of kernel.signals) {
+    if (signal.type === "await-input") lines.push(signal.prompt);
+  }
+
+  const laid = layoutTextFrame({
+    lines,
+    affordances: kernel.affordances
+      .filter((a) => lineOfTurn.has(a.id))
+      .map((a) => ({
+        line: lineOfTurn.get(a.id) ?? 0,
+        column: 0,
+        text: legacyLabel(a.description),
+        role: legacyRole(a.kind, a.state.editable),
+      })),
+    // A chat window shows the whole scrollback the operator still has.
+    windowRows: Math.max(lines.length, 1),
+    scrollLine: 0,
+  });
+
+  return {
+    timestamp: kernel.timestamp,
+    url: kernel.frame.address,
+    title: kernel.frame.label,
+    viewport: laid.viewport,
+    scrollY: 0,
+    scrollHeight: laid.scrollHeight,
+    screenshot: null,
+    elements: laid.elements,
+    dialogs: legacyDialogs(kernel.signals),
+    // "The assistant is typing" is the one loading state a chat surface has.
+    loadingIndicator: kernel.awaitingReply,
   };
 }
 
@@ -117,8 +173,8 @@ function webPerceptFromDocumentKernel(kernel: DocumentKernelPercept): Percept {
 function legacyDialogs(signals: readonly SurfaceSignal[]): Percept["dialogs"] {
   return signals
     .filter(
-      (s): s is Extract<SurfaceSignal, { type: "dialog" | "error" }> =>
-        s.type === "dialog" || s.type === "error",
+      (s): s is Extract<SurfaceSignal, { type: "dialog" | "error" | "not-understood" }> =>
+        s.type === "dialog" || s.type === "error" || s.type === "not-understood",
     )
     .map((s) => ({ text: s.text, box: null }));
 }
@@ -129,6 +185,9 @@ function legacyRole(kind: string, editable: boolean | undefined): PerceivedRole 
   if (editable) return "textbox";
   if (kind === "mcp.field") return "textbox";
   if (kind === "mcp.tool") return "menuitem";
+  if (kind === "chat.suggestion") return "button";
+  if (kind === "chat.handoff") return "link";
+  if (kind === "chat.turn") return "text";
   if (kind === "doc.reference") return "link";
   if (kind === "doc.section") return "menuitem";
   if (kind === "doc.figure") return "image";

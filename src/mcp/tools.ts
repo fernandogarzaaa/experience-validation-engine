@@ -22,6 +22,13 @@ import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calib
 import type { DecisionPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
+import {
+  converse,
+  DEMO_SUPPORT_BOT,
+  HttpBackend,
+  renderConversationMarkdown,
+  ScriptedBackend,
+} from "../conversation/index.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
 import { renderEveBenchMarkdown, runEveBench } from "../evebench/index.js";
 import { artifactWordCount, readArtifact, renderComprehensionMarkdown } from "../humanity/index.js";
@@ -50,6 +57,7 @@ import type {
   BenchmarkInput,
   CalibrateInput,
   CompareBuildsInput,
+  EvaluateConversationInput,
   EveBenchInput,
   GetReportInput,
   MultimodalScanInput,
@@ -664,6 +672,75 @@ export async function runReadArtifact(input: ReadArtifactInput): Promise<ToolOut
         words: artifactWordCount(artifact),
       },
       comprehension,
+      scores: result.scores,
+      findings: result.findings,
+      endReason: result.endReason,
+      usage: result.usage,
+    },
+  };
+}
+
+/**
+ * Talk to a conversational surface as a simulated person and report the
+ * experience — what it understood, what it missed, and where they gave up.
+ */
+export async function runEvaluateConversation(
+  input: EvaluateConversationInput,
+): Promise<ToolOutput> {
+  let persona: Persona;
+  try {
+    persona = getPersona(input.persona);
+    if (input.profession) persona = applyProfession(persona, getProfession(input.profession));
+  } catch {
+    throw new ToolInputError(`Unknown persona "${input.persona}". Call eve_list_personas.`);
+  }
+
+  const isMock = input.target.startsWith("mock:");
+  if (!isMock && !/^https?:\/\//i.test(input.target)) {
+    throw new ToolInputError(
+      `"${input.target}" is not a chat endpoint. Pass an http(s) URL, or "mock:" for the demo bot.`,
+    );
+  }
+
+  const backend = isMock
+    ? new ScriptedBackend(DEMO_SUPPORT_BOT)
+    : new HttpBackend({
+        url: input.target,
+        ...(input.reply_path ? { replyPath: input.reply_path } : {}),
+        ...(input.headers ? { headers: input.headers } : {}),
+        ...(input.body_template ? { bodyTemplate: input.body_template } : {}),
+      });
+
+  const result = await converse(backend, {
+    persona,
+    goal: input.goal,
+    address: isMock ? "chat:mock:" : `chat:${input.target}`,
+    ...(input.kind ? { kind: input.kind } : {}),
+    ...(input.goal_success_signals.length > 0
+      ? { goalSuccessSignals: input.goal_success_signals }
+      : {}),
+    ...(input.seed !== undefined ? { seed: input.seed } : {}),
+    maxSteps: input.max_turns,
+  });
+
+  const markdown = [
+    renderConversationMarkdown(result.conversation, result.transcript),
+    "",
+    "## Session",
+    "",
+    `- Outcome: ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}`,
+    ...result.scores
+      .filter(
+        (score) => score.dimension.startsWith("conversation.") || score.dimension === "overall",
+      )
+      .map((score) => `- ${score.dimension}: ${score.value}/100`),
+  ].join("\n");
+
+  return {
+    markdown: truncate(markdown),
+    structured: {
+      conversation: result.conversation,
+      transcript: result.transcript,
       scores: result.scores,
       findings: result.findings,
       endReason: result.endReason,

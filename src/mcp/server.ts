@@ -24,6 +24,8 @@ import {
   CalibrateSchema,
   type CompareBuildsInput,
   CompareBuildsSchema,
+  type EvaluateConversationInput,
+  EvaluateConversationSchema,
   type EveBenchInput,
   EveBenchSchema,
   type GetReportInput,
@@ -51,6 +53,7 @@ import {
   runApplicationMap,
   runBenchmark,
   runCalibrate,
+  runEvaluateConversation,
   runEveBenchTool,
   runMultimodalScan,
   runPredictUX,
@@ -300,6 +303,37 @@ export function createServer(): McpServer {
     async (input: ReadArtifactInput) => {
       try {
         return respond(await runReadArtifact(input), input.response_format);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "eve_evaluate_conversation",
+    {
+      title: "Evaluate a conversational interface",
+      description:
+        "Put a simulated person in front of something that answers back — a " +
+        "support bot, an LLM copilot, a voice assistant, an in-product 'ask " +
+        "me anything'. Reports what it understood and what it missed: replies " +
+        "that answered a different question without saying so, how many times " +
+        "the person had to rephrase, whether it ever admitted being lost, " +
+        "whether there was any route to a human, and how long they waited. " +
+        "The operator rephrases and gives up the way a real person does, so " +
+        "the outcome distinguishes a conversation that resolved from one they " +
+        "walked away from. Works offline against `mock:`.",
+      inputSchema: EvaluateConversationSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input: EvaluateConversationInput) => {
+      try {
+        return respond(await runEvaluateConversation(input), input.response_format);
       } catch (error) {
         return fail(error);
       }

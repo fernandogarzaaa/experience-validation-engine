@@ -7,6 +7,13 @@ import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { LlmCognition } from "../cognition/llmCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
 import { type EveConfig, loadConfigFile, resolveConfig } from "../config/config.js";
+import {
+  converse,
+  DEMO_SUPPORT_BOT,
+  HttpBackend,
+  renderConversationMarkdown,
+  ScriptedBackend,
+} from "../conversation/index.js";
 import { EveSession, type SessionResult } from "../engine/session.js";
 import {
   artifactWordCount,
@@ -56,6 +63,9 @@ const HELP = `eve — Experience Validation Engine ("AI that experiences softwar
 
 Usage:
   eve run <url> [options]     Run a simulated-human session against a URL
+  eve chat <target> [options] Talk to something that answers back (a support
+                              bot, an LLM copilot, a voice assistant). Use
+                              "mock:" for the built-in offline demo bot.
   eve read <target> [options] Read a digital output like a human (documents,
                               decks, analytics, transcripts, payloads, help
                               screens). Use "-" to read standard input.
@@ -128,6 +138,10 @@ Examples:
   eve read ./metrics.csv --goal "did signups grow"
   git log --oneline | eve read - --genre transcript
   eve read https://example.com/changelog.html --report .eve-output/reading.md
+  eve chat mock: --goal "get a refund for being charged twice"
+  eve chat https://api.example.com/chat --goal "reset my password" --success "sent,email"
+  eve chat https://api.example.com/v1/chat --reply-path choices.0.message.content \\
+    --header "authorization: Bearer $TOKEN" --persona impatient-user
 
 Options for "read":
   --persona <name>      Reader to simulate (default: first-time-user)
@@ -142,6 +156,23 @@ Options for "read":
   --out <dir>           Write session reports here (default .eve-output)
   --report <file>       Also write the reading report as Markdown
   --json                Print the comprehension analysis as JSON
+  --quiet               Only print the final summary
+
+Options for "chat":
+  --persona <name>      Who is doing the talking (default: first-time-user)
+  --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
+  --goal <text>         What they came for — becomes their opening line
+  --success <a,b>       Words that mean they got it (comma-separated)
+  --kind <name>         support | assistant | copilot | scripted
+  --turns <n>           Max turns before giving up (default 24)
+  --seed <value>        Reproducibility seed
+  --reply-path <path>   Where the reply lives in the response JSON, e.g.
+                        choices.0.message.content (default: common shapes)
+  --header <k:v>        Extra request header (repeatable)
+  --body <json>         Request body template; {{message}} is substituted
+  --out <dir>           Write session reports here (default .eve-output)
+  --report <file>       Also write the conversation report as Markdown
+  --json                Print the conversation analysis as JSON
   --quiet               Only print the final summary
 
 Options for "mcp-eval":
@@ -203,6 +234,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (command === "read") {
     return runReadCommand(rest);
+  }
+
+  if (command === "chat") {
+    return runChatCommand(rest);
   }
 
   // `doc:` routes a target at the humanity seam, so a document can sit
@@ -734,4 +769,173 @@ async function runReadCommand(rest: readonly string[]): Promise<number> {
 /** A critical finding fails the run, so `eve read` works as a CI gate. */
 function exitCodeFor(findings: readonly { severity: string }[]): number {
   return findings.some((f) => f.severity === "critical") ? 1 : 0;
+}
+
+/**
+ * `eve chat <target>` — put a person in front of something that answers back.
+ *
+ * The conversational counterpart of `eve run` and `eve read`: same personas,
+ * same session loop, same evidence-backed reports, but the operator talks and
+ * the surface talks back. `mock:` is the built-in demo bot, so the seam can
+ * be demonstrated with no network and no API key.
+ */
+async function runChatCommand(rest: readonly string[]): Promise<number> {
+  let values: Record<string, string | string[] | boolean | undefined>;
+  let positionals: string[];
+  try {
+    const parsed = parseArgs({
+      args: [...rest],
+      allowPositionals: true,
+      options: {
+        persona: { type: "string" },
+        profession: { type: "string" },
+        goal: { type: "string" },
+        success: { type: "string" },
+        kind: { type: "string" },
+        turns: { type: "string" },
+        seed: { type: "string" },
+        "reply-path": { type: "string" },
+        header: { type: "string", multiple: true },
+        body: { type: "string" },
+        out: { type: "string" },
+        report: { type: "string" },
+        json: { type: "boolean" },
+        quiet: { type: "boolean" },
+      },
+    });
+    values = parsed.values as Record<string, string | string[] | boolean | undefined>;
+    positionals = parsed.positionals;
+  } catch (err) {
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    return 2;
+  }
+
+  const target = positionals[0];
+  if (!target) {
+    process.stderr.write(`"eve chat" needs a chat endpoint URL, or "mock:" for the demo bot.\n`);
+    return 2;
+  }
+
+  let persona: Persona;
+  try {
+    persona = getPersona(typeof values.persona === "string" ? values.persona : "first-time-user");
+    if (typeof values.profession === "string") {
+      persona = applyProfession(persona, getProfession(values.profession));
+    }
+  } catch (err) {
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    return 2;
+  }
+
+  const quiet = values.quiet === true;
+  const asJson = values.json === true;
+  const log = (line: string) => {
+    if (!quiet && !asJson) process.stdout.write(`  ${line}\n`);
+  };
+
+  const isMock = target === "mock:" || target.startsWith("mock:");
+  const backend = isMock
+    ? new ScriptedBackend(DEMO_SUPPORT_BOT)
+    : new HttpBackend({
+        url: target,
+        ...(typeof values["reply-path"] === "string" ? { replyPath: values["reply-path"] } : {}),
+        ...(typeof values.body === "string" ? { bodyTemplate: values.body } : {}),
+        ...(Array.isArray(values.header) ? { headers: parseHeaders(values.header) } : {}),
+      });
+
+  const goal = typeof values.goal === "string" ? values.goal : "get help with my problem";
+
+  if (!quiet && !asJson) {
+    process.stdout.write(`\nEVE — "${persona.name}" talking to ${target}\n\n`);
+  }
+
+  try {
+    const result = await converse(backend, {
+      persona,
+      goal,
+      address: isMock ? "chat:mock:" : `chat:${target}`,
+      ...(typeof values.kind === "string" ? { kind: values.kind as never } : {}),
+      ...(typeof values.success === "string"
+        ? {
+            goalSuccessSignals: values.success
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          }
+        : {}),
+      ...(typeof values.seed === "string"
+        ? { seed: /^\d+$/.test(values.seed) ? Number(values.seed) : values.seed }
+        : {}),
+      ...(typeof values.turns === "string"
+        ? { maxSteps: parsePositiveInt(values.turns, "--turns") }
+        : {}),
+      onLog: log,
+    });
+
+    if (asJson) {
+      process.stdout.write(`${JSON.stringify(result.conversation, null, 2)}\n`);
+      return exitCodeFor(result.findings);
+    }
+
+    const markdown = renderConversationMarkdown(result.conversation, result.transcript);
+    if (typeof values.report === "string") {
+      await mkdir(dirname(values.report), { recursive: true });
+      await writeFile(values.report, markdown, "utf8");
+    }
+
+    const written = await writeReports(
+      result,
+      typeof values.out === "string" ? values.out : ".eve-output",
+    );
+    const critical = result.findings.filter((f) => f.severity === "critical").length;
+    const major = result.findings.filter((f) => f.severity === "major").length;
+    const c = result.conversation;
+
+    process.stdout.write(`\n${"─".repeat(64)}\n`);
+    process.stdout.write(
+      `Conversation             : ${c.kind}, ${c.turnCount} turn(s), asked ${c.operatorTurns} time(s)\n`,
+    );
+    process.stdout.write(
+      `Understood the person    : ${c.understanding}/100 (${c.silentMisses} silent miss(es), ${c.admittedMisses} admitted)\n`,
+    );
+    process.stdout.write(`Showed it understood     : ${c.grounding}/100\n`);
+    process.stdout.write(
+      `Recovered when it failed : ${c.recovery}/100 (${c.everOfferedHandoff ? "offered a person" : "never offered a person"})\n`,
+    );
+    process.stdout.write(`Had to rephrase          : ${c.repairAttempts}×\n`);
+    if (c.meanLatencyMs !== null) {
+      process.stdout.write(
+        `Reply time               : mean ${(c.meanLatencyMs / 1000).toFixed(1)}s, slowest ${((c.maxLatencyMs ?? 0) / 1000).toFixed(1)}s\n`,
+      );
+    }
+    process.stdout.write(
+      `Findings                 : ${critical} critical, ${major} major, ${result.findings.length - critical - major} other\n`,
+    );
+    process.stdout.write(
+      `Outcome                  : ${result.endReason}${result.abandonReason ? ` — ${result.abandonReason}` : ""}\n`,
+    );
+    process.stdout.write(`Reports                  : ${written.html}\n`);
+    if (typeof values.report === "string") {
+      process.stdout.write(`Conversation report      : ${values.report}\n`);
+    }
+    process.stdout.write("\n");
+
+    return exitCodeFor(result.findings);
+  } catch (err) {
+    process.stderr.write(
+      `\nEVE chat failed: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+    return 1;
+  }
+}
+
+/** `--header "authorization: Bearer x"` → `{ authorization: "Bearer x" }`. */
+function parseHeaders(raw: readonly string[]): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const entry of raw) {
+    const separator = entry.indexOf(":");
+    if (separator <= 0) continue;
+    headers[entry.slice(0, separator).trim()] = entry.slice(separator + 1).trim();
+  }
+  return headers;
 }

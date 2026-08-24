@@ -355,10 +355,19 @@ export class EveSession {
       this.log(`warning: ${message}`);
     };
 
+    // Declared before `pluginCtx` so the getter below never reads it in its
+    // temporal dead zone; the loop assigns it as the session progresses.
+    let goalAchieved = false;
     const pluginCtx: PluginContext = {
       persona: this.persona,
       startUrl,
       capabilities: adapter.capabilities,
+      // A getter, not a snapshot: plugins read this in `onSessionEnd`, long
+      // after the context object was built, and need what the session
+      // concluded rather than what it assumed at the start.
+      get goalAchieved() {
+        return goalAchieved;
+      },
       report: (f) => this.addFinding({ ...f, timestamp: this.simClock }),
       reportLlmFallback: (reason) => recordLlmFallback("plugin", reason),
     };
@@ -373,7 +382,6 @@ export class EveSession {
     let endReason = "budget-exhausted";
     let abandoned = false;
     let abandonReason: string | null = null;
-    let goalAchieved = false;
     let appTheory = "";
     let lastVia: string | null = null;
     let previousPercept: Percept | null = null;

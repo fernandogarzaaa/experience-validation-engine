@@ -31,7 +31,9 @@ import { synthesizeArguments } from "./toolArgs.js";
  *
  * On a document surface (`src/humanity/`) the priorities are a reader's
  * rather than an operator's, and {@link HeuristicCognition.handleDocumentSurface}
- * runs its own cascade instead.
+ * runs its own cascade instead. In a dialogue (`src/conversation/`) they are
+ * a speaker's, and {@link HeuristicCognition.handleConversationSurface} runs
+ * that one.
  *
  * All stochastic choices go through the session RNG so runs are reproducible.
  */
@@ -58,6 +60,12 @@ export class HeuristicCognition implements DecisionPolicy {
     //     kernel percept is a document, so web/CLI/MCP behavior is unchanged.
     const documentDecision = this.handleDocumentSurface(ctx, sig);
     if (documentDecision) return documentDecision;
+
+    // 0c. Kernel-native conversational surface (the dialogue seam): talking
+    //     is its own cascade — the only one where the surface can fail to
+    //     understand the operator. Fires only on a conversational kernel.
+    const conversationDecision = this.handleConversationSurface(ctx);
+    if (conversationDecision) return conversationDecision;
 
     // 1. A dialog is blocking the screen.
     const dialogDecision = this.handleDialog(ctx);
@@ -667,6 +675,256 @@ export class HeuristicCognition implements DecisionPolicy {
     };
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Kernel-native conversational surfaces (the dialogue seam)         */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Decide natively in a dialogue (`src/conversation/`) — the talking
+   * cascade, which is neither the operating one nor the reading one.
+   *
+   * Someone driving software asks "what can I click"; someone reading asks
+   * "do I understand this"; someone in a conversation asks a third thing:
+   * **"did it understand *me*, and is it worth trying again?"** That question
+   * has no analogue on any other surface, and the answer is what the whole
+   * experience turns on:
+   *
+   *  1. It's still typing → wait, but patience is finite.
+   *  2. It's gone → nothing left to talk to.
+   *  3. I've had enough → leave.
+   *  4. It didn't get me → say it differently, while I still have the will.
+   *  5. I've rephrased too many times → ask for a human.
+   *  6. It won't help and offered a way out → take it.
+   *  7. I haven't said anything yet → open with what I came for.
+   *  8. It answered → follow up on what's still missing.
+   *
+   * Returns null unless the kernel percept is a conversation, so no existing
+   * surface enters this branch and every other cascade is untouched.
+   */
+  private handleConversationSurface(ctx: CognitiveContext): Decision | null {
+    const kernel = ctx.kernel;
+    if (kernel?.modality !== "conversational") return null;
+    const { persona, emotion, memory, goals, rng } = ctx;
+
+    // 1. It is composing. Waiting on a bot is not like waiting on a page:
+    //    there is a person on the other end of the metaphor, so people give
+    //    it longer — and resent it more when nothing comes.
+    if (kernel.awaitingReply) {
+      const waitMs = 800 + persona.traits.patience * 4000;
+      return {
+        action: { kind: "wait", durationMs: waitMs },
+        rationale: "It's typing — I'll give it a moment.",
+        prediction: {
+          description: "It should answer in a second.",
+          expectedSignals: [],
+          expectsChange: true,
+          confidence: 0.7,
+        },
+        effort: 0.05,
+      };
+    }
+
+    // 2. The conversation is over from the other side.
+    if (kernel.signals.some((s) => s.type === "surface-terminated")) {
+      return {
+        action: {
+          kind: "abandon",
+          reason: "The conversation ended before I got what I needed.",
+        },
+        rationale: "It's gone. There's nothing left to talk to.",
+        prediction: {
+          description: "I stop.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 1,
+        },
+        effort: 0,
+      };
+    }
+
+    // 3. The breaking point. In a dialogue this arrives with a particular
+    //    flavour — not "this is broken" but "it isn't listening to me".
+    if (emotion.frustration >= abandonmentThreshold(persona)) {
+      return {
+        action: {
+          kind: "abandon",
+          reason: `Gave up after ${kernel.repairAttempts} attempt(s) to be understood while trying to ${goals.root.description}.`,
+        },
+        rationale: "I've said this every way I know how. It isn't listening.",
+        prediction: {
+          description: "I stop talking to it.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 1,
+        },
+        effort: 0,
+      };
+    }
+
+    const misunderstood = kernel.signals.find(
+      (s): s is Extract<SurfaceSignal, { type: "not-understood" }> => s.type === "not-understood",
+    );
+    const handoff = kernel.affordances.find((a) => a.kind === "chat.handoff");
+    // Willingness to try again, spent down by every attempt already made.
+    const persistence = clamp01(
+      (persona.traits.patience * 0.5 + persona.traits.resilience * 0.5) *
+        (1 - kernel.repairAttempts * 0.3),
+    );
+
+    // 4/5. It did not understand. Rephrase, or stop rephrasing.
+    if (misunderstood) {
+      // Nobody walks away from the first miss without trying once — being
+      // misunderstood one time reads as bad luck, not as a broken surface.
+      // The give-up branch only opens once a repair has already failed.
+      const mayGiveUp = kernel.repairAttempts >= 1;
+      if (mayGiveUp && (kernel.repairAttempts >= 2 || rng.next() > persistence)) {
+        if (handoff) {
+          return {
+            action: { kind: "invoke", verb: "chat.escalate", target: null },
+            rationale: "This isn't working. Let me talk to a person.",
+            prediction: {
+              description: "It should hand me over to someone.",
+              expectedSignals: ["human", "agent", "person"],
+              expectsChange: true,
+              confidence: 0.6,
+            },
+            effort: 0.2,
+          };
+        }
+        return {
+          action: {
+            kind: "abandon",
+            reason: `It never understood "${goals.root.description}", and there is no way to reach a person.`,
+          },
+          rationale: "It doesn't understand me and there's no way through to anyone who would.",
+          prediction: {
+            description: "I give up on this channel.",
+            expectedSignals: [],
+            expectsChange: false,
+            confidence: 1,
+          },
+          effort: 0,
+        };
+      }
+
+      return {
+        action: {
+          kind: "invoke",
+          verb: "chat.rephrase",
+          target: null,
+          payload: rephrase(goals.root.description, kernel.repairAttempts),
+        },
+        rationale: misunderstood.confident
+          ? "That answered something I didn't ask. Let me try putting it another way."
+          : "It didn't get that. Let me say it differently.",
+        prediction: {
+          description: "Maybe it understands this phrasing.",
+          expectedSignals: [],
+          expectsChange: true,
+          confidence: clamp01(0.5 - kernel.repairAttempts * 0.15),
+        },
+        effort: clamp01(0.3 + kernel.repairAttempts * 0.2),
+      };
+    }
+
+    // 6. It declined, but named a way out. People take the exit when offered.
+    const refused = kernel.signals.some((s) => s.type === "error");
+    if (refused && handoff) {
+      return {
+        action: { kind: "invoke", verb: "chat.escalate", target: null },
+        rationale: "It can't help with this, but it offered a person — I'll take that.",
+        prediction: {
+          description: "Someone who can help should pick this up.",
+          expectedSignals: ["human", "agent", "person"],
+          expectsChange: true,
+          confidence: 0.65,
+        },
+        effort: 0.15,
+      };
+    }
+
+    // 7. Nothing said yet: open with what I actually came for.
+    const openedKey = `said:${kernel.frame.address}`;
+    const hasSpoken = kernel.turns.some((turn) => turn.speaker === "operator");
+    if (!hasSpoken) {
+      memory.hold(openedKey, ctx.step);
+      return {
+        action: {
+          kind: "invoke",
+          verb: "chat.say",
+          target: null,
+          payload: goals.root.description,
+        },
+        rationale: `Asking about what I came for: ${goals.root.description}.`,
+        prediction: {
+          description: "It should answer, or ask me something back.",
+          expectedSignals: [],
+          expectsChange: true,
+          confidence: this.baseConfidence(ctx),
+        },
+        effort: 0.2,
+      };
+    }
+
+    // 8. It answered something. Follow up on the part that is still missing.
+    const followUpKey = `followup:${kernel.turns.length}`;
+    if (!memory.currentThoughts().some((t) => t.content === followUpKey)) {
+      memory.hold(followUpKey, ctx.step);
+      const suggestion = kernel.affordances.find((a) => a.kind === "chat.suggestion");
+      if (suggestion && rng.next() < persona.traits.keyboardPreference + 0.35) {
+        // A chip is the cheapest possible turn, and people take cheap turns.
+        return {
+          action: {
+            kind: "invoke",
+            verb: "chat.followup",
+            target: null,
+            payload: suggestion.description,
+          },
+          rationale: `It offered "${suggestion.description}" — that's easier than typing.`,
+          prediction: {
+            description: "It should follow its own suggestion somewhere useful.",
+            expectedSignals: [],
+            expectsChange: true,
+            confidence: 0.7,
+          },
+          effort: 0.1,
+        };
+      }
+      return {
+        action: {
+          kind: "invoke",
+          verb: "chat.followup",
+          target: null,
+          payload: followUp(goals.root.description, kernel.turns.length),
+        },
+        rationale: "That didn't quite cover it — following up.",
+        prediction: {
+          description: "The follow-up should fill in what's missing.",
+          expectedSignals: [],
+          expectsChange: true,
+          confidence: 0.55,
+        },
+        effort: 0.25,
+      };
+    }
+
+    // Nothing left to ask, and it never got there.
+    return {
+      action: {
+        kind: "abandon",
+        reason: `The conversation stopped being useful before "${goals.root.description}" was resolved.`,
+      },
+      rationale: "We're going in circles. I'll find another way.",
+      prediction: {
+        description: "I stop talking to it.",
+        expectedSignals: [],
+        expectsChange: false,
+        confidence: 1,
+      },
+      effort: 0,
+    };
+  }
+
   private handleDialog(ctx: CognitiveContext): Decision | null {
     const { percept, persona } = ctx;
     if (percept.dialogs.length === 0) return null;
@@ -832,4 +1090,42 @@ const STUDYABLE: ReadonlySet<string> = new Set(["doc.table", "doc.figure", "doc.
 function truncateLabel(text: string, max = 60): string {
   const clean = text.replace(/\s+/g, " ").trim();
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+}
+
+/**
+ * Say the same thing a different way.
+ *
+ * People do not rewrite from scratch when a bot misses them — they simplify,
+ * then they shout. The progression here is the one anyone can recognize
+ * from their own last argument with a support bot: add words to explain,
+ * then strip words down to the keyword, in the hope that plainer input is
+ * what it wanted.
+ */
+function rephrase(goal: string, attempt: number): string {
+  const core = goal.replace(/^(?:i want to|i need to|try to|please)\s+/i, "").trim();
+  switch (attempt) {
+    case 0:
+      return `Sorry — what I mean is: ${core}`;
+    case 1:
+      // "I need to <core>" rather than "I need help with <core>": goals are
+      // phrased as verbs ("get a refund"), and the latter reads as broken
+      // English in the transcript the report prints.
+      return `Let me put it another way — I need to ${core}.`;
+    default:
+      // The last resort: keywords, no sentence. This is what people type
+      // when they have given up on being understood as a person.
+      return core
+        .split(/\s+/)
+        .filter((word) => word.length > 3)
+        .slice(0, 4)
+        .join(" ");
+  }
+}
+
+/** Ask for the part the answer left out. */
+function followUp(goal: string, turns: number): string {
+  const core = goal.replace(/^(?:i want to|i need to|try to|please)\s+/i, "").trim();
+  return turns > 4
+    ? `That still doesn't answer it — how do I actually ${core}?`
+    : `Thanks — and how do I ${core}?`;
 }

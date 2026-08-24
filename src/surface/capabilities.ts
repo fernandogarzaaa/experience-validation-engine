@@ -135,3 +135,40 @@ export const DOCUMENT_VERBS = [
   "read",
   "wait",
 ] as const;
+
+/**
+ * A conversational surface (`src/conversation/`): something that answers
+ * back — a support bot, an LLM copilot, a voice assistant.
+ *
+ * Turn order is its geometry, so there is no pixel layout, nothing to
+ * screenshot, and no pointer. `canGoBack` is false for a reason worth
+ * stating: a dialogue has no back button, and that is exactly why a
+ * misunderstanding is expensive — the only way out is forward, by saying
+ * something else. `canScroll` is true because scrollback is real: the
+ * operator can look at what was said earlier, up to what they still recall.
+ */
+export const CONVERSATIONAL_SURFACE: SurfaceCapabilities = {
+  spatial: false,
+  modality: "conversational",
+  canScreenshot: false,
+  canGoBack: false,
+  canScroll: true,
+  pointer: "mouse",
+  canHover: false,
+};
+
+/**
+ * The verbs an operator actuates in a dialogue. Talking is not clicking:
+ * you open, you follow up, you rephrase the thing that did not land, you
+ * answer the question you were asked back, and when none of it works you
+ * ask for a human.
+ */
+export const CONVERSATION_VERBS = [
+  "chat.say",
+  "chat.followup",
+  "chat.rephrase",
+  "chat.clarify",
+  "chat.escalate",
+  "read",
+  "wait",
+] as const;

@@ -25,6 +25,15 @@ export interface PluginContext {
   readonly startUrl: string;
   /** Which perceptual dimensions the current surface actually has. */
   readonly capabilities: SurfaceCapabilities;
+  /**
+   * Whether the operator got what they came for, as the session sees it
+   * *right now*. Meaningful in `onSessionEnd`, where it is settled; earlier
+   * in the loop it reports progress so far, which is usually `false`.
+   *
+   * A plugin that judges the session as a whole needs this: "took nine turns
+   * without resolving it" is a finding only when it was not resolved.
+   */
+  readonly goalAchieved: boolean;
   /** Report a finding into the session. Deduplicated by (title, url). */
   report(finding: Omit<Finding, "id" | "timestamp">): void;
   /**

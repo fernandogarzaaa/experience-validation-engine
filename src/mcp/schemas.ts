@@ -291,6 +291,59 @@ export const ReadArtifactSchema = z
   })
   .strict();
 
+/**
+ * `eve_evaluate_conversation` — talk to something that answers back.
+ *
+ * The conversational counterpart of `eve_run_session`: the target replies
+ * rather than being driven or read.
+ */
+export const EvaluateConversationSchema = z
+  .object({
+    target: z
+      .string()
+      .min(1)
+      .describe("Chat endpoint URL, or `mock:` for the built-in offline demo bot."),
+    persona: z.string().default("first-time-user").describe("Who is doing the talking."),
+    profession: z.string().optional().describe("Professional overlay for the operator."),
+    goal: z
+      .string()
+      .default("get help with my problem")
+      .describe(
+        "What the person came for — becomes their opening line, so phrase it as they would say it.",
+      ),
+    goal_success_signals: z
+      .array(z.string())
+      .default([])
+      .describe("Words in a reply that mean they got what they came for."),
+    kind: z
+      .enum(["support", "assistant", "copilot", "scripted"])
+      .optional()
+      .describe("What is being talked to; sets what the operator expects."),
+    reply_path: z
+      .string()
+      .optional()
+      .describe(
+        "Dotted path to the reply text, e.g. choices.0.message.content. Common shapes are tried by default.",
+      ),
+    headers: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe("Extra request headers, e.g. an authorization token."),
+    body_template: z
+      .string()
+      .optional()
+      .describe(
+        'Request body template; {{message}} is substituted. Default {"message": "{{message}}"}.',
+      ),
+    max_turns: z.number().int().min(1).max(100).default(24).describe("Max turns before giving up."),
+    seed: z.union([z.number(), z.string()]).optional().describe("Seed for reproducibility."),
+    response_format: z
+      .nativeEnum(ResponseFormat)
+      .default(ResponseFormat.MARKDOWN)
+      .describe("Output format: 'markdown' conversation report or 'json'."),
+  })
+  .strict();
+
 /** `eve_calibrate` — score EVE's realism against a human study. */
 export const CalibrateSchema = z
   .object({
@@ -478,6 +531,7 @@ export type TwinSessionInput = z.infer<typeof TwinSessionSchema>;
 export type CalibrateInput = z.infer<typeof CalibrateSchema>;
 export type MultimodalScanInput = z.infer<typeof MultimodalScanSchema>;
 export type ReadArtifactInput = z.infer<typeof ReadArtifactSchema>;
+export type EvaluateConversationInput = z.infer<typeof EvaluateConversationSchema>;
 export type EveBenchInput = z.infer<typeof EveBenchSchema>;
 export type ListInput = z.infer<typeof ListSchema>;
 export type BenchmarkInput = z.infer<typeof BenchmarkSchema>;

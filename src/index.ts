@@ -30,6 +30,9 @@ export * from "./cognition/index.js";
 export * from "./collaborative/index.js";
 // Configuration
 export * from "./config/index.js";
+// The dialogue seam: EVE talks to surfaces that answer back (support bots,
+// LLM copilots, voice assistants) rather than only driving or reading them.
+export * from "./conversation/index.js";
 export type { EveEventMap, EveEventName } from "./core/events.js";
 export { EventBus } from "./core/events.js";
 // Vocabulary registries (formerly closed unions; see src/core/registry.ts)
@@ -38,6 +41,7 @@ export type {
   Affordance,
   AffordanceLocator,
   ContentBlock,
+  ConversationalKernelPercept,
   DocumentKernelPercept,
   FrameIdentity,
   KernelAction,
@@ -127,6 +131,8 @@ export * from "./study/index.js";
 // Non-browser surfaces (textual seam: CLI adapter, MCP adapter + connector)
 export type { SurfaceCapabilities } from "./surface/capabilities.js";
 export {
+  CONVERSATION_VERBS,
+  CONVERSATIONAL_SURFACE,
   DOCUMENT_SURFACE,
   DOCUMENT_VERBS,
   TEXTUAL_SURFACE,
