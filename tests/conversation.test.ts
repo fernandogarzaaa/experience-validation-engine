@@ -114,6 +114,69 @@ describe("recognizing what the surface said about itself", () => {
   });
 });
 
+describe("replies are untrusted input", () => {
+  /**
+   * Every pattern in this seam runs over what a *bot* said, and a bot is
+   * whatever endpoint the caller pointed EVE at. A reply that happens to be
+   * a long run of the characters a pattern cares about is ordinary input,
+   * not an attack that has to get past anything first — so matching has to
+   * stay linear. The handoff pattern used to phrase its optional article as
+   * `\s+(?:a|an|our)?\s*`, which let a whitespace run belong to two matchers
+   * at once and cost quadratic time: 415ms at 16k characters.
+   */
+  const BUDGET_MS = 1000;
+
+  function timed(fn: () => void): number {
+    const start = performance.now();
+    fn();
+    return performance.now() - start;
+  }
+
+  it("reads a reply that is mostly whitespace without backtracking", () => {
+    const hostile = `escalating you to${"  ".repeat(32_000)}x`;
+    expect(timed(() => offersHandoff({ text: hostile }))).toBeLessThan(BUDGET_MS);
+    expect(timed(() => detectNonAnswer(hostile))).toBeLessThan(BUDGET_MS);
+  });
+
+  it("analyses a transcript of hostile replies without backtracking", () => {
+    const hostile = `what is your ${" ".repeat(32_000)}x`;
+    const elapsed = timed(() =>
+      analyzeConversation({
+        address: "chat:test",
+        kind: "support",
+        persona: firstTimer,
+        goal: "get a refund",
+        turns: turns(["operator", "get a refund"], ["surface", hostile]),
+        repairAttempts: 0,
+        goalAchieved: false,
+      }),
+    );
+    expect(elapsed).toBeLessThan(BUDGET_MS);
+  });
+
+  it("still recognizes every way a surface offers a person", () => {
+    for (const text of [
+      "Let me connect you with a human agent.",
+      "I will transfer you to an advisor.",
+      "Escalating you to our support team now.",
+      "You can speak with a representative.",
+      "Our live chat is available 9-5.",
+    ]) {
+      expect(offersHandoff({ text }), text).toBe(true);
+    }
+  });
+
+  it("does not mistake ordinary talk for a handoff", () => {
+    for (const text of [
+      "I can talk to you about returns.",
+      "Here is the FAQ.",
+      "Your agent settings are under Account.",
+    ]) {
+      expect(offersHandoff({ text }), text).toBe(false);
+    }
+  });
+});
+
 describe("ConversationAdapter", () => {
   async function open(backend = GOOD_BOT): Promise<ConversationAdapter> {
     const adapter = new ConversationAdapter({ backend, persona: firstTimer });

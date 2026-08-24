@@ -129,9 +129,18 @@ export function detectNonAnswer(text: string): {
   };
 }
 
-/** Phrases that offer a way to reach a person. */
+/**
+ * Phrases that offer a way to reach a person.
+ *
+ * The optional article carries its own trailing space rather than sitting
+ * between `\s+` and `\s*`. Phrased the natural way — `\s+(?:a|an|our)?\s*` —
+ * a run of whitespace belongs to both matchers, so every way of splitting it
+ * is a candidate the engine has to try, and a reply that ends up not being a
+ * handoff costs quadratic time. Replies come from whatever endpoint the
+ * caller pointed EVE at, so a pathological one is ordinary input.
+ */
 const HANDOFF =
-  /\b(?:speak|talk|connect(?:ing)?|transfer(?:ring)?|escalat\w*)\s+(?:you\s+)?(?:to|with)\s+(?:a|an|our)?\s*(?:human|agent|representative|person|advisor|support team)\b|\bhuman agent\b|\blive (?:agent|chat|support)\b/i;
+  /\b(?:speak|talk|connect(?:ing)?|transfer(?:ring)?|escalat\w*)\s+(?:you\s+)?(?:to|with)\s+(?:(?:an?|our)\s+)?(?:human|agent|representative|person|advisor|support team)\b|\bhuman agent\b|\blive (?:agent|chat|support)\b/i;
 
 /** True when the reply offers a route to a person. */
 export function offersHandoff(reply: ConversationReply): boolean {
