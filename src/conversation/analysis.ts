@@ -20,7 +20,7 @@ import { clamp01 } from "../core/random.js";
 import type { Finding } from "../core/types.js";
 import type { Persona } from "../personas/persona.js";
 import { contentWords, isNearMiss } from "./overlap.js";
-import type { ConversationKind } from "./types.js";
+import type { ClassifiedTurn, ConversationKind } from "./types.js";
 import { offersHandoff, turnWordCount } from "./types.js";
 
 /* ------------------------------------------------------------------ */
@@ -67,7 +67,12 @@ export interface ConversationAnalysis {
 export interface AnalyzeConversationInput {
   readonly address: string;
   readonly kind: ConversationKind;
-  readonly turns: readonly ConversationTurn[];
+  /**
+   * The transcript, carrying the surface's own classification where the
+   * backend supplied one. Plain {@link ConversationTurn}s are accepted and
+   * fall back to reading the wording.
+   */
+  readonly turns: readonly (ConversationTurn | ClassifiedTurn)[];
   readonly repairAttempts: number;
   readonly persona: Persona;
   /** Whether the operator ended up with what they came for. */
@@ -80,7 +85,7 @@ export function analyzeConversation(input: AnalyzeConversationInput): Conversati
   const surfaceTurns = turns.filter((turn) => turn.speaker === "surface");
   const operatorTurns = turns.filter((turn) => turn.speaker === "operator");
 
-  const admittedMisses = surfaceTurns.filter((turn) => admittedMiss(turn.text)).length;
+  const admittedMisses = surfaceTurns.filter(saidItDidNotUnderstand).length;
   const silentMisses = countSilentMisses(turns);
   const everOfferedHandoff = surfaceTurns.some((turn) =>
     offersHandoff({ text: turn.text, affordances: affordancesOf(turn) }),
@@ -101,11 +106,20 @@ export function analyzeConversation(input: AnalyzeConversationInput): Conversati
     1 - (admittedMisses * 0.6 + silentMisses) / asked - input.repairAttempts * 0.1,
   );
   const grounding = clamp01(1 - silentMisses / asked - amnesiaCount(turns) * 0.25);
-  const recovery = clamp01(
-    (everOfferedHandoff ? 0.6 : 0) +
-      (admittedMisses > 0 ? 0.2 : 0.4) +
-      (input.goalAchieved ? 0.2 : 0),
-  );
+  // Recovery is "what happened when it failed", so a conversation that never
+  // failed has nothing to recover from and scores full marks. When it did
+  // fail, three things are worth credit — and admitting the miss is worth
+  // credit *over* bluffing, which the previous formula had exactly backwards:
+  // it scored an honest bot below an evasive one on identical transcripts.
+  const failures = admittedMisses + silentMisses;
+  const recovery =
+    failures === 0 && input.repairAttempts === 0
+      ? 1
+      : clamp01(
+          (everOfferedHandoff ? 0.5 : 0) +
+            (failures > 0 ? (admittedMisses / failures) * 0.3 : 0.3) +
+            (input.goalAchieved ? 0.2 : 0),
+        );
 
   return {
     address,
@@ -281,6 +295,21 @@ function admittedMiss(text: string): boolean {
   return ADMITTED_MISS.test(text);
 }
 
+/**
+ * Did the surface say it did not understand?
+ *
+ * The backend's own flag wins where it exists — a scripted fallback intent
+ * or an API no-match signal is the surface admitting the miss, whatever
+ * words it dressed the admission in. Only when nothing was declared does
+ * this fall back to reading the wording.
+ */
+function saidItDidNotUnderstand(turn: ConversationTurn | ClassifiedTurn): boolean {
+  if ("notUnderstood" in turn && typeof turn.notUnderstood === "boolean") {
+    return turn.notUnderstood;
+  }
+  return admittedMiss(turn.text);
+}
+
 function affordancesOf(
   turn: ConversationTurn,
 ): readonly { id: string; kind: "suggestion" | "handoff" | "action"; label: string }[] | undefined {
@@ -298,27 +327,27 @@ function affordancesOf(
  * vocabulary. Conservative by design — short replies and replies that echo
  * the question are never counted.
  */
-function countSilentMisses(turns: readonly ConversationTurn[]): number {
+function countSilentMisses(turns: readonly (ConversationTurn | ClassifiedTurn)[]): number {
   let count = 0;
   for (let i = 1; i < turns.length; i++) {
     const reply = turns[i];
     const asked = turns[i - 1];
     if (!reply || !asked) continue;
     if (reply.speaker !== "surface" || asked.speaker !== "operator") continue;
-    if (admittedMiss(reply.text)) continue;
+    if (saidItDidNotUnderstand(reply)) continue;
     if (isNearMiss(asked.text, reply.text)) count += 1;
   }
   return count;
 }
 
-function silentMissEvidence(turns: readonly ConversationTurn[]): string[] {
+function silentMissEvidence(turns: readonly (ConversationTurn | ClassifiedTurn)[]): string[] {
   const evidence: string[] = [];
   for (let i = 1; i < turns.length && evidence.length < 3; i++) {
     const reply = turns[i];
     const asked = turns[i - 1];
     if (!reply || !asked) continue;
     if (reply.speaker !== "surface" || asked.speaker !== "operator") continue;
-    if (admittedMiss(reply.text)) continue;
+    if (saidItDidNotUnderstand(reply)) continue;
     if (isNearMiss(asked.text, reply.text)) {
       evidence.push(`asked: "${truncate(asked.text, 60)}" → got: "${truncate(reply.text, 90)}"`);
     }

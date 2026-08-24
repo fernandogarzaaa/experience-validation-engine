@@ -84,7 +84,13 @@ export class HttpBackend implements ConversationBackend {
       const template = this.options.bodyTemplate ?? '{"message": "{{message}}"}';
       const body = template.replaceAll("{{message}}", jsonEscape(message));
 
-      const response = await this.fetchImpl(this.options.url, {
+      // A GET carries no body, so the message has to go in the query string
+      // or it goes nowhere: every turn would be an identical bodyless
+      // request, and EVE would report the endpoint as ignoring the person
+      // when in fact it was never told what they said.
+      const url = method === "GET" ? withMessageQuery(this.options.url, message) : this.options.url;
+
+      const response = await this.fetchImpl(url, {
         method,
         headers: {
           "content-type": "application/json",
@@ -201,6 +207,19 @@ function readPath(value: unknown, path: string): unknown {
       : (current as Record<string, unknown>)[key];
   }
   return current;
+}
+
+/** Put the operator's message in the query string, for GET endpoints. */
+function withMessageQuery(url: string, message: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("message", message);
+    return parsed.toString();
+  } catch {
+    // A relative or malformed URL still has to carry the message somewhere.
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}message=${encodeURIComponent(message)}`;
+  }
 }
 
 function jsonEscape(text: string): string {

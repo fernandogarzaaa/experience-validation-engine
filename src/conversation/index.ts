@@ -24,6 +24,7 @@ export type { ConversationPluginOptions } from "./plugin.js";
 export { ConversationPlugin } from "./plugin.js";
 export { renderConversationMarkdown } from "./report.js";
 export type {
+  ClassifiedTurn,
   ConversationAffordance,
   ConversationBackend,
   ConversationKind,

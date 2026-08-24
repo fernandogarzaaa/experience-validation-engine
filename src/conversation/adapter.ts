@@ -33,7 +33,6 @@ import type { BrowserAdapter, KernelSurface, RawSnapshot } from "../browser/adap
 import type {
   Affordance,
   ConversationalKernelPercept,
-  ConversationTurn,
   KernelAction,
   SurfaceSignal,
 } from "../core/kernel.js";
@@ -44,7 +43,12 @@ import { workingMemoryCapacity } from "../personas/persona.js";
 import { CONVERSATION_VERBS, CONVERSATIONAL_SURFACE } from "../surface/capabilities.js";
 import { webPerceptFromKernel } from "../surface/kernelView.js";
 import { isNearMiss } from "./overlap.js";
-import type { ConversationBackend, ConversationKind, ConversationReply } from "./types.js";
+import type {
+  ClassifiedTurn,
+  ConversationBackend,
+  ConversationKind,
+  ConversationReply,
+} from "./types.js";
 import { detectNonAnswer, offersHandoff } from "./types.js";
 
 export interface ConversationAdapterOptions {
@@ -61,13 +65,6 @@ export interface ConversationAdapterOptions {
   readonly address?: string;
 }
 
-/** A turn plus what the adapter noticed about it. */
-interface RecordedTurn extends ConversationTurn {
-  readonly notUnderstood: boolean;
-  readonly refused: boolean;
-  readonly handoff: boolean;
-}
-
 export class ConversationAdapter implements BrowserAdapter, KernelSurface {
   readonly name = "conversation";
   readonly capabilities = { ...CONVERSATIONAL_SURFACE, actionVerbs: CONVERSATION_VERBS };
@@ -76,7 +73,7 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
   private persona: Persona;
   private address: string;
 
-  private turns: RecordedTurn[] = [];
+  private turns: ClassifiedTurn[] = [];
   private openedAt = Date.now();
   private awaitingReply = false;
   private lastLatencyMs: number | null = null;
@@ -101,7 +98,7 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
   }
 
   /** The full transcript, for the analysis and the reports. */
-  transcript(): readonly ConversationTurn[] {
+  transcript(): readonly ClassifiedTurn[] {
     return this.turns;
   }
 
@@ -286,7 +283,7 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
 
   private recordReply(reply: ConversationReply): void {
     const detected = detectNonAnswer(reply.text);
-    const turn: RecordedTurn = {
+    const turn: ClassifiedTurn = {
       id: `t${this.turns.length}`,
       speaker: "surface",
       text: reply.text,
@@ -310,7 +307,7 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
    * own words. What this catches is the case people actually complain
    * about: a fluent, confident paragraph about a nearby topic.
    */
-  private answeredSomethingElse(reply: RecordedTurn): boolean {
+  private answeredSomethingElse(reply: ClassifiedTurn): boolean {
     if (!this.lastOperatorMessage || reply.refused) return false;
     return isNearMiss(this.lastOperatorMessage, reply.text);
   }

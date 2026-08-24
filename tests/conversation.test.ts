@@ -5,6 +5,7 @@ import {
   converse,
   DEMO_SUPPORT_BOT,
   detectNonAnswer,
+  HttpBackend,
   offersHandoff,
   ScriptedBackend,
 } from "../src/conversation/index.js";
@@ -515,5 +516,206 @@ describe("conversation sessions", () => {
     const dimensions = result.scores.map((s) => s.dimension);
     expect(dimensions.some((d) => d.startsWith("conversation."))).toBe(true);
     expect(dimensions).not.toContain("visualDesign");
+  }, 30_000);
+});
+
+describe("regressions found in review", () => {
+  /**
+   * Seven bugs the review of this PR turned up. Each is pinned by the
+   * behavior a person would notice, not by the shape of the fix, so a future
+   * refactor that reintroduces the bug fails here rather than passing on a
+   * technicality.
+   */
+
+  /** A bot that never helps — it only ever points at the Help Centre. */
+  const uselessBot = () =>
+    new ScriptedBackend({
+      name: "useless",
+      kind: "support",
+      greeting: "Hi!",
+      latencyMs: 10,
+      rules: [],
+      fallback: "Please check our Help Centre for more information.",
+    });
+
+  it("does not read the operator's own words as evidence that they succeeded", async () => {
+    // Half of a chat window is the person typing. Someone asking about a
+    // refund has not been given one, so their own words can never satisfy a
+    // goal signal — this used to report a bot that never helped as a success.
+    const result = await converse(uselessBot(), {
+      persona: "first-time-user",
+      goal: "get a refund for being charged twice",
+      goalSuccessSignals: ["refund"],
+      seed: 5,
+    });
+    expect(result.goalAchieved).toBe(false);
+    expect(result.transcript.some((t) => t.speaker === "operator" && /refund/i.test(t.text))).toBe(
+      true,
+    );
+  }, 30_000);
+
+  it("reads the surface's own words as evidence that they did", async () => {
+    const helpful = new ScriptedBackend({
+      name: "helpful",
+      kind: "support",
+      greeting: "Hi!",
+      latencyMs: 10,
+      rules: [{ when: /refund|charge/i, reply: "I have refunded the duplicate charge." }],
+      fallback: "Sorry, I did not catch that.",
+    });
+    const result = await converse(helpful, {
+      persona: "first-time-user",
+      goal: "get a refund for being charged twice",
+      goalSuccessSignals: ["refunded"],
+      seed: 5,
+    });
+    expect(result.goalAchieved).toBe(true);
+  }, 30_000);
+
+  it("keeps the surface's suggested replies reachable in the legacy view", async () => {
+    // Affordance ids are `${turn.id}:${entry.id}`; keying the projection by
+    // bare turn id dropped every chip, which blinded `clickAt` and every
+    // pre-kernel consumer.
+    const withChips = new ScriptedBackend({
+      name: "chips",
+      latencyMs: 10,
+      rules: [
+        {
+          when: /.*/,
+          reply: "Would you like to start a return?",
+          affordances: [{ id: "s1", kind: "suggestion", label: "Start a return" }],
+        },
+      ],
+      fallback: "?",
+    });
+    const adapter = new ConversationAdapter({ backend: withChips, persona: firstTimer });
+    await adapter.open("chat:chips", { width: 0, height: 0 });
+    await adapter.actKernel({ verb: "chat.say", payload: "hello" });
+
+    const kernel = await adapter.kernelPercept();
+    expect(kernel.affordances.map((a) => a.kind)).toContain("chat.suggestion");
+
+    const snapshot = await adapter.snapshot();
+    const interactive = snapshot.elements.filter((element) => element.interactive);
+    expect(interactive.map((element) => element.text)).toContain("Start a return");
+  });
+
+  it("counts a declared miss as admitted, not as a silent near-miss", () => {
+    // A scripted fallback intent *is* the surface saying it did not follow,
+    // whatever words it dresses that in. Reading the wording instead turned
+    // an admission into the opposite verdict.
+    const analysis = analyzeConversation({
+      address: "chat:t",
+      kind: "support",
+      persona: firstTimer,
+      goal: "get a refund",
+      repairAttempts: 0,
+      goalAchieved: false,
+      turns: [
+        { id: "t0", speaker: "operator", text: "I was charged twice for my order" },
+        {
+          id: "t1",
+          speaker: "surface",
+          text: "Please check our Help Centre for more information.",
+          notUnderstood: true,
+          refused: false,
+          handoff: false,
+        },
+      ],
+    });
+    expect(analysis.admittedMisses).toBe(1);
+    expect(analysis.silentMisses).toBe(0);
+  });
+
+  it("scores an honest bot above an evasive one on recovery", () => {
+    // The formula used to read `admittedMisses > 0 ? 0.2 : 0.4`, which
+    // rewarded bluffing over saying "I didn't follow that".
+    const base = {
+      address: "chat:t",
+      kind: "support" as const,
+      persona: firstTimer,
+      goal: "get a refund",
+      repairAttempts: 1,
+      goalAchieved: false,
+    };
+    const asked = { id: "t0", speaker: "operator" as const, text: "I was charged twice" };
+
+    const honest = analyzeConversation({
+      ...base,
+      turns: [
+        asked,
+        {
+          id: "t1",
+          speaker: "surface",
+          text: "Sorry, I did not catch that — could you rephrase?",
+          notUnderstood: true,
+          refused: false,
+          handoff: false,
+        },
+      ],
+    });
+    const evasive = analyzeConversation({
+      ...base,
+      turns: [
+        asked,
+        {
+          id: "t1",
+          speaker: "surface",
+          text: "Our billing cycle runs monthly and invoices are issued on the first of each month in your settings.",
+          notUnderstood: false,
+          refused: false,
+          handoff: false,
+        },
+      ],
+    });
+
+    expect(honest.recovery).toBeGreaterThan(evasive.recovery);
+  });
+
+  it("gives a conversation that never failed full marks for recovery", () => {
+    const analysis = analyzeConversation({
+      address: "chat:t",
+      kind: "support",
+      persona: firstTimer,
+      goal: "get a refund",
+      repairAttempts: 0,
+      goalAchieved: true,
+      turns: turns(
+        ["operator", "I was charged twice for my order"],
+        ["surface", "I have refunded the duplicate charge to your card."],
+      ),
+    });
+    expect(analysis.recovery).toBe(100);
+  });
+
+  it("puts the message in the query string when the endpoint takes GET", async () => {
+    const seen: string[] = [];
+    const backend = new HttpBackend({
+      url: "https://bot.example/chat",
+      method: "GET",
+      fetchImpl: (async (input: string) => {
+        seen.push(String(input));
+        return new Response(JSON.stringify({ reply: "ok" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as unknown as typeof fetch,
+    });
+    await backend.send("where is my order");
+    expect(seen[0]).toContain("message=where+is+my+order");
+  });
+
+  it("lets a persistent reader reach the last phrasing it knows", async () => {
+    // `rephrase` degrades over three attempts, ending in bare keywords.
+    // Capping give-up at two made that last stage unreachable in any run.
+    const patient = getPersona("power-user");
+    const result = await converse(uselessBot(), {
+      persona: patient,
+      goal: "get a refund for being charged twice",
+      seed: 3,
+      maxSteps: 30,
+    });
+    expect(result.conversation.repairAttempts).toBeGreaterThanOrEqual(1);
+    expect(result.conversation.repairAttempts).toBeLessThanOrEqual(3);
   }, 30_000);
 });

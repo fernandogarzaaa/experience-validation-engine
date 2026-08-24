@@ -73,9 +73,12 @@ export function webPerceptFromKernel(kernel: KernelPercept): Percept {
  */
 function webPerceptFromConversationKernel(kernel: ConversationalKernelPercept): Percept {
   const lines: string[] = [];
-  const lineOfTurn = new Map<string, number>();
-  for (const turn of kernel.turns) {
-    lineOfTurn.set(turn.id, lines.length);
+  // Keyed by turn *index*, not id: affordances are minted as
+  // `${turn.id}:${entry.id}` and carry a `turn` locator, so matching on the
+  // bare id silently dropped every chip and handoff out of the legacy view.
+  const lineOfTurnIndex = new Map<number, number>();
+  for (const [index, turn] of kernel.turns.entries()) {
+    lineOfTurnIndex.set(index, lines.length);
     const label = turn.speaker === "operator" ? "You" : "Assistant";
     for (const [index, line] of turn.text.split("\n").entries()) {
       lines.push(index === 0 ? `${label}: ${line}` : line);
@@ -88,14 +91,19 @@ function webPerceptFromConversationKernel(kernel: ConversationalKernelPercept): 
 
   const laid = layoutTextFrame({
     lines,
-    affordances: kernel.affordances
-      .filter((a) => lineOfTurn.has(a.id))
-      .map((a) => ({
-        line: lineOfTurn.get(a.id) ?? 0,
-        column: 0,
-        text: legacyLabel(a.description),
-        role: legacyRole(a.kind, a.state.editable),
-      })),
+    affordances: kernel.affordances.flatMap((a) => {
+      if (a.locator.kind !== "turn") return [];
+      const line = lineOfTurnIndex.get(a.locator.index);
+      if (line === undefined) return [];
+      return [
+        {
+          line,
+          column: 0,
+          text: legacyLabel(a.description),
+          role: legacyRole(a.kind, a.state.editable),
+        },
+      ];
+    }),
     // A chat window shows the whole scrollback the operator still has.
     windowRows: Math.max(lines.length, 1),
     scrollLine: 0,

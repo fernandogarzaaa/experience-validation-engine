@@ -709,6 +709,12 @@ export class HeuristicCognition implements DecisionPolicy {
     // 1. It is composing. Waiting on a bot is not like waiting on a page:
     //    there is a person on the other end of the metaphor, so people give
     //    it longer — and resent it more when nothing comes.
+    //
+    //    Backends that answer within one `actKernel` call never surface this
+    //    state to the loop, because the reply has already landed by the time
+    //    the next percept is taken. It is reached by surfaces that report
+    //    progress asynchronously — a streaming endpoint, or a bot that posts
+    //    "typing…" before it answers.
     if (kernel.awaitingReply) {
       const waitMs = 800 + persona.traits.patience * 4000;
       return {
@@ -777,7 +783,11 @@ export class HeuristicCognition implements DecisionPolicy {
       // misunderstood one time reads as bad luck, not as a broken surface.
       // The give-up branch only opens once a repair has already failed.
       const mayGiveUp = kernel.repairAttempts >= 1;
-      if (mayGiveUp && (kernel.repairAttempts >= 2 || rng.next() > persistence)) {
+      // The hard cap matches the three phrasings `rephrase` knows how to
+      // produce. Capping at 2 made the last of them — stripping the sentence
+      // down to keywords, which is what people actually resort to — dead
+      // code that no run could ever reach.
+      if (mayGiveUp && (kernel.repairAttempts >= 3 || rng.next() > persistence)) {
         if (handoff) {
           return {
             action: { kind: "invoke", verb: "chat.escalate", target: null },
@@ -843,11 +853,11 @@ export class HeuristicCognition implements DecisionPolicy {
       };
     }
 
-    // 7. Nothing said yet: open with what I actually came for.
-    const openedKey = `said:${kernel.frame.address}`;
+    // 7. Nothing said yet: open with what I actually came for. The transcript
+    //    itself records whether we have spoken, so nothing needs holding in
+    //    working memory to remember it.
     const hasSpoken = kernel.turns.some((turn) => turn.speaker === "operator");
     if (!hasSpoken) {
-      memory.hold(openedKey, ctx.step);
       return {
         action: {
           kind: "invoke",

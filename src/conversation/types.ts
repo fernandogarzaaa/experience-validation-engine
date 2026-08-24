@@ -40,6 +40,21 @@ export type ConversationKind =
   /** A scripted flow — menus, buttons, decision trees, IVR. */
   | "scripted";
 
+/**
+ * A turn plus how the surface classified itself.
+ *
+ * The analysis must not re-derive this from the text: a backend that *told*
+ * us it did not understand (a scripted bot's fallback intent, an API
+ * returning a no-match flag) is a surface admitting the miss, and reading
+ * the wording instead reclassifies that admission as a silent near-miss —
+ * the opposite verdict, and the one that punishes honesty.
+ */
+export interface ClassifiedTurn extends ConversationTurn {
+  readonly notUnderstood: boolean;
+  readonly refused: boolean;
+  readonly handoff: boolean;
+}
+
 /** One thing the operator can act on beside typing: a chip, a handoff, a card. */
 export interface ConversationAffordance {
   readonly id: string;

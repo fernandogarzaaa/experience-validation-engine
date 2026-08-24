@@ -833,7 +833,23 @@ async function runChatCommand(rest: readonly string[]): Promise<number> {
     if (!quiet && !asJson) process.stdout.write(`  ${line}\n`);
   };
 
+  // An unrecognized kind is not cosmetic: it silently un-gates the checks
+  // that only run for a support conversation, so a typo turns "no route to a
+  // person" from a critical finding into a major one and drops the turn
+  // budget rule — quietly making a red CI run green.
+  const kinds = ["support", "assistant", "copilot", "scripted"] as const;
+  if (typeof values.kind === "string" && !kinds.includes(values.kind as (typeof kinds)[number])) {
+    process.stderr.write(`--kind must be one of ${kinds.join(", ")}; got "${values.kind}".\n`);
+    return 2;
+  }
+
   const isMock = target === "mock:" || target.startsWith("mock:");
+  if (!isMock && !/^https?:\/\//i.test(target)) {
+    process.stderr.write(
+      `"eve chat" needs an http(s) chat endpoint, or "mock:" for the offline demo; got "${target}".\n`,
+    );
+    return 2;
+  }
   const backend = isMock
     ? new ScriptedBackend(DEMO_SUPPORT_BOT)
     : new HttpBackend({
@@ -854,7 +870,7 @@ async function runChatCommand(rest: readonly string[]): Promise<number> {
       persona,
       goal,
       address: isMock ? "chat:mock:" : `chat:${target}`,
-      ...(typeof values.kind === "string" ? { kind: values.kind as never } : {}),
+      ...(typeof values.kind === "string" ? { kind: values.kind as (typeof kinds)[number] } : {}),
       ...(typeof values.success === "string"
         ? {
             goalSuccessSignals: values.success

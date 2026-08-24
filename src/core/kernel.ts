@@ -362,6 +362,27 @@ export interface KernelAction {
 /* ------------------------------------------------------------------ */
 
 /**
+ * What the surface itself put in front of the operator, for evidence that
+ * must not include the operator's own words.
+ *
+ * On every other modality this distinction does not exist — everything on
+ * screen is the application's output. A dialogue is the exception: half the
+ * transcript is the person typing, and a person typing "refund" is not
+ * evidence that they got one. Goal-success signals matched against the whole
+ * chat window therefore fire on the operator's own opening line, and report
+ * a bot that never helped as having succeeded.
+ */
+export function surfaceAuthoredText(kernel: KernelPercept): string {
+  if (kernel.modality !== "conversational") {
+    return [kernel.frame.label, ...kernel.affordances.map((a) => a.description)].join(" \n ");
+  }
+  return kernel.turns
+    .filter((turn) => turn.speaker === "surface")
+    .map((turn) => turn.text)
+    .join(" \n ");
+}
+
+/**
  * Project a legacy web {@link Percept} into the kernel. The mapping is
  * one-to-one on content (elements → affordances, dialogs/loading → signals,
  * url/title → frame identity); the returned kernel percept is what cognition

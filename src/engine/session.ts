@@ -20,7 +20,7 @@ import {
 import { readingLoad, riskOf } from "../cognition/salience.js";
 import { type Clock, SimulatedClock, WALL_CLOCK } from "../core/clock.js";
 import { EventBus } from "../core/events.js";
-import { type KernelPercept, kernelFromWebPercept } from "../core/kernel.js";
+import { type KernelPercept, kernelFromWebPercept, surfaceAuthoredText } from "../core/kernel.js";
 import { clamp01, createRng, type Rng, seedFromString } from "../core/random.js";
 import type {
   Finding,
@@ -465,7 +465,16 @@ export class EveSession {
         }
 
         /* ---- goal success check ------------------------------------- */
-        const text = visibleText(percept).toLowerCase();
+        // On a dialogue, half of what is "on screen" is the operator's own
+        // typing, and their words are never evidence that anything was
+        // accomplished — a person asking about a refund has not been given
+        // one. Every other modality shows only the application's output, so
+        // this narrowing is a no-op there.
+        const text = (
+          adapter.capabilities.modality === "conversational"
+            ? surfaceAuthoredText(await this.kernelOf(adapter, percept))
+            : visibleText(percept)
+        ).toLowerCase();
         const goal = goals.root;
 
         // Success signals are matched against *all* visible text — the page
