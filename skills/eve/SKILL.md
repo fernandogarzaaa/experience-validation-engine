@@ -85,6 +85,21 @@ prefer them over shelling out.
   - Use this when the question is "would someone understand this?", not "can
     someone use this?" — and reach for it on docs, decks and reports the way
     you reach for `eve_run_session` on an app.
+- **`eve_evaluate_conversation`** — talk to something that **answers back**: a
+  support bot, an LLM copilot, a voice assistant, an in-product "ask me
+  anything". Returns what it understood (0–100) and what it missed — replies
+  that answered a different question *without saying so*, how many times the
+  person had to rephrase, whether it ever admitted being lost, whether there
+  was any route to a human, how long they waited.
+  - `target`: a chat endpoint URL, or `mock:` for the offline demo bot.
+  - `goal`: what the person came for — it becomes their opening line, so
+    phrase it as they would say it ("get a refund for being charged twice").
+  - `reply_path` / `headers` / `body_template` for endpoints that do not match
+    a common shape; `seed` for reproducibility.
+  - The operator rephrases and gives up like a real person, so `abandoned`
+    means they walked away — treat it as critical.
+  - Use when the question is "would this understand someone?", not "can
+    someone use this?"
 - **`eve_multimodal_scan`** — perceive **visual cues** (icons, charts, media,
   loading states, toasts, text-in-images, motion) across an app and flag
   unlabeled visuals that are ambiguous to humans / invisible to screen readers.

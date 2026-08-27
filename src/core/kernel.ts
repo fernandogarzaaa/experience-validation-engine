@@ -75,7 +75,13 @@ export type AffordanceLocator =
    * "in the third paragraph of section 2" — and that is the geometry a
    * document surface actually has (`src/humanity/`).
    */
-  | { readonly kind: "readingOrder"; readonly section: number; readonly block: number };
+  | { readonly kind: "readingOrder"; readonly section: number; readonly block: number }
+  /**
+   * A position in a dialogue: which turn, counting from the opening. A
+   * conversational surface has no page and no cell — the only place a thing
+   * can be is "in the reply three turns ago" (`src/conversation/`).
+   */
+  | { readonly kind: "turn"; readonly index: number };
 
 /**
  * One thing the operator can act on.
@@ -168,6 +174,22 @@ export type SurfaceSignal =
    * because comprehension failure is *perceived* — the reader knows they are
    * lost — where a dialog or an error is something the surface announces.
    */
+  /**
+   * The surface told the operator it did not understand them — "sorry, I
+   * didn't catch that", "can you rephrase?", a fallback intent firing.
+   *
+   * Every other modality can only fail in one direction: the operator does
+   * not understand the surface. A dialogue is the one place the surface can
+   * fail to understand *them*, and the operator perceives that failure
+   * directly. `confident` marks the worse variant — the surface did not
+   * signal any trouble and answered something else entirely, which the
+   * operator only discovers by reading the reply.
+   */
+  | {
+      readonly type: "not-understood";
+      readonly text: string;
+      readonly confident: boolean;
+    }
   | {
       readonly type: "comprehension-gap";
       readonly text: string;
@@ -253,12 +275,69 @@ export interface DocumentKernelPercept extends KernelPerceptBase {
   readonly blocksRead: number;
 }
 
+/** Who spoke. A dialogue has exactly two sides from the operator's view. */
+export type Speaker = "operator" | "surface";
+
+/** One thing that was said, by either side. */
+export interface ConversationTurn {
+  readonly id: string;
+  readonly speaker: Speaker;
+  readonly text: string;
+  /**
+   * How long the operator waited for this turn to appear, in ms. Present
+   * only on surface turns: latency is something the operator *endures*, and
+   * it is the difference between a considered answer and a dead interface.
+   */
+  readonly latencyMs?: number;
+  /**
+   * What the surface offered alongside the text — suggested replies,
+   * citations, a handoff button. Perceived, never privileged: only what a
+   * user of the surface could see.
+   */
+  readonly detail?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * A conversational surface: something that answers back. A support bot, an
+ * LLM copilot, a voice assistant, an in-product "ask me anything".
+ *
+ * It is not a document that happens to arrive in pieces. Three things make
+ * it its own modality: turn order is the geometry (there is no page to
+ * scroll and no cell to point at); the operator *waits*, without knowing
+ * whether anything is happening; and it is the only surface that can fail to
+ * understand the operator, who then has to decide whether to rephrase, give
+ * up on the phrasing, or give up on the surface.
+ */
+export interface ConversationalKernelPercept extends KernelPerceptBase {
+  readonly modality: "conversational";
+  /** Every turn so far, oldest first. */
+  readonly turns: readonly ConversationTurn[];
+  /**
+   * How many of the most recent turns the operator still has in mind. A
+   * dialogue scrolls out of memory the way a page scrolls off screen.
+   */
+  readonly recallWindow: number;
+  /** The surface is composing a reply right now. */
+  readonly awaitingReply: boolean;
+  /** How long the operator waited for the latest reply, in ms. */
+  readonly lastLatencyMs: number | null;
+  /**
+   * Times the operator has had to say the same thing again, in any phrasing.
+   * The count that decides whether a person tries once more or leaves.
+   */
+  readonly repairAttempts: number;
+}
+
 /**
  * Everything the operator perceives in one glance, in the surface's own
  * modality. Discriminated so modality-specific detail (screenshots, schema,
- * reading position) is present exactly where it is meaningful.
+ * reading position, turn history) is present exactly where it is meaningful.
  */
-export type KernelPercept = VisualKernelPercept | TextualKernelPercept | DocumentKernelPercept;
+export type KernelPercept =
+  | VisualKernelPercept
+  | TextualKernelPercept
+  | DocumentKernelPercept
+  | ConversationalKernelPercept;
 
 /* ------------------------------------------------------------------ */
 /* Kernel actions                                                      */
@@ -281,6 +360,27 @@ export interface KernelAction {
 /* ------------------------------------------------------------------ */
 /* The deprecated web view (compatibility shims)                       */
 /* ------------------------------------------------------------------ */
+
+/**
+ * What the surface itself put in front of the operator, for evidence that
+ * must not include the operator's own words.
+ *
+ * On every other modality this distinction does not exist — everything on
+ * screen is the application's output. A dialogue is the exception: half the
+ * transcript is the person typing, and a person typing "refund" is not
+ * evidence that they got one. Goal-success signals matched against the whole
+ * chat window therefore fire on the operator's own opening line, and report
+ * a bot that never helped as having succeeded.
+ */
+export function surfaceAuthoredText(kernel: KernelPercept): string {
+  if (kernel.modality !== "conversational") {
+    return [kernel.frame.label, ...kernel.affordances.map((a) => a.description)].join(" \n ");
+  }
+  return kernel.turns
+    .filter((turn) => turn.speaker === "surface")
+    .map((turn) => turn.text)
+    .join(" \n ");
+}
 
 /**
  * Project a legacy web {@link Percept} into the kernel. The mapping is
@@ -324,6 +424,23 @@ export function kernelFromWebPercept(
       lines: [],
       windowRows: 0,
       scrollLine: 0,
+    };
+  }
+  if (modality === "conversational") {
+    // A legacy Percept has no turn history to project: the best it can do is
+    // present the whole screen as one thing the surface said.
+    const text = percept.elements
+      .map((el) => el.text.trim())
+      .filter(Boolean)
+      .join("\n");
+    return {
+      ...base,
+      modality,
+      turns: text ? [{ id: "t0", speaker: "surface" as const, text }] : [],
+      recallWindow: 1,
+      awaitingReply: percept.loadingIndicator,
+      lastLatencyMs: null,
+      repairAttempts: 0,
     };
   }
   if (modality === "document") {

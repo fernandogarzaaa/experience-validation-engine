@@ -1,0 +1,65 @@
+# Automated code review on pull requests.
+#
+# This repository has been burned by the absence of one. The conversational
+# adapter (#30) shipped a 3,500-line change with no external review — Codex
+# had run out of credits and CodeRabbit does not auto-review repositories
+# under ten stars — and a review run by hand afterwards found seven real
+# bugs, two of which made EVE report the opposite of the truth. Third-party
+# review quotas are not a dependency worth having; this job runs regardless
+# of them.
+#
+# Advisory, not a gate. `continue-on-error` keeps a missing secret, a rate
+# limit or an API outage from blocking a merge — the same convention the
+# audit job in ci.yml uses for its non-gating step. A review that cannot
+# run should cost nothing; a review that runs should be read.
+#
+# Setup (once, by a repository admin — see docs/continuous-review.md):
+#   1. Install the Claude GitHub App: https://github.com/apps/claude
+#   2. Add ANTHROPIC_API_KEY (Claude Console) or CLAUDE_CODE_OAUTH_TOKEN
+#      (`claude setup-token`, for a Pro/Max/Team subscription) as a
+#      repository secret, and use the matching input below.
+name: Claude review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+# Reviewing a superseded head wastes a runner and, worse, comments on code
+# that no longer exists.
+concurrency:
+  group: claude-review-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+
+jobs:
+  review:
+    name: Claude review
+    # Drafts are work in progress; the action skips them anyway, but this
+    # avoids starting a runner to find that out.
+    if: ${{ github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+          # `--comment` puts findings on the PR itself — inline where the
+          # problem is, or one summary comment when there is nothing to say.
+          # Without it the review lands only in the run log, where nobody
+          # looks.
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          # Required even though the skill's own frontmatter names the same
+          # tool: the action starts the inline-comment MCP server only when
+          # --allowedTools asks for it.
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'

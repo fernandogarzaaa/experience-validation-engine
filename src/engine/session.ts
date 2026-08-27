@@ -20,7 +20,7 @@ import {
 import { readingLoad, riskOf } from "../cognition/salience.js";
 import { type Clock, SimulatedClock, WALL_CLOCK } from "../core/clock.js";
 import { EventBus } from "../core/events.js";
-import { type KernelPercept, kernelFromWebPercept } from "../core/kernel.js";
+import { type KernelPercept, kernelFromWebPercept, surfaceAuthoredText } from "../core/kernel.js";
 import { clamp01, createRng, type Rng, seedFromString } from "../core/random.js";
 import type {
   Finding,
@@ -355,10 +355,19 @@ export class EveSession {
       this.log(`warning: ${message}`);
     };
 
+    // Declared before `pluginCtx` so the getter below never reads it in its
+    // temporal dead zone; the loop assigns it as the session progresses.
+    let goalAchieved = false;
     const pluginCtx: PluginContext = {
       persona: this.persona,
       startUrl,
       capabilities: adapter.capabilities,
+      // A getter, not a snapshot: plugins read this in `onSessionEnd`, long
+      // after the context object was built, and need what the session
+      // concluded rather than what it assumed at the start.
+      get goalAchieved() {
+        return goalAchieved;
+      },
       report: (f) => this.addFinding({ ...f, timestamp: this.simClock }),
       reportLlmFallback: (reason) => recordLlmFallback("plugin", reason),
     };
@@ -373,7 +382,6 @@ export class EveSession {
     let endReason = "budget-exhausted";
     let abandoned = false;
     let abandonReason: string | null = null;
-    let goalAchieved = false;
     let appTheory = "";
     let lastVia: string | null = null;
     let previousPercept: Percept | null = null;
@@ -457,7 +465,16 @@ export class EveSession {
         }
 
         /* ---- goal success check ------------------------------------- */
-        const text = visibleText(percept).toLowerCase();
+        // On a dialogue, half of what is "on screen" is the operator's own
+        // typing, and their words are never evidence that anything was
+        // accomplished — a person asking about a refund has not been given
+        // one. Every other modality shows only the application's output, so
+        // this narrowing is a no-op there.
+        const text = (
+          adapter.capabilities.modality === "conversational"
+            ? surfaceAuthoredText(await this.kernelOf(adapter, percept))
+            : visibleText(percept)
+        ).toLowerCase();
         const goal = goals.root;
 
         // Success signals are matched against *all* visible text — the page
@@ -613,6 +630,11 @@ export class EveSession {
         /* ---- INTERACT ----------------------------------------------- */
         const actStart = this.clock.now();
         const clickPoint = await this.execute(adapter, decision, percept);
+        // Time the operator spent waiting for the surface to answer, on
+        // surfaces that measure it. Charged before perceived latency is
+        // computed below, so a slow surface costs patience the way it does
+        // in life rather than only showing up in a report.
+        this.endureSurfaceWait(adapter.lastWaitMs?.() ?? 0);
         lastVia = describeAction(decision.action);
         await this.events.emit("loop:act", { step, action: decision.action });
 
@@ -1051,6 +1073,23 @@ export class EveSession {
   }
 
   /** Advance the simulated clock by full human time; sleep a scaled slice. */
+  /**
+   * Charge time the operator spent waiting for the surface — as opposed to
+   * {@link pace}, which charges time they chose to spend reading, deciding
+   * or typing.
+   *
+   * Never sleeps. On a wall clock the wait has already happened in real
+   * time inside the adapter and `clock.now()` has already moved, so
+   * advancing again would count the same seconds twice; only the session's
+   * own duration counter needs telling. On a simulated clock nothing
+   * observed the wait at all, so the clock is advanced to match.
+   */
+  private endureSurfaceWait(ms: number): void {
+    if (!Number.isFinite(ms) || ms <= 0) return;
+    this.simClock += ms;
+    if (this.clock.deterministic) this.clock.advance(ms);
+  }
+
   private async pace(humanMs: number): Promise<void> {
     this.simClock += humanMs;
     // The shared clock advances by the same full human duration, so perceived

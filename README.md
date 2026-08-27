@@ -101,6 +101,13 @@ Three principles make it a simulation rather than automation:
   it — terms defined before use, figures that assert something, numbers with
   a baseline, an ending that says what to do — and it is genuinely
   persona-relative. See [docs/humanity-adapter.md](docs/humanity-adapter.md).
+- **Conversations, not just interfaces** — `eve chat` puts a simulated person
+  in front of anything that *answers back*: a support bot, an LLM copilot, a
+  voice assistant. It measures the things people actually complain about —
+  replies that answer a different question without admitting it, how many
+  times they had to rephrase, whether there was ever a route to a human — and
+  it rephrases and gives up the way a real person does. See
+  [docs/conversational-adapter.md](docs/conversational-adapter.md).
 
 ## Quick start
 
@@ -121,6 +128,10 @@ npx eve read ./docs/getting-started.md --persona first-time-user
 npx eve read ./deck.md --genre presentation
 npx eve read ./metrics.csv --goal "did signups grow"
 git log --oneline | npx eve read - --genre transcript
+
+# Talk to something that answers back:
+npx eve chat mock: --goal "get a refund for being charged twice"
+npx eve chat https://api.example.com/chat --goal "reset my password"
 ```
 
 Programmatic:
@@ -235,6 +246,7 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [API Reference](docs/api-reference.md) | Public surface |
 | [API Stability](docs/api-stability.md) | What you can build on: stable, provisional, and experimental tiers |
 | [Examples](docs/examples.md) | Runnable examples and CI recipes |
+| [Continuous review](docs/continuous-review.md) | Automated code review on every PR, and why it does not depend on a third-party bot |
 | [Roadmap](ROADMAP.md) | Where this is going |
 | [Contributing](CONTRIBUTING.md) | How to help |
 | [Security](SECURITY.md) | Reporting a vulnerability; what EVE executes |

@@ -37,11 +37,21 @@
  * a terminal has char-cell geometry and a live process, a document has
  * reading order, sections/pages and figures, and the two fail in different
  * ways. See `docs/humanity-adapter.md`.
+ *
+ * `"conversational"` is the dialogue seam (`src/conversation/`): a surface
+ * that answers back — a support bot, an LLM copilot, a voice assistant.
+ * Turn order is its geometry, and it is the only modality where the surface
+ * can fail to understand *the operator*. See `docs/conversational-adapter.md`.
  */
-export type Modality = "visual" | "textual" | "document";
+export type Modality = "visual" | "textual" | "document" | "conversational";
 
 /** Every modality current surfaces can declare; the default `appliesTo`. */
-export const ALL_MODALITIES: readonly Modality[] = ["visual", "textual", "document"];
+export const ALL_MODALITIES: readonly Modality[] = [
+  "visual",
+  "textual",
+  "document",
+  "conversational",
+];
 
 export interface RegistryEntry {
   /**

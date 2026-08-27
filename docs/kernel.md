@@ -20,7 +20,8 @@ interface Affordance {
     | { kind: "bbox"; box: BoundingBox }
     | { kind: "charCell"; line: number; column: number }
     | { kind: "schemaPath"; path: string }
-    | { kind: "readingOrder"; section: number; block: number };  // document surfaces
+    | { kind: "readingOrder"; section: number; block: number }   // document surfaces
+    | { kind: "turn"; index: number };                           // conversational surfaces
   description: string;
   state: { enabled: boolean; editable?: boolean; metadata?: Record<string, unknown> };
 }
@@ -34,13 +35,16 @@ type SurfaceSignal =             // typed — no fake "dialog" slot
   | { type: "await-input"; prompt }
   | { type: "surface-terminated"; reason }
   | { type: "end-of-content"; label }                          // a document ends
+  | { type: "not-understood"; text; confident }                // the surface missed the *operator*
   | { type: "comprehension-gap"; text; gap: "term" | "reference" | "figure" | "quantity" | "structure" };
 
 type KernelPercept =             // discriminated over modality
   | { modality: "visual"; viewport; scrollY; scrollHeight; screenshot; …base }
   | { modality: "textual"; lines; windowRows; scrollLine; …base }
   | { modality: "document"; blocks; section; sectionCount; sectionNoun;
-                            totalBlocks; blocksRead; …base };   // see docs/humanity-adapter.md
+                            totalBlocks; blocksRead; …base }    // see docs/humanity-adapter.md
+  | { modality: "conversational"; turns; recallWindow; awaitingReply;
+                            lastLatencyMs; repairAttempts; …base };  // docs/conversational-adapter.md
 
 interface KernelAction { verb: string; target?: string; payload?: unknown }
 ```
