@@ -630,6 +630,11 @@ export class EveSession {
         /* ---- INTERACT ----------------------------------------------- */
         const actStart = this.clock.now();
         const clickPoint = await this.execute(adapter, decision, percept);
+        // Time the operator spent waiting for the surface to answer, on
+        // surfaces that measure it. Charged before perceived latency is
+        // computed below, so a slow surface costs patience the way it does
+        // in life rather than only showing up in a report.
+        this.endureSurfaceWait(adapter.lastWaitMs?.() ?? 0);
         lastVia = describeAction(decision.action);
         await this.events.emit("loop:act", { step, action: decision.action });
 
@@ -1068,6 +1073,23 @@ export class EveSession {
   }
 
   /** Advance the simulated clock by full human time; sleep a scaled slice. */
+  /**
+   * Charge time the operator spent waiting for the surface — as opposed to
+   * {@link pace}, which charges time they chose to spend reading, deciding
+   * or typing.
+   *
+   * Never sleeps. On a wall clock the wait has already happened in real
+   * time inside the adapter and `clock.now()` has already moved, so
+   * advancing again would count the same seconds twice; only the session's
+   * own duration counter needs telling. On a simulated clock nothing
+   * observed the wait at all, so the clock is advanced to match.
+   */
+  private endureSurfaceWait(ms: number): void {
+    if (!Number.isFinite(ms) || ms <= 0) return;
+    this.simClock += ms;
+    if (this.clock.deterministic) this.clock.advance(ms);
+  }
+
   private async pace(humanMs: number): Promise<void> {
     this.simClock += humanMs;
     // The shared clock advances by the same full human duration, so perceived

@@ -81,6 +81,11 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
   private ended = false;
   /** What the operator said last, so a rephrase can be recognized as one. */
   private lastOperatorMessage: string | null = null;
+  /**
+   * Latency accumulated since the session last asked. Drained on read so a
+   * single wait is never charged to the operator twice.
+   */
+  private unreportedWaitMs = 0;
   private opened = false;
 
   constructor(private readonly options: ConversationAdapterOptions) {
@@ -111,6 +116,19 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
     this.persona = persona;
   }
 
+  /**
+   * How long the operator waited for replies since this was last called.
+   *
+   * A conversational surface is one of the few EVE drives where latency is
+   * genuinely *measured* rather than modeled — the backend took as long as
+   * it took — and waiting is most of what makes a slow bot unbearable.
+   */
+  lastWaitMs(): number {
+    const waited = this.unreportedWaitMs;
+    this.unreportedWaitMs = 0;
+    return waited;
+  }
+
   async open(url: string, _viewport: Viewport): Promise<void> {
     if (url) this.address = url.startsWith("chat:") ? url : `chat:${url}`;
     this.openedAt = Date.now();
@@ -120,6 +138,7 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
     this.repairAttempts = 0;
     this.ended = false;
     this.lastOperatorMessage = null;
+    this.unreportedWaitMs = 0;
     this.opened = true;
 
     const greeting = await this.backend.open?.();
@@ -295,6 +314,7 @@ export class ConversationAdapter implements BrowserAdapter, KernelSurface {
     };
     this.turns.push(turn);
     this.lastLatencyMs = reply.latencyMs ?? null;
+    this.unreportedWaitMs += reply.latencyMs ?? 0;
     if (reply.ended) this.ended = true;
   }
 

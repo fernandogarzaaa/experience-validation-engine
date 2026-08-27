@@ -719,3 +719,83 @@ describe("regressions found in review", () => {
     expect(result.conversation.repairAttempts).toBeLessThanOrEqual(3);
   }, 30_000);
 });
+
+describe("waiting is part of the experience", () => {
+  /**
+   * EVE keeps modeled human time and wall-clock time apart so runs replay
+   * (`src/core/clock.ts`). A surface's own response latency is neither — the
+   * operator did not choose to spend it, and on a simulated clock nothing
+   * observes it, because it elapses inside the adapter. It used to be
+   * recorded in the transcript and then charged to nobody: a bot taking
+   * twelve seconds a turn produced byte-identical frustration and simulated
+   * time to one taking a tenth of a second.
+   */
+  const slowBot = (latencyMs: number) =>
+    new ScriptedBackend({
+      name: "slow",
+      kind: "support",
+      greeting: "Hi!",
+      latencyMs,
+      rules: [{ when: /.*/, reply: "Please check our Help Centre for more information." }],
+      fallback: "?",
+    });
+
+  async function run(latencyMs: number) {
+    return converse(slowBot(latencyMs), {
+      persona: "impatient-user",
+      goal: "get a refund for being charged twice",
+      seed: 4,
+    });
+  }
+
+  it("charges the operator for time the surface made them wait", async () => {
+    const quick = await run(100);
+    const slow = await run(12_000);
+    expect(slow.usage.durationMs).toBeGreaterThan(quick.usage.durationMs * 3);
+  }, 30_000);
+
+  it("wears an impatient person down faster when the surface is slow", async () => {
+    const quick = await run(100);
+    const slow = await run(12_000);
+    const frustrationOf = (result: Awaited<ReturnType<typeof run>>) =>
+      result.iterations.at(-1)?.emotion.frustration ?? 0;
+
+    expect(frustrationOf(slow)).toBeGreaterThan(frustrationOf(quick));
+    // And they leave sooner, having got no further.
+    expect(slow.usage.steps).toBeLessThanOrEqual(quick.usage.steps);
+  }, 30_000);
+
+  it("never charges the same wait twice", async () => {
+    const adapter = new ConversationAdapter({
+      backend: slowBot(5_000),
+      persona: firstTimer,
+    });
+    await adapter.open("chat:slow", { width: 0, height: 0 });
+    await adapter.actKernel({ verb: "chat.say", payload: "hello" });
+
+    // The greeting plus one reply; drained on read, so a second ask is zero.
+    expect(adapter.lastWaitMs()).toBeGreaterThan(0);
+    expect(adapter.lastWaitMs()).toBe(0);
+  }, 20_000);
+
+  it("leaves surfaces that report no wait paced exactly as before", async () => {
+    // Every adapter but this one leaves `lastWaitMs` undefined, and the
+    // session must treat that as "nothing to charge" rather than as zero
+    // time having passed at all.
+    const { MockAdapter, DEMO_APP } = await import("../src/browser/index.js");
+    const { EveSession } = await import("../src/engine/session.js");
+    const adapter = new MockAdapter(DEMO_APP);
+    expect((adapter as { lastWaitMs?: unknown }).lastWaitMs).toBeUndefined();
+
+    const result = await new EveSession({
+      adapter,
+      startUrl: "mock:",
+      persona: "first-time-user",
+      seed: 3,
+      maxSteps: 6,
+      screenshots: false,
+      deterministic: true,
+    }).run();
+    expect(result.usage.durationMs).toBeGreaterThan(0);
+  }, 30_000);
+});

@@ -97,6 +97,32 @@ Latency from `HttpBackend` is **measured, not modelled** — one of the few
 places EVE observes a real duration rather than simulating one, and a large
 part of how a bot feels.
 
+### Waiting is charged to the operator
+
+EVE keeps two kinds of time apart (`src/core/clock.ts`): modelled human time,
+which is computed and replays identically, and wall-clock time, which is
+machine noise and must never reach appraisal. A surface's own response
+latency is **neither** — the operator did not choose to spend it, and on a
+simulated clock nothing observes it, because it elapses inside the adapter.
+
+So adapters that measure their own latency report it through the optional
+`lastWaitMs()` hook, and the session charges it to the operator's patience
+before perceived latency is computed. Waiting is most of what makes a slow
+surface unbearable, and appraisal already converts perceived latency to
+frustration — it just never used to be told.
+
+The difference, same bot and seed, `impatient-user`:
+
+| Reply latency | Steps | Simulated time | Frustration |
+| ---: | ---: | ---: | ---: |
+| 100 ms | 6 | 3.0 s | 0.62 |
+| 3 s | 4 | 10.5 s | 0.62 |
+| 12 s | 4 | 37.5 s | **0.88** |
+
+The slow bot is abandoned two steps sooner, having got no further. Adapters
+that leave `lastWaitMs` undefined — every other one — are paced exactly as
+before.
+
 ## 3. Talking is its own cascade
 
 `HeuristicCognition` gains a conversational branch that fires only on a

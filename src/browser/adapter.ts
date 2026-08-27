@@ -62,6 +62,28 @@ export interface BrowserAdapter {
    */
   attachOperator?(persona: Persona): void;
 
+  /**
+   * Optional: how long the operator just waited for the *surface*, in ms,
+   * on surfaces that know.
+   *
+   * EVE keeps two kinds of time apart (`src/core/clock.ts`): modeled human
+   * time, which is computed and replays identically, and wall-clock time,
+   * which is machine noise and must never reach appraisal. A surface's own
+   * response latency is neither. The operator did not choose to spend it,
+   * so it is not modeled human time; and on a simulated clock nothing
+   * observes it, because it elapsed in real time inside the adapter.
+   *
+   * It is still time a person endured, and waiting is most of what makes a
+   * slow surface unbearable — so a surface that measures its own latency
+   * reports it here, and the session charges it to the operator's patience.
+   * Called once per action; implementations return the wait since the last
+   * call and must not report the same wait twice.
+   *
+   * Surfaces with nothing meaningful to report leave it undefined, and are
+   * paced exactly as before.
+   */
+  lastWaitMs?(): number | null;
+
   /** Launch/attach and navigate to the starting URL. */
   open(url: string, viewport: Viewport): Promise<void>;
 
