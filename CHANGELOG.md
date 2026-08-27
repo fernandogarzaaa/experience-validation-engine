@@ -157,6 +157,49 @@ report, or CP/1 document changes.
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
 
+## [0.4.0](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.3.1...v0.4.0) (2026-08-27)
+
+
+### Features
+
+* **conversation:** EVE talks to surfaces that answer back ([#30](https://github.com/fernandogarzaaa/experience-validation-engine/issues/30)) ([6ea6ac9](https://github.com/fernandogarzaaa/experience-validation-engine/commit/6ea6ac9eed80d74072ddbc66cc9e638203d4f8ed))
+* **cp1:** emit SimulationCompleted and chain FitnessResult to it ([663b033](https://github.com/fernandogarzaaa/experience-validation-engine/commit/663b0332478ef4d2fd3710a9010fb43fdb6a1ba3))
+* **fitness:** implement the CP/1 binding and EVE's fitness measurement ([8659260](https://github.com/fernandogarzaaa/experience-validation-engine/commit/86592605566ede3c80e5e14703eb40af08bc1962))
+* **humanity:** EVE reads digital output, not just interactive software ([8a67490](https://github.com/fernandogarzaaa/experience-validation-engine/commit/8a67490f37a1c8c1284978d21fe0219e2f4ab757))
+* MCP/kernel surface, determinism fixes, CP/1 1.1.0 vendoring ([6d95c7a](https://github.com/fernandogarzaaa/experience-validation-engine/commit/6d95c7a59dba6b67e777c3b491baf2854abd1a21))
+
+
+### Fixes
+
+* address CodeRabbit review findings on [#29](https://github.com/fernandogarzaaa/experience-validation-engine/issues/29) ([31f6d73](https://github.com/fernandogarzaaa/experience-validation-engine/commit/31f6d73f52964fee4a984100ed40479860f60fdd))
+* **browser:** bring Selenium and Puppeteer to parity with Playwright's adapter contract ([c7c1a5a](https://github.com/fernandogarzaaa/experience-validation-engine/commit/c7c1a5a9758f35058ac15c77bc70128cb6590fec))
+* **browser:** resolve real-CI failures in the new Selenium/Puppeteer integration tests ([7d8d741](https://github.com/fernandogarzaaa/experience-validation-engine/commit/7d8d741bd5581bbee2300df99b7771066f539daa))
+* **config:** reject null viewport/plugins with a ConfigError instead of crashing ([0421d83](https://github.com/fernandogarzaaa/experience-validation-engine/commit/0421d83d5c857ad89771b0b7fdefd7553010be55))
+* **cp1:** close review findings, including prototype-key lookups ([02c403c](https://github.com/fernandogarzaaa/experience-validation-engine/commit/02c403c10556483a08fb65f2f37ec52f6e8f5c3b))
+* **cp1:** match any referenced run, and reject duplicate document ids ([aec75fc](https://github.com/fernandogarzaaa/experience-validation-engine/commit/aec75fcc292ec0dc507045cf0e600ddbc38e1628))
+* **cp1:** rename CANONICAL_TYPES to COVERED_TYPES for the same reason as the Rust bindings ([062aefd](https://github.com/fernandogarzaaa/experience-validation-engine/commit/062aefdf054bd85d0a442d7d861bcfc8e0a6a1eb))
+* **deps:** resolve the four transitive advisories failing CI's dependency audit ([c071dfe](https://github.com/fernandogarzaaa/experience-validation-engine/commit/c071dfe8040aa86550f31898ceae8f7cc320fb1d))
+* **engine:** fix TDZ bug in recordLlmFallback, found in CodeRabbit's second pass ([649105b](https://github.com/fernandogarzaaa/experience-validation-engine/commit/649105ba6ebc8cc845ba7afec17a93b05bd9ef06))
+* **engine:** refuse goal success signals that cannot evidence completion ([3944d9b](https://github.com/fernandogarzaaa/experience-validation-engine/commit/3944d9b28ec6ebdaeb2df2ade54ace888dfcaba6))
+* **engine:** refuse goal success signals that cannot evidence completion ([3a1e57a](https://github.com/fernandogarzaaa/experience-validation-engine/commit/3a1e57aba7e400fd0ce5e6a22dc3a667e3496265))
+* **engine:** retire stale success signals individually, not as a set ([9582618](https://github.com/fernandogarzaaa/experience-validation-engine/commit/95826188c6f958b29f7eefa8f8c2282e1f3afd5e))
+* **engine:** three production-readiness blockers in the session loop ([68b7721](https://github.com/fernandogarzaaa/experience-validation-engine/commit/68b77216ec142c1ac0740c3ef05476b6796fa461))
+* **humanity:** address Codex review — skimmers can finish, and three smaller fixes ([12668c4](https://github.com/fernandogarzaaa/experience-validation-engine/commit/12668c42c3fef0600a0d9242bc135a357f0b214e))
+* **humanity:** keep every reader linear on pathological input ([8401aef](https://github.com/fernandogarzaaa/experience-validation-engine/commit/8401aefacc4f1b2420a172ed6cd3813a090b47b4))
+* **humanity:** no markup survives into a block's perceived text ([67c4c21](https://github.com/fernandogarzaaa/experience-validation-engine/commit/67c4c21d4a399b2039f4cf9d0964938a2076783e))
+* **memory,twins:** surface corrupted store files instead of silently resetting to empty ([c8f5f1c](https://github.com/fernandogarzaaa/experience-validation-engine/commit/c8f5f1c1f11183473ca713d8974ad9a6bc00f542))
+* production-readiness pass — adapter parity, crash recovery, LLM fallback surfacing, config/store hardening ([1b09faf](https://github.com/fernandogarzaaa/experience-validation-engine/commit/1b09fafe2b86fd22a1e36f33e5ecbd081fbfd088))
+
+
+### Documentation
+
+* document PuppeteerAdapter/SeleniumAdapter's new launch escape hatches ([b040e9e](https://github.com/fernandogarzaaa/experience-validation-engine/commit/b040e9e92735ddd40b0552ebe49eda2ab483c6d1))
+
+
+### Build and tooling
+
+* adopt Biome for linting and formatting ([#11](https://github.com/fernandogarzaaa/experience-validation-engine/issues/11)) ([0e74b72](https://github.com/fernandogarzaaa/experience-validation-engine/commit/0e74b726e327971daff1019120a1c75fbde5ef46))
+
 ## 0.3.1 — Dogfooding fixes
 
 Quality fixes surfaced by running EVE's own Phase-3 analysis against a model of
