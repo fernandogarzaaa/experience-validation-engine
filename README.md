@@ -246,6 +246,7 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [API Reference](docs/api-reference.md) | Public surface |
 | [API Stability](docs/api-stability.md) | What you can build on: stable, provisional, and experimental tiers |
 | [Examples](docs/examples.md) | Runnable examples and CI recipes |
+| [Continuous review](docs/continuous-review.md) | Automated code review on every PR, and why it does not depend on a third-party bot |
 | [Roadmap](ROADMAP.md) | Where this is going |
 | [Contributing](CONTRIBUTING.md) | How to help |
 | [Security](SECURITY.md) | Reporting a vulnerability; what EVE executes |
