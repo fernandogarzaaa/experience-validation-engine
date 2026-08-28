@@ -39,7 +39,7 @@ type SurfaceSignal =             // typed — no fake "dialog" slot
   | { type: "comprehension-gap"; text; gap: "term" | "reference" | "figure" | "quantity" | "structure" };
 
 type KernelPercept =             // discriminated over modality
-  | { modality: "visual"; viewport; scrollY; scrollHeight; screenshot; …base }
+  | { modality: "visual"; viewport; scrollY; scrollHeight; screenshot; …base }  // docs/rendering.md
   | { modality: "textual"; lines; windowRows; scrollLine; …base }
   | { modality: "document"; blocks; section; sectionCount; sectionNoun;
                             totalBlocks; blocksRead; …base }    // see docs/humanity-adapter.md

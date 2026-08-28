@@ -2,11 +2,21 @@
 #
 # This repository has been burned by the absence of one. The conversational
 # adapter (#30) shipped a 3,500-line change with no external review — Codex
-# had run out of credits and CodeRabbit does not auto-review repositories
-# under ten stars — and a review run by hand afterwards found seven real
-# bugs, two of which made EVE report the opposite of the truth. Third-party
-# review quotas are not a dependency worth having; this job runs regardless
-# of them.
+# had run out of credits, and CodeRabbit did not review it either — and a
+# review run by hand afterwards found seven real bugs, two of which made EVE
+# report the opposite of the truth.
+#
+# Whether a third-party reviewer shows up depends on its quota and its
+# eligibility rules — neither of which this repository controls, and both of
+# which can silently produce no review at all. This job removes that
+# dependency: it runs on every non-draft pull request whatever CodeRabbit or
+# any other service happens to be doing.
+#
+# It does *not* remove the draft exclusion, which it shares (see the `if:` on
+# the review job below). A draft therefore has no automated review from either
+# source. That is deliberate — work in progress should not spend review budget
+# on every push — but it means marking a PR ready is what actually buys review
+# coverage, and a green draft has not been reviewed by anything.
 #
 # Advisory, not a gate. `continue-on-error` keeps a missing secret, a rate
 # limit or an API outage from blocking a merge — the same convention the

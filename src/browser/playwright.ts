@@ -1,12 +1,17 @@
 import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
+import { importDriver } from "./driverLoader.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
 /**
- * Playwright adapter. Playwright is an optional peer dependency, loaded
- * dynamically so the core package installs without any browser tooling.
+ * Playwright adapter — EVE's reference visual surface.
+ *
+ * Playwright ships as a real dependency, so this adapter works from a plain
+ * install with no extra setup. It is still imported dynamically: the browser
+ * drivers are heavy, and a session on a document or conversational surface
+ * should not pay to load one it never uses.
  */
 
 type PlaywrightPage = {
@@ -164,13 +169,5 @@ export class PlaywrightAdapter implements BrowserAdapter {
 async function importPlaywright(): Promise<{
   chromium: { launch(opts: { headless: boolean }): Promise<unknown> };
 }> {
-  try {
-    // Variable specifier: optional peer — must not be resolved at compile time.
-    const spec = "playwright";
-    return (await import(spec)) as never;
-  } catch {
-    throw new Error(
-      'PlaywrightAdapter requires the optional peer dependency "playwright". Install it with: npm install playwright',
-    );
-  }
+  return (await importDriver("playwright", "npm install playwright")) as never;
 }

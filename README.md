@@ -108,6 +108,14 @@ Three principles make it a simulation rather than automation:
   times they had to rephrase, whether there was ever a route to a human — and
   it rephrases and gives up the way a real person does. See
   [docs/conversational-adapter.md](docs/conversational-adapter.md).
+- **Pixels, not just markup** — EVE reads the DOM, which is what a page *says*
+  about itself, and separately reads what actually reached the screen. The
+  findings live in the gap: a control that exists in the markup but is not
+  drawn, text a stylesheet or a missing font ate on the way to the screen,
+  and — the case no DOM-based tool can find, because there is nothing in the
+  DOM to find — content painted into a canvas or baked into an image, which a
+  person can read and a screen reader cannot. No OCR, no new dependency, and
+  deterministic. See [docs/rendering.md](docs/rendering.md).
 
 ## Quick start
 
@@ -118,8 +126,8 @@ npm install experience-validation-engine
 npx eve run mock: --persona curious-explorer --steps 25
 open .eve-output/report.html
 
-# Real site:
-npm install playwright && npx playwright install chromium
+# Real site (the browser ships with EVE; this fetches Chromium itself):
+npx playwright install chromium
 npx eve run https://staging.your-app.example.com \
   --persona impatient-user --goal "figure out what this product does"
 
@@ -236,6 +244,7 @@ See the [Integration Guide](docs/integrations.md) for per-platform config
 | [EVE Bench (Phase 3)](docs/eve-bench.md) | The formal multi-dimensional benchmark platform for the instrument itself |
 | [Dogfooding: EVE on EVE](docs/dogfooding.md) | Running EVE against a model of its own console — what it caught, and how to read it |
 | [Architecture](docs/architecture.md) | The human loop, the retina abstraction, module map |
+| [Rendering truth](docs/rendering.md) | Reading the pixels, and what the DOM cannot tell you |
 | [Cognitive Model (Phase 2)](docs/cognitive-model.md) | Attention, utility, expectation, load, trust, learning |
 | [Analysis Systems (Phase 2)](docs/panel-and-analysis.md) | Regression, forecasting, the AI panel, benchmarks, collaboration |
 | [Research Foundations](docs/research.md) | The HCI / cognitive-science grounding for every subsystem |

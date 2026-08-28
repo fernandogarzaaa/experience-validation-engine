@@ -120,6 +120,13 @@ export * from "./predict/index.js";
 export * from "./product/index.js";
 // Phase-2: experience & behavioral regression
 export * from "./regression/index.js";
+// Rendering truth: what is drawn, compared against what the page claims
+export * from "./rendering/index.js";
+export {
+  RENDERING_CATEGORY,
+  RENDERING_DIMENSION,
+  registerRenderingVocabulary,
+} from "./rendering/vocabulary.js";
 // Reporting
 export * from "./reporting/index.js";
 // Phase-3: research-mode dataset export (JSON / CSV / Markdown)

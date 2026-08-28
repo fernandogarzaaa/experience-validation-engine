@@ -1,0 +1,199 @@
+{
+  "url": "file:///fixtures/clean.html",
+  "title": "",
+  "viewport": {
+    "width": 900,
+    "height": 700
+  },
+  "scrollY": 0,
+  "scrollHeight": 700,
+  "elements": [
+    {
+      "id": 0,
+      "role": "text",
+      "text": "Northwind Billing",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 900,
+        "height": 52
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#ffffff",
+      "backgroundColor": "#111111",
+      "fontSize": 16
+    },
+    {
+      "id": 1,
+      "role": "heading",
+      "text": "Change your payment method",
+      "box": {
+        "x": 28,
+        "y": 80,
+        "width": 640,
+        "height": 33
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#1a1a1a",
+      "fontSize": 22
+    },
+    {
+      "id": 2,
+      "role": "text",
+      "text": "We'll use this card for your next renewal on 14 September. You can switch back to invoicing at any time from the billing settings page.",
+      "box": {
+        "x": 28,
+        "y": 123,
+        "width": 640,
+        "height": 48
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#1a1a1a",
+      "fontSize": 16
+    },
+    {
+      "id": 3,
+      "role": "text",
+      "text": "Card number",
+      "box": {
+        "x": 28,
+        "y": 187,
+        "width": 640,
+        "height": 96.5
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#1a1a1a",
+      "backgroundColor": "#ffffff",
+      "fontSize": 16
+    },
+    {
+      "id": 4,
+      "role": "text",
+      "text": "Card number",
+      "box": {
+        "x": 45,
+        "y": 204,
+        "width": 606,
+        "height": 19.5
+      },
+      "interactive": true,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#555555",
+      "fontSize": 13
+    },
+    {
+      "id": 5,
+      "role": "textbox",
+      "text": "Card number 4242 4242 4242 4242",
+      "box": {
+        "x": 45,
+        "y": 229.5,
+        "width": 286,
+        "height": 37
+      },
+      "interactive": true,
+      "disabled": false,
+      "editable": true,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#000000",
+      "backgroundColor": "#ffffff",
+      "fontSize": 15
+    },
+    {
+      "id": 6,
+      "role": "text",
+      "text": "Save card Cancel",
+      "box": {
+        "x": 28,
+        "y": 303.5,
+        "width": 640,
+        "height": 37
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#1a1a1a",
+      "fontSize": 16
+    },
+    {
+      "id": 7,
+      "role": "button",
+      "text": "Save card",
+      "box": {
+        "x": 28,
+        "y": 303.5,
+        "width": 101.546875,
+        "height": 37
+      },
+      "interactive": true,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#ffffff",
+      "backgroundColor": "#1f6feb",
+      "fontSize": 15
+    },
+    {
+      "id": 8,
+      "role": "button",
+      "text": "Cancel",
+      "box": {
+        "x": 139.546875,
+        "y": 303.5,
+        "width": 80.703125,
+        "height": 37
+      },
+      "interactive": true,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#000000",
+      "backgroundColor": "#ffffff",
+      "fontSize": 15
+    },
+    {
+      "id": 9,
+      "role": "image",
+      "text": "Decorative",
+      "box": {
+        "x": 28,
+        "y": 360.5,
+        "width": 300,
+        "height": 90
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#1a1a1a",
+      "fontSize": 16
+    }
+  ],
+  "dialogs": [],
+  "loadingIndicator": false
+}

@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
+import { importDriver } from "./driverLoader.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -283,15 +284,7 @@ async function importSelenium(): Promise<
     };
   }
 > {
-  try {
-    // Variable specifier: optional peer — must not be resolved at compile time.
-    const spec = "selenium-webdriver";
-    return (await import(spec)) as never;
-  } catch {
-    throw new Error(
-      'SeleniumAdapter requires the optional peer dependency "selenium-webdriver". Install it with: npm install selenium-webdriver',
-    );
-  }
+  return (await importDriver("selenium-webdriver", "npm install selenium-webdriver")) as never;
 }
 
 async function importChromeOptions(): Promise<{

@@ -1,0 +1,38 @@
+<!doctype html><meta charset=utf-8>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin:0; background:#fff; color:#111; }
+  .pad { padding: 24px; }
+  h1 { font-size: 28px; margin: 0 0 12px; }
+  p { max-width: 520px; margin: 0 0 14px; }
+  /* A real, visible button. */
+  button.real { padding:10px 18px; font-size:15px; background:#2563eb; color:#fff; border:0; border-radius:6px; }
+  /* A button the DOM reports as visible but which paints nothing:
+     transparent text on the page background, no fill, no border. */
+  button.ghost { padding:10px 18px; font-size:15px; background:transparent; color:transparent; border:0; }
+  /* Text present in the DOM but rendered invisible. */
+  .vanished { color:#fff; background:#fff; }
+</style>
+<div class=pad>
+  <h1>Quarterly account summary</h1>
+  <p>Your balance moved from 4,120 to 3,880 over the last thirty days. The
+     largest single change was a recurring transfer scheduled on the 14th,
+     which has now been applied four times.</p>
+  <p>To change how often this runs, open the schedule and pick a new interval.
+     Changes take effect from the next cycle onward and can be reverted at any
+     time from the same screen.</p>
+  <button class="real">Open schedule</button>
+  <button class="ghost">Cancel transfer</button>
+  <p class="vanished">This paragraph is in the DOM but invisible on screen.</p>
+  <!-- Text that exists ONLY as pixels: painted into a canvas. -->
+  <canvas id="chart" width="520" height="150"></canvas>
+</div>
+<script>
+  const c = document.getElementById('chart').getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0,0,520,150);
+  c.fillStyle = '#111'; c.font = 'bold 20px system-ui, sans-serif';
+  c.fillText('Transfers are up 38% this quarter', 10, 34);
+  c.font = '15px system-ui, sans-serif';
+  c.fillText('Scheduled: 14th of each month', 10, 64);
+  c.fillText('Next run: 14 September', 10, 88);
+  c.fillText('Tap a bar to see the individual transfers', 10, 112);
+</script>

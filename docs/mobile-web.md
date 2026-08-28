@@ -18,7 +18,7 @@ That's what actually changes how the page behaves, not the window size.
 ## Usage
 
 ```bash
-npm install playwright && npx playwright install chromium
+npx playwright install chromium   # Playwright ships with EVE; the browser is fetched once
 
 # CLI
 eve run https://your-app.example.com --browser mobile --device "iPhone 14"

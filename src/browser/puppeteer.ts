@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
+import { importDriver } from "./driverLoader.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -167,14 +168,6 @@ function sleep(ms: number): Promise<void> {
 async function importPuppeteer(): Promise<{
   launch(opts: { headless: boolean; args: string[] }): Promise<unknown>;
 }> {
-  try {
-    // Variable specifier: optional peer — must not be resolved at compile time.
-    const spec = "puppeteer";
-    const mod = (await import(spec)) as { default?: unknown };
-    return (mod.default ?? mod) as never;
-  } catch {
-    throw new Error(
-      'PuppeteerAdapter requires the optional peer dependency "puppeteer". Install it with: npm install puppeteer',
-    );
-  }
+  const mod = (await importDriver("puppeteer", "npm install puppeteer")) as { default?: unknown };
+  return (mod.default ?? mod) as never;
 }
