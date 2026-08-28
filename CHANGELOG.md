@@ -157,6 +157,25 @@ report, or CP/1 document changes.
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
 
+## [0.5.0](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.4.0...v0.5.0) (2026-08-28)
+
+
+### Features
+
+* **browser:** ship the browser with EVE instead of asking for it ([7d29e14](https://github.com/fernandogarzaaa/experience-validation-engine/commit/7d29e14646acae3542307d5a357956405e15306e))
+* full capability on install, and read the pixels rather than the page's account of itself ([d129876](https://github.com/fernandogarzaaa/experience-validation-engine/commit/d1298764b6666e72db6b77df95224122b4c2a653))
+* **rendering:** read the pixels, not just the page's account of itself ([fc1796f](https://github.com/fernandogarzaaa/experience-validation-engine/commit/fc1796fccd01e49c79c1b4698c1cceafc062cb9b))
+
+
+### Fixes
+
+* **browser:** address CodeRabbit's review of the surface preflight ([7feae8e](https://github.com/fernandogarzaaa/experience-validation-engine/commit/7feae8e9714192476533883cced171952680476d))
+
+
+### Documentation
+
+* **ci:** correct an unverified claim about why [#30](https://github.com/fernandogarzaaa/experience-validation-engine/issues/30) went unreviewed ([05ea393](https://github.com/fernandogarzaaa/experience-validation-engine/commit/05ea393dff2e21a076ff4d563cc6a31a63eea408))
+
 ## [0.4.0](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.3.1...v0.4.0) (2026-08-27)
 
 

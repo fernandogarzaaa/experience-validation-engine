@@ -1,6 +1,6 @@
 {
   "name": "eve",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "EVE — validate software the way a human experiences it. Simulates realistic personas (attention, memory, emotion, patience) using a web app through a browser and returns an evidence-backed experience report: scores, findings, and a first-person journal.",
   "author": {
     "name": "fernandogarzaaa",
