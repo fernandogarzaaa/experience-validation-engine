@@ -2,11 +2,15 @@
 #
 # This repository has been burned by the absence of one. The conversational
 # adapter (#30) shipped a 3,500-line change with no external review — Codex
-# had run out of credits and CodeRabbit does not auto-review repositories
-# under ten stars — and a review run by hand afterwards found seven real
-# bugs, two of which made EVE report the opposite of the truth. Third-party
-# review quotas are not a dependency worth having; this job runs regardless
-# of them.
+# had run out of credits, and CodeRabbit did not review it either — and a
+# review run by hand afterwards found seven real bugs, two of which made EVE
+# report the opposite of the truth.
+#
+# Whether a third-party reviewer shows up depends on its quota, its
+# eligibility rules, and the state of the PR: CodeRabbit skips draft PRs
+# unless `reviews.auto_review.drafts` is set, which is why a draft can sit
+# green and unreviewed. None of that is a dependency worth having for review
+# coverage, so this job runs regardless of any of it.
 #
 # Advisory, not a gate. `continue-on-error` keeps a missing secret, a rate
 # limit or an API outage from blocking a merge — the same convention the
