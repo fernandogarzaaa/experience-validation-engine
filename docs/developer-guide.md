@@ -4,11 +4,20 @@
 
 ```bash
 npm install experience-validation-engine
-# plus one browser backend (optional — the mock adapter needs nothing):
-npm install playwright && npx playwright install chromium
+
+# Every surface works out of the box. To drive a real browser, fetch Chromium
+# once — Playwright ships with EVE, its browser binaries do not:
+npx playwright install chromium
 ```
 
 Requirements: Node.js ≥ 20.
+
+`eve doctor` reports which surfaces are usable on this machine, and what to
+run for any that are not. Puppeteer and Selenium remain opt-in
+(`npm install puppeteer` / `selenium-webdriver`): they are alternative
+transports for the modality Playwright already covers, held at deliberate
+parity with it, so installing one adds a browser download rather than a
+capability.
 
 ## Quick start (offline, 30 seconds)
 

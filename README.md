@@ -118,8 +118,8 @@ npm install experience-validation-engine
 npx eve run mock: --persona curious-explorer --steps 25
 open .eve-output/report.html
 
-# Real site:
-npm install playwright && npx playwright install chromium
+# Real site (the browser ships with EVE; this fetches Chromium itself):
+npx playwright install chromium
 npx eve run https://staging.your-app.example.com \
   --persona impatient-user --goal "figure out what this product does"
 

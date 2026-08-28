@@ -1,7 +1,7 @@
 {
   "name": "experience-validation-engine",
   "version": "0.4.0",
-  "description": "EVE — an autonomous cognitive simulation engine that evaluates software through the perspective of realistic human operators. AI that experiences software like a human.",
+  "description": "EVE \u2014 an autonomous cognitive simulation engine that evaluates software through the perspective of realistic human operators. AI that experiences software like a human.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -76,24 +76,18 @@
     "url": "git+https://github.com/fernandogarzaaa/experience-validation-engine.git"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": ">=0.30.0 <1.0.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "playwright": "^1.40.0",
     "pngjs": "^7.0.0",
     "yaml": "^2.4.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@anthropic-ai/sdk": ">=0.30.0",
-    "playwright": ">=1.40.0",
     "puppeteer": ">=21.0.0",
     "selenium-webdriver": ">=4.16.0"
   },
   "peerDependenciesMeta": {
-    "@anthropic-ai/sdk": {
-      "optional": true
-    },
-    "playwright": {
-      "optional": true
-    },
     "puppeteer": {
       "optional": true
     },
@@ -107,7 +101,6 @@
     "@types/node": "^20.11.0",
     "@types/pngjs": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
-    "playwright": "^1.62.0",
     "puppeteer": "^25.8.0",
     "selenium-webdriver": "^4.16.0",
     "typescript": "^7.0.2",

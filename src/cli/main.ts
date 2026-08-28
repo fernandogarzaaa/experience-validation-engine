@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { validateBenchmarks } from "../benchmarks/index.js";
-import { createAdapter } from "../browser/index.js";
+import { createAdapter, diagnoseSurfaces, renderDoctor } from "../browser/index.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { LlmCognition } from "../cognition/llmCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
@@ -75,6 +75,7 @@ Usage:
   eve professions             List professional overlays
   eve cultures                List cultural profiles
   eve benchmark               Validate EVE against known-quality benchmark apps
+  eve doctor                  Check which surfaces are usable on this machine
   eve --help                  Show this help
 
 Options for "run":
@@ -211,6 +212,15 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       );
     }
     return 0;
+  }
+
+  if (command === "doctor") {
+    const reports = await diagnoseSurfaces();
+    process.stdout.write(renderDoctor(reports));
+    // A missing alternative transport is not a failure: Puppeteer and Selenium
+    // perceive exactly what the bundled Playwright adapter perceives, so their
+    // absence costs the user nothing and must not fail a CI preflight.
+    return reports.some((r) => r.status === "broken") ? 1 : 0;
   }
 
   if (command === "benchmark") {
