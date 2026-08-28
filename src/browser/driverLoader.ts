@@ -21,10 +21,18 @@ export class DriverMissingError extends Error {
   readonly installCommand: string;
 
   constructor(driver: string, installCommand: string) {
+    // Pointing someone at the adapter that is already missing helps nobody,
+    // and "no extra install" was never true even for Playwright: the package
+    // ships with EVE, its browser binaries do not.
+    const nextStep =
+      driver === "playwright"
+        ? "Playwright ships with EVE, so this usually means the install is incomplete — reinstalling the package should restore it."
+        : "Or stay on the bundled Playwright adapter (--browser playwright), which needs no extra package. Run `eve doctor` to see which surfaces are usable and what each one still needs.";
+
     super(
       `EVE's ${driver} adapter needs the "${driver}" package, which is not installed.\n` +
         `Install it with: ${installCommand}\n` +
-        "Or use the bundled Playwright adapter instead (--browser playwright), which needs no extra install.",
+        nextStep,
     );
     this.name = "DriverMissingError";
     this.driver = driver;
@@ -83,18 +91,44 @@ export async function importDriver(spec: string, installCommand: string): Promis
 }
 
 /**
- * True when a launch failure is Playwright's "browser binaries are missing".
+ * Messages in which a driver states that the browser or driver binary is
+ * absent — as opposed to present and unable to start.
+ *
+ * The distinction decides what a user is told to do, so it is drawn from what
+ * the driver actually says rather than from the fact that a launch failed.
+ * Matching "Failed to launch" instead, as this once did, classified a
+ * permissions error and a missing system library as "the browser is not
+ * installed" and sent people to reinstall a browser they already had — while
+ * still missing Puppeteer's real message, which never mentions launching.
+ */
+const MISSING_BINARY_SIGNATURES = [
+  // Playwright: the browser build it pins is not on disk.
+  "Executable doesn't exist",
+  "playwright install",
+  // Puppeteer: nothing downloaded for the configured revision.
+  "Could not find Chrome",
+  "Could not find Chromium",
+  "Could not find Firefox",
+  "Could not find browser",
+  "Browser was not found at the configured executablePath",
+  // Selenium: the driver binary is not on PATH.
+  "needs to be available in PATH",
+  "Unable to obtain browser driver",
+];
+
+/**
+ * True when a launch failure means the browser or driver was never installed.
  *
  * Distinct from a missing package: the npm package installs the driver, but
  * the browser executables are fetched by a postinstall step that CI images
  * and sandboxes routinely skip (`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD`). The
- * package is present and importable; there is simply no Chromium to launch.
+ * package is present and importable; there is simply no browser to launch.
+ *
+ * Everything else — a sandbox denial, a missing shared library, an OOM kill —
+ * is a real failure of an installed browser, and reinstalling it will not
+ * help. Those are reported as broken rather than as needing setup.
  */
 export function isMissingBrowserBinary(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return (
-    message.includes("Executable doesn't exist") ||
-    message.includes("playwright install") ||
-    message.includes("Failed to launch")
-  );
+  return MISSING_BINARY_SIGNATURES.some((signature) => message.includes(signature));
 }

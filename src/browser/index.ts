@@ -1,6 +1,6 @@
 export type { AdapterOptions, BrowserAdapter, DeviceMetrics, RawSnapshot } from "./adapter.js";
 export type { SurfaceReport, SurfaceStatus } from "./doctor.js";
-export { diagnoseSurfaces, renderDoctor } from "./doctor.js";
+export { diagnoseSurfaces, isOptionalTransport, renderDoctor } from "./doctor.js";
 export { DriverLoadError, DriverMissingError } from "./driverLoader.js";
 export type { Gesture, SwipePlan, SwipeSegment, TypingPlan } from "./humanizer.js";
 export {

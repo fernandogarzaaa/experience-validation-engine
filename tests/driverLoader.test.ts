@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { renderDoctor, type SurfaceReport } from "../src/browser/doctor.js";
+import { isOptionalTransport, renderDoctor, type SurfaceReport } from "../src/browser/doctor.js";
 import {
   DriverLoadError,
   DriverMissingError,
@@ -32,6 +32,23 @@ describe("importDriver", () => {
     );
     expect(error.installCommand).toBe("npm install it");
     expect(error.message).toContain("npm install it");
+  });
+
+  /**
+   * Telling someone whose Playwright is missing to "use the bundled Playwright
+   * adapter instead" is advice they cannot follow.
+   */
+  it("does not offer the missing driver as its own fallback", async () => {
+    const playwright = new DriverMissingError("playwright", "npm install playwright");
+    expect(playwright.message).not.toContain("--browser playwright");
+    expect(playwright.message).toContain("ships with EVE");
+
+    const puppeteer = new DriverMissingError("puppeteer", "npm install puppeteer");
+    expect(puppeteer.message).toContain("--browser playwright");
+    // And it must not claim Playwright needs nothing further: the package
+    // ships with EVE, the browser binaries do not.
+    expect(puppeteer.message).not.toContain("needs no extra install");
+    expect(puppeteer.message).toContain("eve doctor");
   });
 
   it("loads a driver that resolves", async () => {
@@ -83,14 +100,42 @@ describe("isMissingBrowserBinary", () => {
     ).toBe(true);
   });
 
-  it("recognises a launch failure", () => {
-    expect(isMissingBrowserBinary(new Error("Failed to launch the browser process: Code 1"))).toBe(
+  it("recognises Puppeteer's missing-browser failure", () => {
+    // Puppeteer never says "launch" for this case, so the old broad match
+    // missed the one message it most needed to catch.
+    expect(isMissingBrowserBinary(new Error("Could not find Chrome (ver. 119.0.6045.105)"))).toBe(
       true,
     );
+    expect(
+      isMissingBrowserBinary(new Error("Browser was not found at the configured executablePath")),
+    ).toBe(true);
   });
 
-  it("does not claim an unrelated error is a missing binary", () => {
-    expect(isMissingBrowserBinary(new Error("net::ERR_CONNECTION_REFUSED"))).toBe(false);
+  it("recognises Selenium's missing driver", () => {
+    expect(
+      isMissingBrowserBinary(
+        new Error("The chromedriver executable needs to be available in PATH"),
+      ),
+    ).toBe(true);
+  });
+
+  /**
+   * The classification decides what a user is told to do, and these are the
+   * cases where getting it wrong wastes their time. A browser that is present
+   * but cannot start — no permission, a missing system library, an OOM kill —
+   * is not fixed by installing a browser, and an earlier version of this
+   * matched every one of them on the words "Failed to launch".
+   */
+  it("does not mistake an installed-but-unable-to-start browser for a missing one", () => {
+    for (const message of [
+      "Failed to launch the browser process: Code 1",
+      "Failed to launch chrome! spawn EACCES",
+      "Failed to launch the browser process! error while loading shared libraries: libnss3.so",
+      "Target closed",
+      "net::ERR_CONNECTION_REFUSED",
+    ]) {
+      expect(isMissingBrowserBinary(new Error(message))).toBe(false);
+    }
   });
 });
 
@@ -116,7 +161,47 @@ describe("renderDoctor", () => {
 
   it("says so plainly when everything works", () => {
     const out = renderDoctor([reports[0] as SurfaceReport]);
-    expect(out).toContain("Every surface is ready.");
+    expect(out).toContain("Nothing needs setup.");
+  });
+
+  /**
+   * `Math.max()` over an empty array is -Infinity, and `" ".repeat` of that
+   * throws — a crash in the command someone runs precisely when things are
+   * already going wrong.
+   */
+  it("does not crash on an empty report", () => {
+    expect(() => renderDoctor([])).not.toThrow();
+    expect(renderDoctor([])).toContain("No surfaces to check.");
+  });
+
+  /**
+   * "Ready" is a promise the preflight has to be able to keep. Selenium needs
+   * a browser and a matching driver on PATH that only appear when a session
+   * builds the WebDriver, so a successful package import is not evidence the
+   * surface works.
+   */
+  it("marks a surface it cannot confirm as unverified, not ready", () => {
+    const out = renderDoctor([
+      {
+        surface: "selenium",
+        status: "unverified",
+        provides: "Web apps via Selenium.",
+        detail: "The package is installed.",
+      },
+    ]);
+    expect(out).toContain("? selenium");
+    expect(out).not.toContain("✓ selenium");
+    // Unverified is not blocked: it must not be counted as needing setup.
+    expect(out).toContain("Nothing needs setup.");
+  });
+
+  it("counts lost capability separately from unused transports", () => {
+    const out = renderDoctor([
+      { surface: "playwright", status: "needs-setup", provides: "browser", remedy: "install" },
+      { surface: "puppeteer", status: "broken", provides: "browser", detail: "launch failed" },
+    ]);
+    expect(out).toContain("1 surface(s) need setup.");
+    expect(out).toContain("1 alternative transport(s) unavailable");
   });
 
   /**
@@ -133,6 +218,9 @@ describe("renderDoctor", () => {
     ]);
     expect(out).toContain("Nothing is lost");
     expect(out).not.toContain("surface(s) need setup");
+    expect(isOptionalTransport("puppeteer")).toBe(true);
+    expect(isOptionalTransport("selenium")).toBe(true);
+    expect(isOptionalTransport("playwright")).toBe(false);
   });
 
   it("aligns continuation lines under the description column", () => {

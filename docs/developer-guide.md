@@ -5,8 +5,11 @@
 ```bash
 npm install experience-validation-engine
 
-# Every surface works out of the box. To drive a real browser, fetch Chromium
-# once — Playwright ships with EVE, its browser binaries do not:
+# The document, conversational, MCP and mock surfaces work immediately.
+# Driving a real browser needs Chromium fetched once — Playwright ships with
+# EVE, its browser binaries do not. Run this from the project where you
+# installed EVE, so npx resolves EVE's own Playwright rather than a different
+# one from the registry:
 npx playwright install chromium
 ```
 

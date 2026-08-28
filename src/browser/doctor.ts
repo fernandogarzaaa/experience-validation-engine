@@ -14,7 +14,26 @@
 
 import { DriverMissingError, importDriver, isMissingBrowserBinary } from "./driverLoader.js";
 
-export type SurfaceStatus = "ready" | "needs-setup" | "broken";
+/**
+ * `unverified` is the honest answer for a surface EVE cannot fully check
+ * without doing the very thing a preflight must not do — start a real
+ * session. Reporting such a surface as `ready` would be a promise it cannot
+ * keep; reporting it as `needs-setup` would send people to fix what may well
+ * be fine.
+ */
+export type SurfaceStatus = "ready" | "unverified" | "needs-setup" | "broken";
+
+/**
+ * Surfaces that are alternative transports for a modality Playwright already
+ * covers. Their absence costs no capability, so it must neither read as a
+ * lost surface nor fail a preflight.
+ */
+const OPTIONAL_TRANSPORTS = new Set(["puppeteer", "selenium"]);
+
+/** True when a surface's absence costs the user no capability. */
+export function isOptionalTransport(surface: string): boolean {
+  return OPTIONAL_TRANSPORTS.has(surface);
+}
 
 export interface SurfaceReport {
   /** The adapter name, as `--browser` accepts it. */
@@ -125,17 +144,21 @@ export async function diagnoseSurfaces(): Promise<readonly SurfaceReport[]> {
     ),
   ]);
 
-  // Selenium needs a browser *and* a driver binary on PATH, neither of which
-  // it can install. Importing it is the only part EVE can honestly check;
-  // claiming "ready" from a successful import would be a promise it cannot keep.
+  // Selenium needs a browser *and* a matching driver binary on PATH, neither
+  // of which it can install, and neither of which exists until `Builder.build()`
+  // runs inside a real session. Importing the package is the only part EVE can
+  // honestly check here — so the result is `unverified`, not `ready`. The
+  // previous code said exactly this in a comment and then returned `ready`
+  // anyway, which is the promise the comment warned against.
   let selenium: SurfaceReport;
   try {
     await importDriver("selenium-webdriver", "npm install selenium-webdriver");
     selenium = {
       surface: "selenium",
-      status: "ready",
-      provides:
-        "Web apps via Selenium (also needs a browser and matching driver on PATH, which EVE cannot verify here).",
+      status: "unverified",
+      provides: "Web apps via Selenium. Same capability as Playwright, different transport.",
+      detail:
+        "The package is installed. EVE cannot confirm the surface works without starting a session: Selenium also needs a browser and a matching driver on PATH.",
     };
   } catch (error) {
     selenium = {
@@ -152,7 +175,13 @@ export async function diagnoseSurfaces(): Promise<readonly SurfaceReport[]> {
 
 /** Render the preflight for a terminal. */
 export function renderDoctor(reports: readonly SurfaceReport[]): string {
-  const mark = (s: SurfaceStatus) => (s === "ready" ? "✓" : s === "needs-setup" ? "!" : "✗");
+  // `Math.max()` over nothing is -Infinity, and `" ".repeat(-Infinity)` throws
+  // a RangeError — a crash in the very command someone runs when things are
+  // already going wrong.
+  if (reports.length === 0) return "EVE surface check\n\n  No surfaces to check.\n";
+
+  const mark = (s: SurfaceStatus) =>
+    s === "ready" ? "✓" : s === "unverified" ? "?" : s === "needs-setup" ? "!" : "✗";
   const width = Math.max(...reports.map((r) => r.surface.length));
   // "  " + mark + " " + padded surface + "  " — continuation lines sit under `provides`.
   const indent = " ".repeat(width + 6);
@@ -164,18 +193,24 @@ export function renderDoctor(reports: readonly SurfaceReport[]): string {
     if (r.remedy) lines.push(`${indent}Fix: ${r.remedy}`);
   }
 
-  const blocked = reports.filter((r) => r.status !== "ready");
+  // Counted separately, because they mean different things to the reader: one
+  // is capability they do not have, the other is a transport they do not need.
+  const blocked = reports.filter((r) => r.status === "needs-setup" || r.status === "broken");
+  const lostCapability = blocked.filter((r) => !isOptionalTransport(r.surface));
+  const unusedTransports = blocked.filter((r) => isOptionalTransport(r.surface));
+
   lines.push("");
-  if (blocked.length === 0) {
-    lines.push("  Every surface is ready.");
-  } else {
-    const optional = blocked.every((r) => r.surface === "puppeteer" || r.surface === "selenium");
+  if (lostCapability.length > 0) {
+    lines.push(`  ${lostCapability.length} surface(s) need setup.`);
+  }
+  if (unusedTransports.length > 0) {
     lines.push(
-      optional
-        ? `  ${blocked.length} alternative transport(s) unavailable. Nothing is lost: they perceive` +
-            "\n  exactly what the bundled Playwright adapter perceives."
-        : `  ${blocked.length} surface(s) need setup.`,
+      `  ${unusedTransports.length} alternative transport(s) unavailable. Nothing is lost:` +
+        "\n  they perceive exactly what the bundled Playwright adapter perceives.",
     );
+  }
+  if (blocked.length === 0) {
+    lines.push("  Nothing needs setup.");
   }
   return `${lines.join("\n")}\n`;
 }
