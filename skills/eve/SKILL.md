@@ -133,6 +133,13 @@ which is the same signal for a document that churn is for an app.
 
 ## Prerequisites
 
-The MCP server runs via `npx -y experience-validation-engine eve-mcp`. Real
-URLs need a browser backend once (`npx playwright install chromium`); `mock:`
-needs nothing.
+The MCP server runs via `npx -y experience-validation-engine eve-mcp`.
+Playwright ships with EVE, so the only setup a real URL needs is fetching the
+browser itself, once: `npx playwright install chromium`. `mock:`, `read` and
+`chat` need nothing at all. `eve doctor` reports which surfaces are usable and
+what to run for any that are not.
+
+On a real URL, EVE also compares what the browser actually drew against what
+the page claims about itself, and reports the disagreements — a control that
+exists only in the markup, text that never reached the screen, or content
+painted into a canvas that a person can read and a screen reader cannot.

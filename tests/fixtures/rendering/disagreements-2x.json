@@ -1,0 +1,123 @@
+{
+  "url": "file:///fixtures/disagreements.html",
+  "title": "",
+  "viewport": {
+    "width": 900,
+    "height": 700
+  },
+  "scrollY": 0,
+  "scrollHeight": 700,
+  "elements": [
+    {
+      "id": 0,
+      "role": "heading",
+      "text": "Quarterly account summary",
+      "box": {
+        "x": 24,
+        "y": 24,
+        "width": 852,
+        "height": 42
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#111111",
+      "fontSize": 28
+    },
+    {
+      "id": 1,
+      "role": "text",
+      "text": "Your balance moved from 4,120 to 3,880 over the last thirty days. The largest single change was a recurring transfer scheduled on the 14th, which has now been applied four times.",
+      "box": {
+        "x": 24,
+        "y": 78,
+        "width": 520,
+        "height": 72
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#111111",
+      "fontSize": 16
+    },
+    {
+      "id": 2,
+      "role": "text",
+      "text": "To change how often this runs, open the schedule and pick a new interval. Changes take effect from the next cycle onward and can be reverted at any time from the same screen.",
+      "box": {
+        "x": 24,
+        "y": 164,
+        "width": 520,
+        "height": 72
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#111111",
+      "fontSize": 16
+    },
+    {
+      "id": 3,
+      "role": "button",
+      "text": "Open schedule",
+      "box": {
+        "x": 24,
+        "y": 250,
+        "width": 136.90625,
+        "height": 37
+      },
+      "interactive": true,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#ffffff",
+      "backgroundColor": "#2563eb",
+      "fontSize": 15
+    },
+    {
+      "id": 4,
+      "role": "button",
+      "text": "Cancel transfer",
+      "box": {
+        "x": 166,
+        "y": 250,
+        "width": 137.71875,
+        "height": 37
+      },
+      "interactive": true,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "fontSize": 15
+    },
+    {
+      "id": 5,
+      "role": "text",
+      "text": "This paragraph is in the DOM but invisible on screen.",
+      "box": {
+        "x": 24,
+        "y": 287,
+        "width": 520,
+        "height": 24
+      },
+      "interactive": false,
+      "disabled": false,
+      "editable": false,
+      "focused": false,
+      "clippedByViewport": false,
+      "color": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "fontSize": 16
+    }
+  ],
+  "dialogs": [],
+  "loadingIndicator": false
+}

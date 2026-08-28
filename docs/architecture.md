@@ -23,9 +23,22 @@ This constraint is enforced structurally, not by convention:
   in the percept, the mind cannot know it.
 
 We call the perception script the *retina abstraction*: it stands in for
-OCR + visual object recognition, restricted to exactly the information those
-would yield. This is a deliberate engineering trade-off — running real OCR on
-screenshots would produce the same inputs at 100× the cost and 10× the noise.
+OCR + visual object recognition, restricted to the information those would
+yield. This is a deliberate engineering trade-off — for the overwhelming
+majority of pages, running real OCR on screenshots would produce the same
+inputs at 100× the cost and 10× the noise.
+
+It is not, however, an *equivalence*, and the difference is not academic. The
+DOM is what a page says about itself, and a page can be wrong: it can offer a
+control that is never drawn, carry text a stylesheet or a missing font ate on
+the way to the screen, or paint content into a canvas with nothing in the
+markup to represent it. That last case is invisible to the perception script
+in principle — there is nothing there to walk.
+
+So the pixels are read separately, and the two accounts are compared. See
+[docs/rendering.md](rendering.md). That check does not OCR either: to report
+that a person can see something the page does not account for, it is enough to
+establish that legible content is rendered there.
 
 ## The human loop
 

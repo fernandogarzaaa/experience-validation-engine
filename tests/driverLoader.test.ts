@@ -76,7 +76,9 @@ describe("isMissingBrowserBinary", () => {
   it("recognises Playwright's missing-executable failure", () => {
     expect(
       isMissingBrowserBinary(
-        new Error("browserType.launch: Executable doesn't exist at /opt/pw/chromium/headless_shell"),
+        new Error(
+          "browserType.launch: Executable doesn't exist at /opt/pw/chromium/headless_shell",
+        ),
       ),
     ).toBe(true);
   });

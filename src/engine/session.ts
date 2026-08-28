@@ -56,8 +56,30 @@ import { getPersona } from "../personas/library.js";
 import type { Persona } from "../personas/persona.js";
 import { createGoal, GoalStack } from "../planning/goals.js";
 import { type EvePlugin, type PluginContext, PluginManager } from "../plugins/plugin.js";
+import type { RenderingIssueKind } from "../rendering/reconcile.js";
+import { abbreviate, inspect as inspectRendering } from "../rendering/reconcile.js";
+import { RENDERING_CATEGORY, registerRenderingVocabulary } from "../rendering/vocabulary.js";
 import { computeScores } from "../scoring/scorer.js";
 import { checkGeometry, checkPixels, checkRegression } from "../vision/analysis.js";
+
+/**
+ * Headlines for the rendering check's findings.
+ *
+ * Written from the reader's side rather than the mechanism's: someone
+ * scanning a report wants to know what a person would experience, not which
+ * comparison produced the row.
+ *
+ * Each carries something that distinguishes one occurrence from another,
+ * because findings are deduplicated by title and URL. Three invisible labels
+ * on one screen are three problems, and a constant headline would report them
+ * as one.
+ */
+const RENDERING_HEADLINES: Record<RenderingIssueKind, string> = {
+  "phantom-control": "A control exists in the markup but not on screen",
+  "unrendered-text": "Text in the page never reached the screen",
+  "unaccounted-content": "Visible content that only eyes can reach",
+};
+
 import type { DiscoveredWorkflow, WorkflowNode, WorkflowTransition } from "../workflow/graph.js";
 import { WorkflowGraph } from "../workflow/graph.js";
 import { type DiscoveredJourney, discoverJourney } from "../workflow/journeys.js";
@@ -1146,6 +1168,49 @@ export class EveSession {
           timestamp: this.simClock,
         });
       }
+      this.runRenderingChecks(percept);
+    }
+  }
+
+  /**
+   * Compare the rendering against the DOM's account of it.
+   *
+   * Kept apart from the checks above because it asks a different question.
+   * Those measure properties of what the page reports — is this text large
+   * enough, is this target big enough. This check asks whether what the page
+   * reports is what a person actually sees, which is the only check here that
+   * can find content no DOM-based tool can reach at all.
+   *
+   * Runs inside the same signature guard, so a screen revisited five times is
+   * examined once.
+   */
+  private runRenderingChecks(percept: Percept): void {
+    if (!percept.screenshot) return;
+    registerRenderingVocabulary();
+
+    for (const issue of inspectRendering(percept).issues) {
+      const box = issue.box;
+      const where = `at ${Math.round(box.x)},${Math.round(box.y)} (${Math.round(box.width)}x${Math.round(box.height)})`;
+      const label = issue.text ? `: "${abbreviate(issue.text, 40)}"` : ` ${where}`;
+      // Content a person can see and nothing else can reach is the severe
+      // case: it is invisible to assistive technology, and unlike a control
+      // nobody can see, no amount of looking at the markup reveals it.
+      const severity: Finding["severity"] =
+        issue.kind === "unaccounted-content" ? "major" : "minor";
+
+      this.addFinding({
+        severity,
+        category: RENDERING_CATEGORY,
+        title: `${RENDERING_HEADLINES[issue.kind]}${label}`,
+        description: issue.detail,
+        evidence: [
+          `Screen: ${percept.title || percept.url}`,
+          `Rendered ${where}`,
+          ...(issue.text ? [`DOM text: "${abbreviate(issue.text, 120)}"`] : []),
+        ],
+        url: percept.url,
+        timestamp: this.simClock,
+      });
     }
   }
 

@@ -1,0 +1,30 @@
+<!doctype html><meta charset=utf-8>
+<style>
+ body{font:16px/1.5 system-ui,sans-serif;margin:0;background:#fbfbfd;color:#1a1a1a}
+ header{background:#111;color:#fff;padding:14px 28px;font-weight:600}
+ main{padding:28px;max-width:640px}
+ h2{font-size:22px;margin:0 0 10px}
+ p{margin:0 0 16px}
+ .row{display:flex;gap:10px;margin-bottom:20px}
+ button{padding:9px 16px;font-size:15px;border-radius:6px;border:1px solid #d0d0d8;background:#fff;cursor:pointer}
+ button.primary{background:#1f6feb;color:#fff;border-color:#1f6feb}
+ input{padding:9px 12px;font-size:15px;border:1px solid #d0d0d8;border-radius:6px;width:260px}
+ .card{border:1px solid #e6e6ec;border-radius:10px;padding:16px;background:#fff}
+ img{display:block;border-radius:8px}
+ label{display:block;margin-bottom:6px;font-size:13px;color:#555}
+</style>
+<header>Northwind Billing</header>
+<main>
+  <h2>Change your payment method</h2>
+  <p>We'll use this card for your next renewal on 14 September. You can switch
+     back to invoicing at any time from the billing settings page.</p>
+  <div class="card">
+    <label for="card">Card number</label>
+    <input id="card" placeholder="4242 4242 4242 4242">
+  </div>
+  <div class="row" style="margin-top:20px">
+    <button class="primary">Save card</button>
+    <button>Cancel</button>
+  </div>
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iOTAiPjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iOTAiIGZpbGw9IiNlOGYwZmUiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQ1IiByPSIyOCIgZmlsbD0iIzFmNmZlYiIvPjxjaXJjbGUgY3g9IjE0MCIgY3k9IjQ1IiByPSIyMCIgZmlsbD0iIzc0YThmNyIvPjxjaXJjbGUgY3g9IjIyMCIgY3k9IjQ1IiByPSIzMiIgZmlsbD0iIzBiNGRhMiIvPjwvc3ZnPg==" width="300" height="90" alt="Decorative">
+</main>
