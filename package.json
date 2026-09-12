@@ -25,9 +25,9 @@
     }
   },
   "bin": {
-    "eve": "./bin/eve.js",
-    "eve-mcp": "./bin/eve-mcp.js",
-    "eve-cp1": "./bin/eve-cp1.js"
+    "eve": "bin/eve.js",
+    "eve-mcp": "bin/eve-mcp.js",
+    "eve-cp1": "bin/eve-cp1.js"
   },
   "files": [
     "dist",
