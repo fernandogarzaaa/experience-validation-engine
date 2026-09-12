@@ -1,0 +1,82 @@
+name: Publish (manual)
+
+# One-click recovery for releases that were tagged on GitHub but never made
+# it to npm (e.g. v0.4.0/v0.5.0, whose `publish` jobs failed with ENEEDAUTH
+# because the NPM_TOKEN secret was not configured).
+#
+# Usage: Actions → "Publish (manual)" → Run workflow → ref `v0.5.0`.
+# Requires a repo secret named NPM_TOKEN holding an npm automation token
+# with publish access to experience-validation-engine.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or ref to publish (e.g. v0.5.0)"
+        required: true
+        default: "v0.5.0"
+      dry_run:
+        description: "Validate only (npm publish --dry-run)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  # Required for npm provenance, which ties the published tarball to this
+  # workflow run so consumers can verify where it was built.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+
+      # Re-verify at the tag. Publishing is the one place where "it passed on
+      # the PR" is not good enough.
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run mcp:smoke
+
+      - name: Check npm auth
+        run: |
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "::error::NPM_TOKEN is not configured. Create an npm automation token (npmjs.com -> Access Tokens -> Generate New Token -> Automation) with publish access to experience-validation-engine, add it as a repo secret named NPM_TOKEN, then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Skip if version already published
+        id: already
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          echo "Package: $PKG@$VER"
+          if npm view "$PKG@$VER" version --silent 2>/dev/null; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$PKG@$VER is already on npm - nothing to do."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm (dry run)
+        if: steps.already.outputs.published == 'false' && inputs.dry_run == true
+        run: npm publish --dry-run --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm
+        if: steps.already.outputs.published == 'false' && inputs.dry_run != true
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
