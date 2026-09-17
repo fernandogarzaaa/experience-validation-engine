@@ -1,0 +1,16 @@
+name: notify-godmode
+# Notifies fernandogarzaaa/godmode to re-vendor this repo (see godmode/docs/auto-update.md).
+# Requires secret GODMODE_SYNC_TOKEN in this repo (PAT with write on godmode).
+on:
+  push:
+    branches: [main]
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GODMODE_SYNC_TOKEN }}
+          repository: fernandogarzaaa/godmode
+          event-type: source-updated
+          client-payload: '{"repo": "eve", "sha": "${{ github.sha }}"}'
