@@ -102,8 +102,13 @@ the utility policy.
 
 ## 6. Long-term memory & learning (`memory/longTerm.ts`, `memory/learning.ts`)
 
-A persistent, per-application memory store (`FileMemoryStore` /
-`InMemoryStore`) lets the operator **remember an app between sessions**:
+A persistent, per-operator memory store (`FileMemoryStore` /
+`InMemoryStore`, namespaced by operator id so personas never share episodic
+experience) lets the operator **remember an app between sessions**:
+screens, button locations, learned facts/shortcuts, favorite (completed)
+workflows, frustration spots, and a per-session history. Between sessions,
+memory decays on an **Ebbinghaus forgetting curve** with reinforcement
+(retention-trait-dependent). A returning operator:
 screens, button locations, learned facts/shortcuts, favorite (completed)
 workflows, frustration spots, and a per-session history. Between sessions,
 memory decays on an **Ebbinghaus forgetting curve** with reinforcement
@@ -116,11 +121,14 @@ memory decays on an **Ebbinghaus forgetting curve** with reinforcement
 - starts with **familiarity-driven confidence**.
 
 `computeLearningMetrics` derives, across sessions: **Learning Rate** (the
-power-law-of-practice exponent α; Newell & Rosenbloom 1981), **Retention**,
-**Memory Recall**, **Recognition-vs-Recall** ratio, a **Forgetting Curve**,
-and per-session efficiency series — with an inline SVG learning curve for
-reports. In practice a returning operator completes the same task in fewer
-steps each session (e.g. 7 → 5 → 5).
+power-law-of-practice exponent α; Newell & Rosenbloom 1981 — a fit quality,
+not proof of human learning), **Retention** (mean affordance strength, not a
+recall fraction), internal **recognition/recall proxies** (memory-strength
+thresholds — useful model state, NOT experimentally measured human
+recognition vs recall; see `BehavioralMemoryProbe` for the future real-test
+slot), a **Forgetting Curve**, and per-session efficiency series — with an
+inline SVG learning curve for reports. In practice a returning operator
+completes the same task in fewer steps each session (e.g. 7 → 5 → 5).
 
 ## 7. Emotional evolution
 

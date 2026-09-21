@@ -36,6 +36,7 @@ import type {
   TextualKernelPercept,
 } from "../core/kernel.js";
 import type { PerceivedRole, Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { TEXTUAL_SURFACE } from "./capabilities.js";
 import { connectMcpServer, type McpConnection, type McpConnector } from "./mcpClient.js";
 import { LINE_HEIGHT, layoutTextFrame, type TextAffordance } from "./textFrame.js";
@@ -110,6 +111,7 @@ export interface McpAdapterOptions {
 
 export class McpAdapter implements BrowserAdapter, KernelSurface {
   readonly name = "mcp";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = { ...TEXTUAL_SURFACE, actionVerbs: MCP_ACTION_VERBS };
 
   private readonly connector: McpConnector;

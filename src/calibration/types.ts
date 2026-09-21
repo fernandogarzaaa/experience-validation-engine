@@ -34,8 +34,24 @@ export interface CalibrationReport {
   readonly behaviorSimilarity: number;
   /** Cosine similarity of transition-frequency vectors (0..1). */
   readonly navigationSimilarity: number;
-  /** How closely steps/duration match (0..1). */
-  readonly timingSimilarity: number;
+  /**
+   * Duration similarity (0..1) — compares observed durations on BOTH sides.
+   * Null when either side lacks duration data; never falls back to steps
+   * (P1.10). Aggregate-only: trajectory-level comparison (action
+   * distributions, dwell times, abandonment hazard) is future work — see
+   * `trajectorySimilarity` and calibration docs.
+   */
+  readonly timingSimilarity: number | null;
+  /** Step-count similarity (0..1): efficiency, NOT timing. */
+  readonly stepSimilarity: number;
+  /**
+   * Aligned-trajectory similarity placeholder: unimplemented until per-step
+   * human action logs exist (action agreement, dwell distributions,
+   * abandonment hazard). Null until provided. NOTE: this is NOT the
+   * transition-distribution cosine — that edge-overlap measure is exposed
+   * separately as `navigationSimilarity`.
+   */
+  readonly trajectorySimilarity: number | null;
   /** Pearson correlation of per-screen friction (−1..1); null if unknowable. */
   readonly frictionCorrelation: number | null;
   /** Closeness of aggregate frustration (0..1); null if humans didn't report it. */

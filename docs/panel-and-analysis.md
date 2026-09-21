@@ -27,10 +27,13 @@ green while regressing the experience.
 
 ## Experience forecasting (`forecasting/`)
 
-`forecastExperience(sessions)` extrapolates from observed runs to predict
-where **future** users will struggle: high-friction screens (weighted by how
-many personas hit them), workflows at risk of abandonment, confidence-draining
-screens, and the highest-leverage changes with estimated completion lift.
+`forecastExperience(sessions)` extrapolates from observed runs to flag where
+**future** simulated users are likely to struggle: high-friction screens
+(weighted by how many personas hit them), workflows with observed
+abandonment, confidence-draining screens, and candidate changes with
+heuristic lift indices. All struggle/lift numbers are heuristic scenario
+scores (see `struggleIndex`, `provenance: "heuristic"`), not calibrated
+probabilities or causal estimates.
 
 ## User-journey discovery (`workflow/journeys.ts`)
 
@@ -82,14 +85,16 @@ shared-workflow failure that testing each screen in isolation would miss.
 Three apps implement the *same* task at deliberately different quality levels
 (excellent / average / bad). `validateBenchmarks()` runs a persona panel
 against all three and asserts EVE scores them in strict order — EVE's standing
-**construct-validity** check. If a change to the cognitive model breaks the
-ordering, the instrument has lost discriminative power (enforced by a test and
-`eve benchmark`, which exits non-zero on failure).
+construct-discrimination REGRESSION check (internal: proves the instrument
+still discriminates its own fixtures, not that it matches real humans). If a
+change to the cognitive model breaks the ordering, the instrument has lost
+discriminative power (enforced by a test and `eve benchmark`, which exits
+non-zero on failure).
 
 ```
 $ eve benchmark
   excellent  mean score 83/100
   average    mean score 73/100
   bad        mean score 63/100
-  EVE correctly ranked the benchmarks — the instrument discriminates UX quality.
+  EVE preserved expected discrimination on reference fixtures (internal regression). This is NOT human validation.
 ```

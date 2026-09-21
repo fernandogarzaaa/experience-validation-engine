@@ -1,4 +1,4 @@
-import type { Finding } from "../core/types.js";
+import type { EvidenceProvenance, Finding } from "../core/types.js";
 import type { SessionResult } from "../engine/session.js";
 
 /**
@@ -14,20 +14,30 @@ import type { SessionResult } from "../engine/session.js";
  */
 
 export interface StruggleForecast {
-  /** Screen title or URL where struggle is predicted. */
+  /** Screen title or URL where struggle is forecast. */
   readonly location: string;
-  /** 0..1 predicted probability a user struggles here. */
+  /**
+   * Heuristic struggle RISK INDEX 0..1 (P1.8) — a hand-weighted combination
+   * of friction events and persona breadth, NOT an empirically fitted
+   * probability and NOT a causal estimate. Kept 0..1 internally for
+   * comparability; reports must render it as an index.
+   */
   readonly struggleProbability: number;
-  /** What drives the prediction. */
+  /** Alias with honest naming; identical value. Prefer in new code. */
+  readonly struggleIndex: number;
+  /** What drives the forecast. */
   readonly signals: readonly string[];
   /** Personas that struggled here, if multi-session. */
   readonly affectedPersonas: readonly string[];
+  readonly provenance: EvidenceProvenance;
 }
 
 export interface AbandonmentForecast {
   readonly workflow: string;
+  /** Heuristic abandonment risk index 0..1 (observed abandonment share) — not causal. */
   readonly abandonmentRisk: number;
   readonly reason: string;
+  readonly provenance: EvidenceProvenance;
 }
 
 export interface ConfidenceForecast {
@@ -38,9 +48,13 @@ export interface ConfidenceForecast {
 
 export interface ImprovementForecast {
   readonly change: string;
-  /** Estimated completion-rate lift, 0..1. */
+  /**
+   * Heuristic estimated completion LIFT INDEX 0..1 (P1.8) — scenario
+   * arithmetic over observed friction, not a causal lift estimate.
+   */
   readonly estimatedLift: number;
   readonly rationale: string;
+  readonly provenance: EvidenceProvenance;
 }
 
 export interface ExperienceForecast {
@@ -160,8 +174,10 @@ export function forecastExperience(sessions: readonly SessionResult[]): Experien
       struggles.push({
         location: stats.location,
         struggleProbability: Number(probability.toFixed(2)),
+        struggleIndex: Number(probability.toFixed(2)),
         signals,
         affectedPersonas: [...stats.personas],
+        provenance: "heuristic",
       });
     }
     if (stats.confidenceDropCount > 0) {
@@ -185,6 +201,7 @@ export function forecastExperience(sessions: readonly SessionResult[]): Experien
         workflow: kind,
         abandonmentRisk: Number(risk.toFixed(2)),
         reason: entry.reason || "friction accumulated in this workflow",
+        provenance: "derived",
       });
     }
   }
@@ -220,7 +237,8 @@ function recommendChanges(
         .join(", ")}`,
       estimatedLift: Math.min(0.3, deadClickScreens.length * 0.08),
       rationale:
-        "Dead clicks (no visible response) are the strongest single predictor of confidence loss and re-clicking here.",
+        "Dead clicks (no visible response) are the strongest single predictor of confidence loss and re-clicking here. Lift is a heuristic scenario index, not a causal estimate.",
+      provenance: "heuristic",
     });
   }
   const errorScreens = struggles.filter((s) => s.signals.some((g) => g.includes("error")));
@@ -231,7 +249,9 @@ function recommendChanges(
         .map((s) => s.location)
         .join(", ")}`,
       estimatedLift: Math.min(0.35, errorScreens.length * 0.1),
-      rationale: "Perceived errors both block completion and durably damage trust across personas.",
+      rationale:
+        "Perceived errors both block completion and durably damage trust across personas. Lift is a heuristic scenario index, not a causal estimate.",
+      provenance: "heuristic",
     });
   }
   if (drains.length > 0) {
@@ -242,7 +262,8 @@ function recommendChanges(
         .join(", ")}`,
       estimatedLift: 0.12,
       rationale:
-        "These screens drain confidence even without hard errors — usually an information-scent or hierarchy problem.",
+        "These screens drain confidence even without hard errors — usually an information-scent or hierarchy problem. Lift is a heuristic scenario index, not a causal estimate.",
+      provenance: "heuristic",
     });
   }
   const criticalCount = allFindings.filter((f) => f.severity === "critical").length;
@@ -251,7 +272,8 @@ function recommendChanges(
       change: `Resolve the ${criticalCount} critical finding(s) surfaced during simulation`,
       estimatedLift: 0.2,
       rationale:
-        "Critical findings correspond to abandonment or hard blockers in the observed runs.",
+        "Critical findings correspond to abandonment or hard blockers in the observed runs. Lift is a heuristic scenario index, not a causal estimate.",
+      provenance: "heuristic",
     });
   }
   return out.sort((a, b) => b.estimatedLift - a.estimatedLift);
@@ -270,12 +292,12 @@ function buildSummary(
   const parts = [`Based on ${sessionCount} simulated session(s):`];
   if (topStruggle) {
     parts.push(
-      `future users are most likely to struggle at "${topStruggle.location}" (${Math.round(topStruggle.struggleProbability * 100)}% risk).`,
+      `simulated operators showed the highest heuristic struggle-index at "${topStruggle.location}" (index ${topStruggle.struggleIndex.toFixed(2)} — a scenario score, not a probability).`,
     );
   }
   if (topAbandon && topAbandon.abandonmentRisk > 0) {
     parts.push(
-      `The "${topAbandon.workflow}" workflow carries the highest abandonment risk (${Math.round(topAbandon.abandonmentRisk * 100)}%).`,
+      `The "${topAbandon.workflow}" workflow carries the highest observed abandonment share (${Math.round(topAbandon.abandonmentRisk * 100)}% of simulated sessions).`,
     );
   }
   return parts.join(" ");

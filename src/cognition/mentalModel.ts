@@ -1,7 +1,7 @@
 import { clamp01 } from "../core/random.js";
 import type { Modality } from "../core/registry.js";
 import type { Percept, Prediction, PredictionOutcome, VisibleElement } from "../core/types.js";
-import { screenSignature } from "../memory/memory.js";
+import { sensitiveStateKey } from "../memory/surfaceIdentity.js";
 
 /**
  * The operator's evolving mental model of the application, and the machinery
@@ -83,39 +83,116 @@ export function passiveText(percept: Percept): string {
 }
 
 /**
+ * Layered error evidence (P1.4). Plain lexical matching confuses "Error
+ * rate: 1.2%", "Required reading" or "Failed experiments" (content ABOUT
+ * failure) with an application failure the operator faces. Strength order:
+ *
+ * 1. semantic role (alert/dialog) — strong, "observed";
+ * 2. native dialog carrying error text — strong, "observed";
+ * 3. form-validation context (disabled/invalid-adjacent interactive element
+ *    with error text) — moderate, "derived";
+ * 4. bare lexical match — weak fallback, "heuristic", filtered against
+ *    known false-positive prose contexts.
+ *
+ * Lexical detection is kept (backwards compat) but graded weak.
+ */
+export type ErrorEvidenceLevel = "strong" | "moderate" | "weak" | "none";
+
+export interface ErrorEvidence {
+  readonly level: ErrorEvidenceLevel;
+  readonly provenance: "observed" | "derived" | "heuristic";
+  readonly snippets: readonly string[];
+}
+
+/** Prose contexts where error words describe content, not a failure. */
+const FALSE_POSITIVE_CONTEXTS: readonly RegExp[] = [
+  /\berror\s+rates?\b/i,
+  /\brequired\s+reading\b/i,
+  /\bfailed\s+(experiments?|tests?\s+as\s+content)\b/i,
+  /\bwrong\s+answers?\s+explained\b/i,
+  /\b404\s+(reference|explanation|guide|doc(umentation)?|page\s+not\s+found\s+guide)\b/i,
+  /\b(error|failure|fail|invalid)\b[^.]{0,40}\b(rate|percentage|%|statistics|report|analysis|study|experiment)\b/i,
+  /\b(rate|percentage)\s*:\s*\d/i,
+];
+
+function inFalsePositiveContext(text: string): boolean {
+  return FALSE_POSITIVE_CONTEXTS.some((re) => re.test(text));
+}
+
+function lexicalHit(text: string): boolean {
+  return ERROR_PATTERNS.some((re) => re.test(text));
+}
+
+export function classifyErrorEvidence(
+  percept: Percept,
+  modality: Modality = "visual",
+): ErrorEvidence {
+  if (modality === "document") return { level: "none", provenance: "heuristic", snippets: [] };
+  const snippets: string[] = [];
+  // 1–2. Semantic role + native dialogs: strong.
+  for (const el of percept.elements) {
+    if ((el.role === "alert" || el.role === "dialog") && el.text.trim()) {
+      if (lexicalHit(el.text) || el.role === "alert") {
+        snippets.push(el.text.trim().slice(0, 140));
+      }
+    }
+  }
+  for (const d of percept.dialogs) {
+    if (lexicalHit(d.text)) snippets.push(d.text.trim().slice(0, 140));
+  }
+  if (snippets.length > 0) {
+    return {
+      level: "strong",
+      provenance: "observed",
+      snippets: [...new Set(snippets)].slice(0, 5),
+    };
+  }
+  // 3. Form-validation context: error text on/near an interactive control.
+  const moderate: string[] = [];
+  for (const el of percept.elements) {
+    if (!el.text || !lexicalHit(el.text)) continue;
+    if (inFalsePositiveContext(el.text)) continue;
+    if (el.interactive || el.editable || el.disabled) moderate.push(el.text.trim().slice(0, 140));
+  }
+  if (moderate.length > 0) {
+    return {
+      level: "moderate",
+      provenance: "derived",
+      snippets: [...new Set(moderate)].slice(0, 5),
+    };
+  }
+  // 4. Weak lexical fallback, filtered.
+  const weak: string[] = [];
+  for (const el of percept.elements) {
+    if (!el.text || !lexicalHit(el.text)) continue;
+    if (inFalsePositiveContext(el.text)) continue;
+    weak.push(el.text.trim().slice(0, 140));
+  }
+  if (weak.length > 0) {
+    return { level: "weak", provenance: "heuristic", snippets: [...new Set(weak)].slice(0, 5) };
+  }
+  return { level: "none", provenance: "heuristic", snippets: [] };
+}
+/**
  * Is a visible error message perceivable on this screen?
  *
- * The patterns match prose, which is the right call on a surface the operator
- * is *driving*: "Invalid password" on a login form is an error they are
- * facing. On a document surface it is the wrong call, and badly so — a
- * quarterly report line reading "Error rate: 0.4%" is a *topic*, not a
- * failure, and a stack trace quoted in a bug report is something the reader
- * is reading about rather than something happening to them. There is nothing
- * to retry or dismiss on a page of text, so a document never presents the
- * reader with an error to recover from. What the artifact says about errors
- * is the comprehension model's business (`src/humanity/comprehension.ts`),
- * where an unexplained failure with no next step is a finding about the
- * *writing*.
+ * Layered evidence (P1.4) via {@link classifyErrorEvidence}: semantic
+ * role/dialog matches count as strong observed evidence; bare lexical
+ * matches are weak heuristic evidence filtered against false-positive
+ * prose ("Error rate", "Required reading", ...).
+ *
+ * Document-modality gating is unchanged (see history): prose *about*
+ * failures on a page of text is not a failure the reader faces.
  */
 export function perceivesError(percept: Percept, modality: Modality = "visual"): boolean {
   if (modality === "document") return false;
-  const text = visibleText(percept);
-  return ERROR_PATTERNS.some((re) => re.test(text));
+  return classifyErrorEvidence(percept, modality).level !== "none";
 }
 
 /** Error text snippets, for evidence in findings. See {@link perceivesError}. */
 export function errorSnippets(percept: Percept, modality: Modality = "visual"): string[] {
   if (modality === "document") return [];
-  const snippets: string[] = [];
-  for (const el of percept.elements) {
-    if (el.text && ERROR_PATTERNS.some((re) => re.test(el.text))) {
-      snippets.push(el.text.trim().slice(0, 140));
-    }
-  }
-  for (const d of percept.dialogs) {
-    if (ERROR_PATTERNS.some((re) => re.test(d.text))) snippets.push(d.text.trim().slice(0, 140));
-  }
-  return [...new Set(snippets)].slice(0, 5);
+  return [...classifyErrorEvidence(percept, modality).snippets];
 }
 
 /**
@@ -164,8 +241,10 @@ export function comparePrediction(
   perceivedLatencyMs: number,
   modality: Modality = "visual",
 ): PredictionOutcome {
+  // Outcome interpretation uses the SENSITIVE state: a validation error or
+  // dialog appearing IS a changed state even when the stable layout matches.
   const screenChanged =
-    screenSignature(before) !== screenSignature(after) || significantTextChange(before, after);
+    sensitiveStateKey(before) !== sensitiveStateKey(after) || significantTextChange(before, after);
   const afterText = visibleText(after).toLowerCase();
   const matched: string[] = [];
   const missed: string[] = [];

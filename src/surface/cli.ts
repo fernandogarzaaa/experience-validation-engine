@@ -1,6 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import type { BrowserAdapter, RawSnapshot } from "../browser/adapter.js";
 import type { Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { detectAffordances, stripAnsi } from "./affordances.js";
 import { TEXTUAL_SURFACE } from "./capabilities.js";
 import { LINE_HEIGHT, layoutTextFrame, type TextAffordance } from "./textFrame.js";
@@ -38,6 +39,7 @@ export interface CliAdapterOptions {
  */
 export class CliAdapter implements BrowserAdapter {
   readonly name = "cli";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = TEXTUAL_SURFACE;
 
   private child: ChildProcessWithoutNullStreams | null = null;

@@ -227,8 +227,9 @@ Models a handoff / approval chain across several operators. See
 ### Benchmarks (CLI: `eve benchmark`)
 
 `eve benchmark` runs EVE against known-good / known-bad reference apps and
-exits non-zero if it cannot rank them correctly — a construct-validity gate
-for the instrument itself. Import the suite via `validateBenchmarks()`.
+exits non-zero if it cannot rank them correctly — a construct-discrimination
+regression gate for the instrument itself (internal, not human validation).
+Import the suite via `validateBenchmarks()`.
 
 ## Pacing
 

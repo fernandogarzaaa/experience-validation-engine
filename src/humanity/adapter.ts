@@ -38,6 +38,7 @@ import type {
   SurfaceSignal,
 } from "../core/kernel.js";
 import type { Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { getPersona } from "../personas/library.js";
 import type { Persona } from "../personas/persona.js";
 import { DOCUMENT_SURFACE, DOCUMENT_VERBS } from "../surface/capabilities.js";
@@ -86,6 +87,7 @@ interface SectionState {
 
 export class HumanityAdapter implements BrowserAdapter, KernelSurface {
   readonly name = "humanity";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = { ...DOCUMENT_SURFACE, actionVerbs: DOCUMENT_VERBS };
 
   private artifact: Artifact | null = null;

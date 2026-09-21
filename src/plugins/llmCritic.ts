@@ -154,9 +154,20 @@ export class LlmCriticPlugin implements EvePlugin {
           category: "usability",
           title: `[LLM critic] ${issue.title}`,
           description: issue.description,
-          evidence: [`Screen: ${percept.title || percept.url}`, "Source: LLM design critique"],
+          evidence: [
+            `Screen: ${percept.title || percept.url}`,
+            "Source: LLM design critique (model-inferred — not an observed interaction failure)",
+            `Model: ${this.model}`,
+            `Screenshot supplied: ${percept.screenshot ? "yes" : "no"}`,
+          ],
           url: percept.url,
           recommendation: issue.recommendation,
+          // P1.11: LLM findings are explicitly model-inferred, never
+          // epistemically identical to observed failures.
+          provenance: "llm-inferred",
+          modelId: this.model,
+          screenshotBacked: percept.screenshot !== null,
+          ruleBacked: false,
         });
       }
     } catch (error) {

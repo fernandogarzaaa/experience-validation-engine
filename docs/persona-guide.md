@@ -30,12 +30,13 @@ Run `eve personas` for the live list. Highlights:
 
 ## The trait model
 
-Sixteen traits (all 0..1 except `readingSpeedWpm`):
+Seventeen traits (all 0..1 except `readingSpeedWpm`):
 
 | Trait | Drives |
 |---|---|
 | `readingSpeedWpm` | Duration of `read` actions (40–1200 wpm) |
 | `clickAccuracy` | Click scatter σ; misclicks on small targets |
+| `typingAccuracy` | Typo rate (independent from pointer precision; defaults to `clickAccuracy` for old specs) |
 | `motorSpeed` | Pointer travel time, typing cadence |
 | `memoryRetention` | Working-memory capacity (3–6 chunks), episodic decay |
 | `riskTolerance` | Hesitation/refusal on destructive controls |

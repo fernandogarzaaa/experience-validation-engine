@@ -46,7 +46,9 @@ comparison when available.
 | `similarityScore` | Composite realism, 0–100 (weighted over the available dimensions) |
 | `behaviorSimilarity` | How closely completion & abandonment rates match |
 | `navigationSimilarity` | Cosine similarity of transition-frequency vectors (path overlap) |
-| `timingSimilarity` | How closely effort (median steps) matches |
+| `timingSimilarity` | Duration similarity over OBSERVED durations on both sides — `null` unless both sides report `durationMs`. Never falls back to steps |
+| `stepSimilarity` | How closely step counts match (efficiency — explicitly NOT timing) |
+| `trajectorySimilarity` | Aligned trajectory comparison (action agreement, dwell distributions, hazard) — currently `null`: requires per-step human action logs; the transition-distribution cosine above is edge-overlap, not trajectory validation |
 | `frictionCorrelation` | Pearson correlation of **where** friction/abandonment concentrates, per screen (−1..1) |
 | `frustrationAlignment` / `confidenceAlignment` | Closeness of aggregate self-reports (null if humans didn't report them) |
 
@@ -54,6 +56,65 @@ Metrics that can't be computed (e.g. no shared screens, or no self-reports) are
 `null` and explained in `notes` — nothing is fabricated. **Lower dimensions are
 the point**: they tell you exactly where EVE and real humans diverge, which is
 where to tune the model next.
+
+## The calibration dataset format (`calibration/record.ts`)
+
+`buildCalibrationDataset(sessionResult)` exports every loop iteration as a
+machine-readable `CalibrationRecord`: what EVE saw (URL, stable/sensitive
+keys), believed (emotion), predicted, did, what happened (outcome incl.
+`latencyEvidence`), per-section provenance (observed / derived / modeled /
+heuristic), the generating parameters (seed, persona traits, policy) plus
+versioned identifiers (`behaviorModelVersion`, `parameterSetVersion`,
+`surfaceAdapter`), and `calibrationStatus: "uncalibrated"` with a null
+`humanReference` slot. The human slot (`HumanIterationReference`) is
+deliberately richer than current aggregates — timestamps, intended/actual
+action, target, coordinates, durations, corrections, transitions,
+abandonment, self-reports, and recovery behavior (`retry`, `undo`,
+`backtrack`, `seek-help`, `strategy-change`, `takeover`, …) — all optional,
+so future intervention data fits without a schema migration.
+`renderCalibrationRecordsJsonl()` writes the append-friendly dataset format.
+Pair each record with a human-observed step and the trajectory/action/dwell
+comparisons become computable — this record is the schema the future
+calibration engine will be built on, not a side export.
+
+## Calibration maturity (terminology)
+
+Do not call parameters "calibrated" on small convenience samples:
+
+```text
+<30 traces              exploratory (tune freely, claim nothing)
+~30 traces              pilot calibration (methodology check, not validity)
+larger dataset
+  + held-out evaluation  calibrated parameter candidate
+replicated
+  held-out validation    validated parameter
+```
+
+The required N depends on parameter count, populations, surfaces, task
+diversity, modality, variance, and desired confidence — the methodology
+determines the data, not the other way around. Splits must hold out whole
+tasks/applications/users/interfaces, never just fit and re-score the same
+traces.
+
+## Model freeze
+
+Behavioral calibration runs against a frozen model. `BEHAVIOR_MODEL_VERSION
+= 1.0.0` + `PARAMETER_SET_VERSION = 1.0.0` represent the **frozen c40a730
+baseline** — never interpret `1.0.0` as covering earlier commits that happen
+to use the same constants. Bump rules (`src/core/versions.ts`):
+
+```text
+behavioral change (cognition, identity, perception, timing, motor,
+  appraisal, memory, abandonment, learning) → bump BEHAVIOR_MODEL_VERSION
+default parameter value change              → bump PARAMETER_SET_VERSION
+documentation-only change                   → no bump
+bug fix changing observable model behavior  → bump the relevant version
+```
+
+Any bump restarts calibration from `uncalibrated`. Every
+`CalibrationRecord` carries both versions plus the surface adapter, so a
+past prediction is reproducible and auditable. Keep both versions fixed
+while collecting the first dataset.
 
 ## Via MCP
 

@@ -146,9 +146,13 @@ interpretability and controlled ablation are first-class — which is what a
 
 ### Benchmarks (`src/benchmarks/`)
 
-- **Construct validity**: a measurement instrument must discriminate known
-  cases. The benchmark suite (bad / average / excellent UX apps) is EVE's
-  standing validity check — score ordering must hold, enforced by tests.
+- **Construct-discrimination regression** (internal — not external validity):
+  a measurement instrument must discriminate known cases. The benchmark
+  suite (bad / average / excellent UX apps) is EVE's standing regression
+  check — score ordering must hold, enforced by tests. This proves the
+  instrument agrees with itself on its own fixtures; human validity requires
+  `eve_calibrate` against real human traces (see
+  [human-calibration.md](human-calibration.md)).
 
 ## Sources
 

@@ -58,10 +58,11 @@ prefer them over shelling out.
   an **application map**: screens and their purpose, the navigation graph (as a
   Mermaid diagram), information architecture, hubs, dead-ends, and unexercised
   affordances. Use to understand an unfamiliar app's structure and coverage.
-- **`eve_predict_ux`** — predict the wider user base's experience with
-  **confidence intervals**: abandonment, confusion, onboarding-failure, and
-  accessibility-barrier rates, a modeled support-contact rate, and predicted
-  struggle screens. Use to forecast where users will struggle before shipping.
+- **`eve_predict_ux`** — heuristic simulation estimates from a simulated
+  population (NOT population inference): abandonment/confusion/onboarding/
+  accessibility simulation ranges, a heuristic support-contact scenario score,
+  and confusion-risk indices per screen. Use to triage where simulated users
+  struggle before shipping.
 - **`eve_twin_session`** — run a session as a persistent, evolving **digital
   twin** (a named user model that remembers apps, grows more expert, and shifts
   confidence across sessions). Created on first use; call repeatedly with the
@@ -69,8 +70,10 @@ prefer them over shelling out.
   user over time.
 - **`eve_calibrate`** — score EVE's **realism** against a file of anonymized
   human usability traces: a 0–100 similarity score plus behavior/navigation/
-  timing similarity and frustration/confidence alignment. Use to validate (and
-  improve) how human-like EVE is for a given app.
+  step-count similarity, duration similarity (only when both sides report
+  durations — never steps mislabeled as timing), and frustration/confidence
+  alignment. Use to validate (and improve) how human-like EVE is for a given
+  app.
 - **`eve_read_artifact`** — read what software *produced* rather than driving
   what it does: a report, a slide deck, an analytics or CSV export, a `--help`
   screen, a terminal transcript or CI log, an API payload, a README. Returns
@@ -105,12 +108,14 @@ prefer them over shelling out.
   unlabeled visuals that are ambiguous to humans / invisible to screen readers.
 - **`eve_bench`** — run **EVE Bench**, a multi-dimensional scorecard for the
   instrument itself (task success, overall, frustration, trust, cognitive load,
-  expectation alignment, learnability) over reference apps, with a
-  construct-validity check. Use to publish or gate on EVE's own calibration.
+  expectation alignment, learnability) over reference apps, with an internal
+  construct-discrimination regression check. Use to publish or gate on EVE's
+  internal fixture discrimination — not human calibration.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps
-  (offline; confirms the instrument is calibrated).
+  (offline; confirms the instrument still discriminates its own reference
+  fixtures — internal regression, not human validation).
 - **`eve_get_report`** — read the full markdown/JSON report back from
   `output_dir` when the run summary isn't enough detail.
 

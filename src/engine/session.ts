@@ -22,6 +22,7 @@ import { type Clock, SimulatedClock, WALL_CLOCK } from "../core/clock.js";
 import { EventBus } from "../core/events.js";
 import { type KernelPercept, kernelFromWebPercept, surfaceAuthoredText } from "../core/kernel.js";
 import { clamp01, createRng, type Rng, seedFromString } from "../core/random.js";
+import { assertUrlAllowed } from "../core/security.js";
 import type {
   Finding,
   LoopIteration,
@@ -43,7 +44,12 @@ import {
   type PersistentMemory,
   type SessionMemoryRecord,
 } from "../memory/longTerm.js";
-import { OperatorMemory, screenSignature } from "../memory/memory.js";
+import { OperatorMemory } from "../memory/memory.js";
+import {
+  type QueryStatePolicy,
+  sensitiveStateKey,
+  stableIdentityKey,
+} from "../memory/surfaceIdentity.js";
 import { Observer } from "../observation/perception.js";
 import {
   CULTURES,
@@ -53,7 +59,8 @@ import {
   withCulture,
 } from "../personas/culture.js";
 import { getPersona } from "../personas/library.js";
-import type { Persona } from "../personas/persona.js";
+import type { Persona, PersonaTraits } from "../personas/persona.js";
+import { assessGoalOnPercepts } from "../planning/evidence.js";
 import { createGoal, GoalStack } from "../planning/goals.js";
 import { type EvePlugin, type PluginContext, PluginManager } from "../plugins/plugin.js";
 import type { RenderingIssueKind } from "../rendering/reconcile.js";
@@ -61,6 +68,7 @@ import { abbreviate, inspect as inspectRendering } from "../rendering/reconcile.
 import { RENDERING_CATEGORY, registerRenderingVocabulary } from "../rendering/vocabulary.js";
 import { computeScores } from "../scoring/scorer.js";
 import { checkGeometry, checkPixels, checkRegression } from "../vision/analysis.js";
+import { computePerceivedLatency, latencyEvidenceFor } from "./timing.js";
 
 /**
  * Headlines for the rendering check's findings.
@@ -155,13 +163,42 @@ export interface SessionOptions {
    * becomes more efficient over repeated runs.
    */
   longTermMemory?: PersistentMemory;
+  /**
+   * Explicit operator identity for persistent memory (CodeRabbit PR #39).
+   * `persona.name` is a template ("office-worker"), not an operator: two
+   * different humans on the same persona must not share episodic history,
+   * frustration spots, shortcuts, or confidence. Pass a per-operator id
+   * (user id, twin id, run label); omitted → legacy `persona.name`
+   * namespacing (unchanged behavior for existing callers).
+   */
+  operatorId?: string;
   /** Cultural profile (locale string or object) shaping reading direction etc. */
   culture?: CultureProfile | string;
+  /**
+   * Optional navigation allowlist (domains + their subdomains) — operational
+   * safety (P1.12). When set, the start URL and every cognition-chosen `navigate`
+   * action outside it are blocked. Empty/omitted = unrestricted (default,
+   * backwards compatible). Container isolation, time/resource quotas and
+   * download control remain deployment concerns — see docs/security.md.
+   */
+  allowedHosts?: readonly string[];
+  /**
+   * Query-state classification policy (reviewer decision 2): which URL query
+   * keys are semantic UI state vs high-cardinality data. Defaults to
+   * `DEFAULT_QUERY_STATE_POLICY`; override to teach EVE app-specific state
+   * keys. Threaded into sensitive-state keys and workflow attribution.
+   */
+  queryStatePolicy?: QueryStatePolicy;
 }
 
 export interface SessionResult {
   readonly startUrl: string;
   readonly personaName: string;
+  /** Generating parameters for calibration records (reviewer requirement). */
+  readonly personaTraits?: PersonaTraits;
+  readonly policyName?: string;
+  readonly surfaceAdapter?: string;
+  readonly surfaceAdapterVersion?: string | null;
   readonly seed: number;
   readonly iterations: readonly LoopIteration[];
   readonly findings: readonly Finding[];
@@ -315,7 +352,7 @@ export class EveSession {
   async run(): Promise<SessionResult> {
     const { adapter, startUrl } = this.options;
     const emotion = new EmotionalState(this.persona);
-    const memory = new OperatorMemory(this.persona, this.rng);
+    const memory = new OperatorMemory(this.persona, this.rng, stableIdentityKey);
     const goals = new GoalStack(
       createGoal(this.options.goal ?? "explore the application and understand what it offers", {
         successSignals: this.options.goalSuccessSignals,
@@ -327,10 +364,13 @@ export class EveSession {
 
     /* ---- Long-term memory: load, forget, seed the operator ---- */
     const appId = appIdForUrl(startUrl);
+    // Explicit operator id when provided; persona name is only the legacy
+    // fallback namespace (see SessionOptions.operatorId).
+    const operatorId = this.options.operatorId ?? this.persona.name;
     let appMemory: ApplicationMemory | null = null;
     if (this.options.longTermMemory) {
       appMemory =
-        (await this.options.longTermMemory.load(appId)) ??
+        (await this.options.longTermMemory.load(appId, operatorId)) ??
         emptyApplicationMemory(appId, this.appNameFromUrl(startUrl));
       const currentSession = appMemory.sessionsCount + 1;
       applyForgetting(appMemory, currentSession, this.persona.traits.memoryRetention);
@@ -407,6 +447,15 @@ export class EveSession {
     let appTheory = "";
     let lastVia: string | null = null;
     let previousPercept: Percept | null = null;
+    // Form-fill state for the SENSITIVE tier (reviewer adversarial matrix:
+    // "form empty / form populated" must differ). Tracked from the action
+    // stream — perception alone cannot reliably separate them — and reset
+    // whenever the stable layout changes. Previous step's value is retained
+    // alongside previousPercept for transition comparison.
+    let fillStable: string | null = null;
+    let formPopulated = false;
+    let prevFormFill: "empty" | "populated" = "empty";
+    let prevError = false;
 
     // De-duplicated: the same mis-chosen signal is re-evaluated on every
     // perception, and one advisory per session is the useful number.
@@ -433,6 +482,9 @@ export class EveSession {
       // comprehension) are told the operator before they open. Every other
       // adapter leaves the hook undefined and is unaffected.
       adapter.attachOperator?.(this.persona);
+      // Operational safety (P1.12): allowlisted deployments refuse off-list
+      // start URLs before a browser even opens.
+      assertUrlAllowed(startUrl, this.options.allowedHosts);
       await adapter.open(startUrl, this.options.viewport);
       const observer = new Observer(adapter, startedAt, this.clock);
 
@@ -446,25 +498,57 @@ export class EveSession {
         }
 
         /* ---- OBSERVE ------------------------------------------------ */
-        const { percept, settleMs } = await observer.observe({
+        // Pre-action settle belongs to the *previous* outcome's observation,
+        // never to the upcoming action's latency. It is kept for event
+        // payloads/diagnostics only.
+        const { percept, settleMs: preObserveSettleMs } = await observer.observe({
           withScreenshot: this.options.screenshots,
           settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
         });
         this.simClock = Math.max(this.simClock, percept.timestamp);
+        void preObserveSettleMs;
         await this.events.emit("loop:perceive", { percept, step });
 
         /* ---- INTERPRET / UPDATE MENTAL MODEL ------------------------ */
-        const signature = screenSignature(percept);
-        const prevSignature = previousPercept ? screenSignature(previousPercept) : null;
+        // Two-tier identity (reviewer decision 1): memory/familiarity keys
+        // are STABLE (never fork on typing/focus/query), while transitions,
+        // workflow attribution and outcome evidence use the SENSITIVE state.
+        // Error evidence is computed FIRST so normal vs validation-error
+        // states receive distinct sensitive keys everywhere (CodeRabbit PR #39).
         // Error perception is modality-gated for the same reason the geometry
         // checks are: on a document surface there is nothing to retry or
         // dismiss, so prose *about* failures is not a failure the reader faces.
         const errorNow = errorSnippets(percept, adapter.capabilities.modality).length > 0;
+        const stableNow = stableIdentityKey(percept);
+        if (fillStable !== stableNow) {
+          fillStable = stableNow;
+          formPopulated = false;
+        }
+        const formFill: "empty" | "populated" = formPopulated ? "populated" : "empty";
+        const signature = sensitiveStateKey(percept, {
+          queryPolicy: this.options.queryStatePolicy,
+          formFill,
+          errorSignal: errorNow,
+        });
+        const prevSignature = previousPercept
+          ? sensitiveStateKey(previousPercept, {
+              queryPolicy: this.options.queryStatePolicy,
+              formFill: prevFormFill,
+              errorSignal: prevError,
+            })
+          : null;
         memory.observeScreen(percept, step);
         if (prevSignature && prevSignature !== signature && lastVia) {
           memory.recordTransition(prevSignature, signature, lastVia);
         }
-        workflowGraph.observe(percept, step, lastVia, errorNow);
+        workflowGraph.observe(
+          percept,
+          step,
+          lastVia,
+          errorNow,
+          this.options.queryStatePolicy,
+          formFill,
+        );
         if (!appTheory || memory.isNovelScreen(percept)) appTheory = inferAppTheory(percept);
         const dropped = memory.maybeForgetWorkingItem();
         if (dropped) this.log(`(mind wandered — forgot: ${dropped})`);
@@ -563,6 +647,24 @@ export class EveSession {
           goalAchieved = true;
           goal.status = "achieved";
           endReason = "goal-achieved";
+          // P0.4: grade HOW the claim was established. Text matching stays
+          // the backwards-compatible mechanism, but the assessment records
+          // whether the signal is rendered-visible text, a state transition,
+          // or a weak text-proxy alone — so "Export complete" in a static
+          // help panel cannot silently masquerade as causal completion.
+          try {
+            const assessment = assessGoalOnPercepts({
+              signals: activeSignals,
+              visibleText: text,
+              percept,
+              screenChangedSinceAction: prevSignature !== null && prevSignature !== signature,
+            });
+            for (const w of assessment.warnings) recordGoalSignalWarning(w);
+            const kinds = assessment.evidence.map((e) => `${e.kind}(${e.strength})`).join(", ");
+            this.log(`goal evidence: ${kinds || "text-proxy(weak)"}`);
+          } catch {
+            /* evidence grading is advisory — never break completion */
+          }
           this.log(`goal achieved: ${goal.description}`);
           await this.events.emit("goal:changed", { goal: goal.description, subgoal: null });
           break;
@@ -644,14 +746,37 @@ export class EveSession {
               emotion,
               screenshotIndex,
               null,
+              formFill,
+              errorNow,
             ),
           );
           break;
         }
 
         /* ---- INTERACT ----------------------------------------------- */
-        const actStart = this.clock.now();
+        // Timing semantics (P0.1):
+        //   decision ─▶ human hesitation/preparation/motor (pace) ─▶ ACTUATION
+        //   ─▶ surface response + surface wait ─▶ settle/observation.
+        // Perceived surface latency starts at ACTUATION completion
+        // (`actuationEnd`), so decision time, hesitation, pointer travel and
+        // typing preparation never inflate responsiveness. `Observer.observe`
+        // already advances the clock while settling, so its `settleMs` must
+        // NOT be added again here (that double-counted settle time).
+        const simBeforeAct = this.simClock;
         const clickPoint = await this.execute(adapter, decision, percept);
+        // A completed type action populates the form (sensitive-tier state).
+        // Set after actuation so the CURRENT step's observation still shows
+        // the pre-action state; the next observation sees "populated".
+        if (decision.action.kind === "type") formPopulated = true;
+        // Actuation is complete: human motor time has been charged via pace()
+        // and the adapter call has returned. Everything after this point is
+        // surface response / settle / observation.
+        const actuationEnd = this.clock.now();
+        // Wall time for the SAME interval (reviewer decision 3): in wall mode
+        // this is the experienced reality; in deterministic mode it is host
+        // noise, recorded as a diagnostic but never used for appraisal.
+        const wallActuationEnd = Date.now();
+        const motorTimeMs = Math.max(0, this.simClock - simBeforeAct);
         // Time the operator spent waiting for the surface to answer, on
         // surfaces that measure it. Charged before perceived latency is
         // computed below, so a slow surface costs patience the way it does
@@ -665,14 +790,33 @@ export class EveSession {
           withScreenshot: false,
           settleTimeoutMs: 1000 + this.persona.traits.patience * 9000,
         });
-        const perceivedLatencyMs = this.clock.now() - actStart + settleMs;
-        const outcome = comparePrediction(
-          decision.prediction,
-          percept,
-          after.percept,
-          perceivedLatencyMs,
-          adapter.capabilities.modality,
-        );
+        // Surface latency only: settled observation time minus actuation
+        // completion. Includes adapter surface wait (endured above) + settle
+        // polling exactly once, via the clock itself. See docs/architecture.md
+        // "Timing semantics".
+        const perceivedLatencyMs = computePerceivedLatency({
+          actuationEndMs: actuationEnd,
+          settledObservationMs: this.clock.now(),
+        });
+        const outcome = {
+          ...comparePrediction(
+            decision.prediction,
+            percept,
+            after.percept,
+            perceivedLatencyMs,
+            adapter.capabilities.modality,
+          ),
+          // Reviewer decision 3: every interaction record separates modeled
+          // human latency from environmental (wall) latency. Appraisal keeps
+          // using perceivedLatencyMs (experienced reality); analysis can
+          // choose via latencyEvidence.source.
+          latencyEvidence: latencyEvidenceFor({
+            modeledMs: this.clock.now() - actuationEnd,
+            observedMs: Date.now() - wallActuationEnd,
+            deterministic: this.clock.deterministic,
+          }),
+          motorTimeMs,
+        };
         await this.events.emit("loop:outcome", { step, outcome });
 
         /* ---- ADJUST INTERNAL STATE ---------------------------------- */
@@ -715,11 +859,15 @@ export class EveSession {
           emotion,
           screenshotIndex,
           clickPoint,
+          formFill,
+          errorNow,
         );
         iterations.push(iteration);
         await this.events.emit("loop:iteration", { iteration });
 
         previousPercept = after.percept;
+        prevFormFill = formFill;
+        prevError = errorSnippets(after.percept, adapter.capabilities.modality).length > 0;
         step += 1;
       }
       if (step >= this.options.maxSteps) endReason = "step-budget-exhausted";
@@ -796,7 +944,7 @@ export class EveSession {
         findings,
         scores,
       });
-      await this.options.longTermMemory.save(appMemory);
+      await this.options.longTermMemory.save(appMemory, operatorId);
       updatedMemory = appMemory;
       learningMetrics = computeLearningMetrics(appMemory);
     }
@@ -810,6 +958,13 @@ export class EveSession {
     return {
       startUrl: this.options.startUrl,
       personaName: this.persona.name,
+      personaTraits: { ...this.persona.traits },
+      policyName:
+        typeof (this.policy as { name?: unknown }).name === "string"
+          ? (this.policy as { name: string }).name
+          : "unknown",
+      surfaceAdapter: adapter.name,
+      surfaceAdapterVersion: adapter.version ?? null,
       seed: this.seed,
       iterations,
       findings,
@@ -935,7 +1090,9 @@ export class EveSession {
     );
     for (const f of frustratingFindings) {
       const sig = [...this.capturedScreens.values()].find((p) => p.url === f.url);
-      const key = sig ? screenSignature(sig) : f.url;
+      const key = sig
+        ? sensitiveStateKey(sig, { queryPolicy: this.options.queryStatePolicy })
+        : f.url;
       const spot = appMemory.frustrationSpots.find((s) => s.signature === key);
       if (spot) spot.occurrences += 1;
       else appMemory.frustrationSpots.push({ signature: key, title: f.url, occurrences: 1 });
@@ -1002,9 +1159,11 @@ export class EveSession {
         else await adapter.clickAt(gesture.point);
         if (gesture.missed) {
           this.log(
-            touch
-              ? "(the tap missed and needed a correction)"
-              : "(the click slipped and needed a correction)",
+            gesture.disposition === "stray"
+              ? "(the click landed off-target — the wrong point received the interaction)"
+              : touch
+                ? "(the tap missed and needed a correction)"
+                : "(the click slipped and needed a correction)",
           );
         }
         return gesture.point;
@@ -1063,6 +1222,7 @@ export class EveSession {
       }
       case "navigate":
         await this.pace(800);
+        assertUrlAllowed(action.url, this.options.allowedHosts);
         await adapter.navigate(action.url);
         return null;
       case "back":
@@ -1335,6 +1495,8 @@ export class EveSession {
     emotion: EmotionalState,
     screenshotIndex: number | null,
     clickPoint: Point | null,
+    formFill?: "empty" | "populated",
+    errorSignal?: boolean,
   ): LoopIteration {
     return {
       step,
@@ -1350,6 +1512,14 @@ export class EveSession {
       emotion: emotion.snapshot() as unknown as Readonly<Record<string, number>>,
       screenshotIndex,
       clickPoint,
+      // Identity keys for the calibration record (reviewer additional
+      // requirement): stable for memory attribution, sensitive for outcomes.
+      stableKey: stableIdentityKey(percept),
+      sensitiveKey: sensitiveStateKey(percept, {
+        queryPolicy: this.options.queryStatePolicy,
+        formFill,
+        errorSignal,
+      }),
     };
   }
 

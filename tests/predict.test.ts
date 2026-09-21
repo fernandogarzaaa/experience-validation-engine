@@ -56,10 +56,15 @@ describe("predictUX", () => {
   });
 
   it("models a support-contact rate per 100 users", () => {
-    const support = prediction.predictions.find((p) => p.metric === "Support contacts")!;
+    const support = prediction.predictions.find((p) => p.metric.startsWith("Support contacts"))!;
     expect(support.unit).toBe("per-100-users");
     expect(support.basis).toBe("modeled");
     expect(support.low).toBeLessThan(support.high);
+    // P1.7: heuristic estimates are labeled as such, never as validated models.
+    expect(support.metric).toContain("heuristic");
+    expect(support.provenance).toBe("heuristic");
+    expect(support.calibrationStatus).toBe("uncalibrated-heuristic");
+    expect(support.humanCalibratedEstimate).toBeNull();
   });
 
   it("forecasts struggle points sorted by risk", () => {
@@ -78,7 +83,8 @@ describe("predictUX", () => {
   it("renders a Markdown prediction report", () => {
     const md = renderUXPredictionMarkdown(prediction);
     expect(md).toContain("Predictive UX");
-    expect(md).toContain("95% confidence");
+    expect(md).toContain("simulation-sample uncertainty");
+    expect(md).not.toContain("95% confidence");
   });
 });
 

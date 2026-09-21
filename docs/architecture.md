@@ -40,6 +40,36 @@ So the pixels are read separately, and the two accounts are compared. See
 that a person can see something the page does not account for, it is enough to
 establish that legible content is rendered there.
 
+### Provenance: visual evidence vs DOM metadata
+
+The perception script also extracts facts no sighted human sees — `aria-label`
+/ `title` / `alt` / `placeholder` fallbacks, `tabIndex`, `disabled`, cursor and
+CSS colors. Those are useful (especially for accessibility auditing) but they
+are not *seen*. Every element therefore carries `textSource` (`visual` |
+`accessibility` | `dom`), and `src/observation/provenance.ts` exposes
+`visualOnlyText()` (rendered text only) alongside the backwards-compatible
+`visibleText()` (everything). Cognition and goal/error evidence must use the
+visual-only surface when the claim is "the human saw X"; the accessibility
+surface stays available for accessibility testing. The invariant: **cognition
+never silently receives DOM-only facts as though a human saw them.**
+
+### Timing semantics
+
+Perceived surface latency (`src/engine/timing.ts`) starts at ACTUATION
+completion — after human hesitation, pointer travel and typing preparation —
+and ends at the settled post-action observation. Human motor time never
+inflates responsiveness, and settle time is counted exactly once (the
+observer already advances the clock while settling). Deterministic mode
+replays identically; wall-clock mode measures real waits.
+
+Every interaction record additionally carries `latencyEvidence`
+(`modeledMs`, `observedMs`, `source`, `deterministic`) plus `motorTimeMs`:
+in deterministic mode the session clock is the measurement (wall time is
+recorded as a host-noise diagnostic); in wall mode the wall interval is the
+experienced reality and the modeled interval is recorded alongside. The
+evaluator chooses whether environmental variance participates in the model —
+real latency is never hidden, never silently smoothed.
+
 ## The human loop
 
 Every iteration of `EveSession.run()` (`src/engine/session.ts`) executes:
@@ -83,7 +113,8 @@ src/
 │                  cognitiveLoad (Cognitive Load Index)
 ├── planning/      Goal stack, keyword semantics, exploration strategies
 ├── memory/        Working / episodic / semantic / spatial memory + forgetting;
-│                  longTerm (persistent cross-session store) + learning metrics
+│                  longTerm (operator-namespaced persistent store) + learning metrics
+│                  + two-tier identity (stableIdentityKey / sensitiveStateKey)
 ├── emotion/       9-emotion state vector + appraisal rules + decay
 │                  + trust model (predictability/consistency/recovery/...)
 ├── workflow/      Workflow signature catalog, detector, graph, journey discovery
@@ -91,7 +122,9 @@ src/
 ├── regression/    Temporal + behavioral experience regression
 ├── forecasting/   Predict future struggle / abandonment / confidence drains
 ├── panel/         AI panel: design critic, moderator, product manager, developer
-├── benchmarks/    Known-quality apps + construct-validity harness
+├── benchmarks/    Known-quality apps + construct-discrimination REGRESSION harness
+│                  (internal — proves the instrument still discriminates its own
+│                  fixtures, NOT human validation)
 ├── collaborative/ Multi-operator sessions, handoffs, approval chains
 ├── plugins/       Plugin contract + accessibility/performance/LLM-critic/localization
 ├── reporting/     Report assembly + HTML/Markdown/JSON + panel renderer
@@ -155,12 +188,13 @@ afterwards the prediction is compared against the next percept. The gap —
 
 ## The persona engine
 
-A persona is 16 behavioral traits plus an accessibility profile
+A persona is 17 behavioral traits plus an accessibility profile
 (`src/personas/persona.ts`). Traits are dimensionless 0..1 values that
 downstream modules translate into concrete quantities:
 
 - `readingSpeedWpm` → milliseconds spent on `read` actions
-- `clickAccuracy` × target size → Gaussian click scatter → real misclicks
+- `clickAccuracy` × target size → Gaussian click scatter → misses that are either corrected (near-edge slips) or true wrong-target strays
+- `typingAccuracy` → typo rate (independent from pointer precision)
 - `patience` → abandonment threshold, settle-wait tolerance
 - `memoryRetention` → working memory capacity, episodic decay rate
 - `riskTolerance` → hesitation before destructive controls, refusal to click them
@@ -202,11 +236,68 @@ Scores (`src/scoring/scorer.ts`) are derived measurements with mandatory
 evidence: expectation-violation rates, dead-click counts, emotion timelines,
 revisit ratios, workflow completion, perceived-latency percentiles, findings.
 Sixteen dimensions roll up into a weighted overall score capped by critical
-findings.
+findings. Scores are heuristic simulation outputs (`EvidenceProvenance` is
+carried on findings and predictions) — the 0–100 score is a reporting layer,
+not a calibrated measurement of real users.
 
 Reports (`src/reporting/`) render the same assembled structure three ways:
 self-contained HTML (inline SVG emotion timeline + interaction heatmap +
 screenshots as data URIs), Markdown and JSON.
+
+## Memory isolation, identity, goals, dialogs, safety
+
+- **Operator memory is namespaced** (`PersistentMemory.load/save(appId,
+  operatorId)`; sessions pass the persona name). Persona A's episodic
+  experience, frustration history, shortcuts and confidence never leak into
+  persona B. Shared product structure must be explicitly designated shared
+  (`SharedApplicationKnowledge`) — nothing is shared implicitly.
+  `FileMemoryStore` serializes writes through a mutex and persists atomically
+  (tmp + rename); cross-process concurrency is last-writer-wins (documented —
+  use a DB for multi-process population runs).
+- **Screen identity is two-tier** (`memory/surfaceIdentity.ts`):
+  `stableIdentityKey` (origin + path, layout roles + geometry, heading gist —
+  never forks on typing, focus, toggles, dialog text, query values, keyboard
+  band, or error appearance) backs tried-affordances, familiarity,
+  recognition and revisit detection; `sensitiveStateKey` (stable + classified
+  query values + dialog texts + validation-error signal + action-tracked form
+  fill + interaction-state signature over role/geometry/interactive/disabled/
+  editable, no text, no focus) backs workflow attribution, transitions,
+  outcome interpretation and state-specific findings. Focus and keyboard-band
+  state are interaction evidence on the Percept, never key components.
+  Query classification is configuration-driven (`QueryStatePolicy`,
+  `SessionOptions.queryStatePolicy`): state-bearing keys (`tab`, `view`,
+  `mode`, `step`, …) discriminate verbatim when short, high-cardinality keys
+  (`q`, `token`, `id`, …) are always bucketed. `screenSignature()` is kept
+  byte-identical for backwards compatibility.
+- **Identity guarantee table.** Stable MAY collapse where sensitive MUST
+  distinguish: `?tab=` settings/security, `?mode=` view/edit, dialog
+  open/closed, menu open/closed, validation-error present/absent, form
+  empty/populated (action-tracked). Stable MUST NOT fork on: keystrokes,
+  focus moves, enable/disable toggles, dialog text edits, high-cardinality
+  query noise (`session=`, `token=`). Cognition enforces the tier contract
+  via `isAffordanceAvailable()`: stable-key familiarity never proves
+  current-state availability — every tried-mark read is gated on the label
+  being interactive and enabled in the current percept.
+- **Goal completion is evidence-graded** (`planning/evidence.ts`):
+  text-proxy (weak) → visual-confirmation → state-transition / destination /
+  workflow-terminal (strong). String signals keep working; weak-only success
+  is reported with warnings, never as causal completion.
+- **Native dialogs are cognition-visible and safe-by-default**: dialog text is
+  surfaced as `VisibleDialog(source: "native")`; the adapter unblocks with
+  `dismiss` unless `nativeDialogAction: "accept"` was explicitly opted into —
+  destructive confirmations are never auto-accepted. (Real dialogs block page
+  JS, so holding them open for async cognition would deadlock perception;
+  the handling is recorded in `autoHandled`, never presented as the
+  operator's decision.)
+- **Operational safety** (`core/security.ts`, `SessionOptions.allowedHosts`):
+  report writers use fixed filenames under a traversal-checked dir; optional
+  navigation allowlists; MCP stdio is documented execute-with-user-authorized
+  code (no shell). See [security.md](security.md).
+- **Experiment records** (`calibration/record.ts`): every loop iteration can
+  be exported as a `CalibrationRecord` (seen / believed / predicted / done /
+  happened / evidence / provenance per section / generating parameters /
+  calibration status) and as JSONL — the foundation of the future human
+  calibration dataset. See [human-calibration.md](human-calibration.md).
 
 ## Extension points
 

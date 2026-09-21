@@ -65,10 +65,13 @@ export { ALL_MODALITIES, EveRegistry } from "./core/registry.js";
 export type {
   Action,
   BoundingBox,
+  EvidenceProvenance,
   Finding,
   FindingCategory,
   FindingSeverity,
+  LatencyEvidence,
   LoopIteration,
+  ObservationSource,
   PerceivedRole,
   Percept,
   Point,

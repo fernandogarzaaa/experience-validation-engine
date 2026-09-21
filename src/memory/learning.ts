@@ -3,10 +3,14 @@ import type { ApplicationMemory, SessionMemoryRecord } from "./longTerm.js";
 /**
  * Cross-session learning analysis.
  *
- * Computes the metrics the mission calls for from an application's session
- * history: Learning Rate (power law of practice; Newell & Rosenbloom 1981),
- * Retention, Memory Recall, a Forgetting Curve, and Recognition-vs-Recall.
- * Also emits an inline SVG learning-curve chart for reports.
+ * HONESTY NOTE (P1.9): `recognizedScreens`, `recalledPaths` and
+ * `recognitionRecallRatio` are INTERNAL memory-strength proxies (retained
+ * affordance thresholds 0.15/0.5), NOT experimentally measured human
+ * recognition/recall. They are useful for tracking the model's own state
+ * but must never be reported as human recognition-vs-recall findings. The
+ * `BehavioralMemoryProbe` interface below is the future-compatible slot for
+ * real behavioral tests; nothing is called "measured" until such a probe
+ * actually runs.
  */
 
 export interface LearningMetrics {
@@ -19,15 +23,16 @@ export interface LearningMetrics {
   timeReductionRatio: number;
   /** Confidence trend: latest minus first session mean confidence. */
   confidenceTrend: number;
-  /** Fraction of prior-known affordances still recallable now (0..1). */
+  /** Mean affordance strength 0..1 (NOT a recall fraction — see note). */
   retention: number;
-  /** Distinct screens the operator can recognize on sight. */
+  /** INTERNAL PROXY: screens with any affordance strength > 0.15. Not measured recognition. */
   recognizedScreens: number;
-  /** Screens whose navigation path the operator can recall unaided. */
+  /** INTERNAL PROXY: screens with any affordance strength > 0.5. Not measured recall. */
   recalledPaths: number;
   /**
-   * Recognition-vs-recall ratio: recognition ≥ recall for humans (Nielsen
-   * heuristic #6). > 1 means the UI leans on recognition (good).
+   * INTERNAL PROXY ratio of the two strength heuristics above — not a human
+   * recognition-vs-recall experiment (Nielsen heuristic #6 cited as design
+   * inspiration only).
    */
   recognitionRecallRatio: number;
   /** Per-session efficiency series (steps), first→latest. */
@@ -36,6 +41,30 @@ export interface LearningMetrics {
   durationSeries: number[];
   /** Per-session confidence series. */
   confidenceSeries: number[];
+}
+
+/**
+ * Future-compatible slot for ACTUAL behavioral memory tests (P1.9): a probe
+ * the operator performs (e.g. "which of these screens have you seen?",
+ * "navigate back unaided") whose outcome is measured, not inferred from
+ * internal strengths. No built-in probes yet — this type reserves the API.
+ */
+export interface BehavioralMemoryProbe {
+  readonly kind: "recognition-test" | "recall-test";
+  readonly description: string;
+  run: () => Promise<{ passed: boolean; detail: string }>;
+}
+
+export interface RecognitionMetric {
+  readonly measured: false;
+  readonly proxyValue: number;
+  readonly note: string;
+}
+
+export interface RecallMetric {
+  readonly measured: false;
+  readonly proxyValue: number;
+  readonly note: string;
 }
 
 /** Fit T(n) = a·n^(−α) by least squares on log-log; returns {alpha, r2, a}. */

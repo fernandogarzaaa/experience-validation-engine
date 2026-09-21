@@ -3,6 +3,11 @@ dist/
 coverage/
 *.log
 .eve-output/
+# Generated experiment/report artifacts (local runs, vivid variants) are
+# ignored by default: routine runs must not dirty the working tree.
+# Published evidence fixtures live explicitly under docs/evidence/.
+.eve-output*/
+eve.vivid-run*.yaml
 .eve-memory.json
 *.eve-memory.json
 .DS_Store
