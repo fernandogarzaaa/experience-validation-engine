@@ -11,27 +11,27 @@ export function renderUXPredictionMarkdown(prediction: UXPrediction): string {
   const lines: string[] = [
     `# Predictive UX — ${prediction.label ?? prediction.url}`,
     "",
-    `Extrapolated from ${prediction.size} simulated users. Generated ${prediction.generatedAt}.`,
+    `Simulation estimates from ${prediction.size} simulated operators (NOT a random sample of real users — no population inference is claimed). Generated ${prediction.generatedAt}.`,
     "",
-    "## Predictions (95% confidence)",
+    "## Simulation estimates (ranges are simulation-sample uncertainty, not real-user confidence intervals)",
     "",
-    "| Metric | Estimate | Range | Basis |",
-    "|---|---|---|---|",
+    "| Metric | Estimate | Range | Basis | Status |",
+    "|---|---|---|---|---|",
   ];
   for (const p of prediction.predictions) {
     const fmt = (v: number) => (p.unit === "proportion" ? pct(v) : `${v}`);
     const unit = p.unit === "per-100-users" ? " / 100 users" : "";
     lines.push(
-      `| ${p.metric} | ${fmt(p.estimate)}${unit} | ${fmt(p.low)} – ${fmt(p.high)}${unit} | ${p.basis} |`,
+      `| ${p.metric} | ${fmt(p.estimate)}${unit} | ${fmt(p.low)} – ${fmt(p.high)}${unit} | ${p.basis} | ${p.calibrationStatus} |`,
     );
   }
 
-  lines.push("", "## Predicted struggle points");
+  lines.push("", "## Heuristic confusion-risk indices (NOT calibrated probabilities)");
   if (prediction.struggleForecasts.length === 0) {
-    lines.push("- No screens are predicted to cause struggle.");
+    lines.push("- No screens flagged by the heuristic.");
   } else {
     for (const s of prediction.struggleForecasts) {
-      lines.push(`- **${s.screen}** — confusion risk ${pct(s.predictedConfusion)} (${s.reason}).`);
+      lines.push(`- **${s.screen}** — confusion-risk index ${s.predictedConfusion.toFixed(2)} (${s.reason}).`);
     }
   }
 

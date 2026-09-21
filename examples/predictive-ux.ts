@@ -1,10 +1,11 @@
 /**
  * Phase 3 — Predictive UX.
  *
- * Extrapolate from a simulated population to what the wider user base will
- * experience — abandonment, confusion, onboarding failure, support contacts,
- * accessibility barriers — each with a confidence interval, plus the screens
- * predicted to cause struggle.
+ * Heuristic simulation estimates from a simulated population — abandonment,
+ * confusion, onboarding failure, support contacts, accessibility barriers —
+ * each with simulation-sample ranges and explicit provenance, plus
+ * confusion-risk indices per screen. Simulated operators are not a random
+ * sample of real users: no population inference is claimed.
  *
  * Run:
  *   npx tsx examples/predictive-ux.ts

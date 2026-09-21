@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isFileNotFoundError } from "../core/fsErrors.js";
 import type { LearnedFact, ScreenEdge, ScreenNode } from "./memory.js";
@@ -103,21 +103,50 @@ export function appIdForUrl(url: string): string {
 /**
  * A persistent memory store backed by a JSON file. Use {@link InMemoryStore}
  * for tests, or {@link FileMemoryStore} for real cross-session persistence.
+ *
+ * Operator isolation (P0.6): `operatorId` namespaces the profile so persona
+ * A's episodic experience, frustration history, shortcuts and confidence
+ * never leak into persona B. Pass the SAME operator id across sessions to
+ * keep cross-session learning for one simulated operator; pass distinct ids
+ * for distinct operators. The default ("shared") preserves the legacy
+ * application-scoped behavior for callers that do not pass an id.
+ *
+ * Shared application facts (stable product structure) remain explicitly
+ * shared: see {@link SharedApplicationKnowledge} below — nothing is shared
+ * implicitly.
  */
 export interface PersistentMemory {
-  load(appId: string): Promise<ApplicationMemory | null>;
-  save(memory: ApplicationMemory): Promise<void>;
+  load(appId: string, operatorId?: string): Promise<ApplicationMemory | null>;
+  save(memory: ApplicationMemory, operatorId?: string): Promise<void>;
+}
+
+/**
+ * Facts explicitly designated as shared across operators (P0.6):
+ * stable product structure and publicly observable static conventions.
+ * Everything else (episodic experience, frustration, shortcuts, spatial
+ * familiarity, confidence, mistakes, workflow preference) is operator-private
+ * by default and lives in the namespaced {@link ApplicationMemory} profile.
+ */
+export interface SharedApplicationKnowledge {
+  readonly appId: string;
+  readonly structureFacts: readonly string[];
+  readonly conventions: readonly string[];
+}
+
+/** Namespace key: operator-private by default, never implicitly shared. */
+export function memoryKeyFor(appId: string, operatorId = "shared"): string {
+  return `${operatorId}::${appId}`;
 }
 
 export class InMemoryStore implements PersistentMemory {
   private store: MemoryStore = { version: 2, applications: {} };
 
-  async load(appId: string): Promise<ApplicationMemory | null> {
-    return this.store.applications[appId] ?? null;
+  async load(appId: string, operatorId = "shared"): Promise<ApplicationMemory | null> {
+    return this.store.applications[memoryKeyFor(appId, operatorId)] ?? null;
   }
 
-  async save(memory: ApplicationMemory): Promise<void> {
-    this.store.applications[memory.appId] = memory;
+  async save(memory: ApplicationMemory, operatorId = "shared"): Promise<void> {
+    this.store.applications[memoryKeyFor(memory.appId, operatorId)] = memory;
   }
 
   snapshot(): MemoryStore {
@@ -126,6 +155,8 @@ export class InMemoryStore implements PersistentMemory {
 }
 
 export class FileMemoryStore implements PersistentMemory {
+  private writeQueue: Promise<void> = Promise.resolve();
+
   constructor(private readonly path: string) {}
 
   private async read(): Promise<MemoryStore> {
@@ -152,16 +183,39 @@ export class FileMemoryStore implements PersistentMemory {
     }
   }
 
-  async load(appId: string): Promise<ApplicationMemory | null> {
+  async load(appId: string, operatorId = "shared"): Promise<ApplicationMemory | null> {
     const store = await this.read();
-    return store.applications[appId] ?? null;
+    return store.applications[memoryKeyFor(appId, operatorId)] ?? null;
   }
 
-  async save(memory: ApplicationMemory): Promise<void> {
-    const store = await this.read();
-    store.applications[memory.appId] = memory;
-    await mkdir(dirname(this.path), { recursive: true });
-    await writeFile(this.path, JSON.stringify(store, null, 2), "utf8");
+  /**
+   * Concurrency-safe save (P0.7): writes are serialized through an
+   * in-process mutex queue, merged against the latest on-disk state
+   * (read-modify-write inside the queue, so concurrent saves cannot
+   * silently overwrite each other), and persisted atomically via
+   * tmp-file + rename so a crash cannot corrupt the store. Reads stay
+   * deterministic (plain JSON parse).
+   *
+   * Guarantees: no lost updates between callers sharing this instance;
+   * atomic replacement on POSIX/Windows rename; corrupt-file errors
+   * surface instead of silently resetting. Cross-PROCESS concurrency is
+   * last-writer-wins at document granularity (documented limitation —
+   * use SQLite/a DB for multi-process population runs).
+   */
+  async save(memory: ApplicationMemory, operatorId = "shared"): Promise<void> {
+    const task = this.writeQueue.then(async () => {
+      const store = await this.read();
+      store.applications[memoryKeyFor(memory.appId, operatorId)] = memory;
+      await mkdir(dirname(this.path), { recursive: true });
+      const tmp = `${this.path}.${process.pid}.tmp`;
+      await writeFile(tmp, JSON.stringify(store, null, 2), "utf8");
+      await rename(tmp, this.path);
+    });
+    this.writeQueue = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    await task;
   }
 }
 

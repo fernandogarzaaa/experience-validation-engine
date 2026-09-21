@@ -4,9 +4,9 @@
  * EVE owns benchmark scenarios, and the three reference apps in
  * `benchmarks/apps.ts` are the instrument: they implement the same task at
  * three deliberately different quality levels, and `validateBenchmarks` asserts
- * EVE scores them in strict order. That construct validity is what makes a
- * fitness delta mean anything — an instrument that cannot separate a good app
- * from a bad one cannot detect that a mutation made an operator worse.
+ * EVE scores them in strict order. That internal discrimination is what makes
+ * a fitness delta mean anything — an instrument that cannot separate a good
+ * app from a bad one cannot detect that a mutation made an operator worse.
  *
  * A fitness measurement therefore reuses the validated instrument rather than
  * inventing scenarios for the purpose. Registering a scenario is possible (see

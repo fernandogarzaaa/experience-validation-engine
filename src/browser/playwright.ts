@@ -2,6 +2,7 @@ import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { importDriver } from "./driverLoader.js";
+import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -51,11 +52,16 @@ export class PlaywrightAdapter implements BrowserAdapter {
   readonly capabilities = VISUAL_SURFACE;
   private browser: PlaywrightBrowser | null = null;
   private page: PlaywrightPage | null = null;
-  private pendingNativeDialogs: string[] = [];
-  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
+  private pendingNativeDialogs: PendingNativeDialog[] = [];
+  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">> &
+    Pick<AdapterOptions, "nativeDialogAction">;
 
   constructor(options: AdapterOptions = {}) {
-    this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
+    this.options = {
+      headless: options.headless ?? true,
+      settleMs: options.settleMs ?? 400,
+      nativeDialogAction: options.nativeDialogAction ?? "dismiss",
+    };
   }
 
   async open(url: string, viewport: Viewport): Promise<void> {
@@ -66,10 +72,20 @@ export class PlaywrightAdapter implements BrowserAdapter {
     this.page = await this.browser.newPage();
     await this.page.setViewportSize(viewport);
     this.page.on("dialog", (dialog) => {
-      // Native alert/confirm: a human sees the text, then accepts. We record
-      // the message so the next percept can surface it as a dialog.
-      this.pendingNativeDialogs.push(dialog.message());
-      void dialog.accept().catch(() => {});
+      // Native alert/confirm/prompt: a human sees the text, then decides.
+      // The dialog blocks page JS until handled, so the adapter cannot hold
+      // it open for an asynchronous cognition pass without deadlocking
+      // perception. Record the text so the next percept surfaces it as a
+      // cognition-visible native dialog, then unblock with the SAFE default
+      // (dismiss) unless the caller explicitly opted into "accept". Never
+      // auto-accept a destructive dialog by default (P0.2).
+      const autoHandled = recordNativeDialog(
+        this.pendingNativeDialogs,
+        dialog.message(),
+        this.options.nativeDialogAction,
+      );
+      if (autoHandled === "accepted") void dialog.accept().catch(() => {});
+      else void dialog.dismiss().catch(() => {});
     });
     await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await this.page.waitForTimeout(this.options.settleMs);
@@ -82,11 +98,7 @@ export class PlaywrightAdapter implements BrowserAdapter {
       (ms) => page.waitForTimeout(ms),
     );
     if (this.pendingNativeDialogs.length > 0) {
-      snap.dialogs = [
-        ...snap.dialogs,
-        ...this.pendingNativeDialogs.map((text) => ({ text, box: null })),
-      ];
-      this.pendingNativeDialogs = [];
+      snap.dialogs = mergeNativeDialogs(snap.dialogs, this.pendingNativeDialogs);
     }
     return snap;
   }

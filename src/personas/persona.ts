@@ -14,6 +14,14 @@ export interface PersonaTraits {
   readingSpeedWpm: number;
   /** Motor precision: 1 = pixel-perfect clicks, 0 = frequent slips. */
   clickAccuracy: number;
+  /**
+   * Typing accuracy: 1 = near error-free (a 2% slip floor remains — even
+   * expert typists fat-finger keys), 0 = frequent typos (P1.2).
+   * Independent from pointer precision — poor mouse aim does not imply
+   * poor keyboard skill. Defaults to `clickAccuracy` when unspecified so
+   * existing persona specs keep working.
+   */
+  typingAccuracy: number;
   /** Overall movement/typing tempo: 1 = very fast, 0 = very slow. */
   motorSpeed: number;
   /** How well screens/labels are retained across steps. */
@@ -74,6 +82,7 @@ export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
 const TRAIT_KEYS: readonly (keyof PersonaTraits)[] = [
   "readingSpeedWpm",
   "clickAccuracy",
+  "typingAccuracy",
   "motorSpeed",
   "memoryRetention",
   "riskTolerance",
@@ -94,6 +103,7 @@ const TRAIT_KEYS: readonly (keyof PersonaTraits)[] = [
 export const BASELINE_TRAITS: PersonaTraits = {
   readingSpeedWpm: 240,
   clickAccuracy: 0.85,
+  typingAccuracy: 0.85,
   motorSpeed: 0.6,
   memoryRetention: 0.65,
   riskTolerance: 0.45,
@@ -120,7 +130,13 @@ export interface PersonaSpec {
 
 /** Build a complete persona from a partial spec, validating trait ranges. */
 export function definePersona(spec: PersonaSpec): Persona {
-  const traits: PersonaTraits = { ...BASELINE_TRAITS, ...spec.traits };
+  // Backwards compat (P1.2): specs authored before `typingAccuracy` existed
+  // inherit it from pointer precision unless explicitly overridden.
+  const traits: PersonaTraits = {
+    ...BASELINE_TRAITS,
+    ...spec.traits,
+    typingAccuracy: spec.traits?.typingAccuracy ?? spec.traits?.clickAccuracy ?? BASELINE_TRAITS.typingAccuracy,
+  };
   for (const key of TRAIT_KEYS) {
     const value = traits[key];
     if (typeof value !== "number" || Number.isNaN(value)) {

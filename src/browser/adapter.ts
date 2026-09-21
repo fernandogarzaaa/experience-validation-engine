@@ -127,6 +127,22 @@ export interface AdapterOptions {
   settleMs?: number;
   /** Device to emulate (mobile adapter only), e.g. "iPhone 14". */
   device?: string;
+  /**
+   * How a blocking native dialog (alert/confirm/prompt) is handled (P0.2).
+   *
+   * A real native dialog blocks page JS until it is handled, so the adapter
+   * cannot leave it pending for cognition to "decide" asynchronously without
+   * deadlocking perception. The dialog text is always recorded and surfaced
+   * as a `VisibleDialog` with `source: "native"` so cognition sees it on the
+   * next percept; this option controls only the *handling* used to unblock:
+   *
+   * - "dismiss" (default, safe): dismiss the dialog. Destructive or
+   *   consequential dialogs are never auto-accepted.
+   * - "accept": accept the dialog. Opt-in only, for flows where the task
+   *   explicitly requires acceptance; logged as adapter-handled, never as
+   *   the operator's intentional decision.
+   */
+  nativeDialogAction?: "dismiss" | "accept";
 }
 
 /** Adapters are not browser-specific; this alias names the general contract. */

@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { safeJoin } from "../core/security.js";
 import type { SessionResult } from "../engine/session.js";
 import { renderHtml } from "./html.js";
 import { renderMarkdown } from "./markdown.js";
@@ -72,9 +72,11 @@ export async function writeReports(
 ): Promise<WrittenReport> {
   const report = buildReport(result);
   await mkdir(outputDir, { recursive: true });
-  const htmlPath = join(outputDir, "report.html");
-  const mdPath = join(outputDir, "report.md");
-  const jsonPath = join(outputDir, "report.json");
+  // Fixed filenames under the resolved dir — page content (URLs, titles)
+  // never becomes a path segment, so traversal via content is impossible.
+  const htmlPath = safeJoin(outputDir, "report.html");
+  const mdPath = safeJoin(outputDir, "report.md");
+  const jsonPath = safeJoin(outputDir, "report.json");
   await writeFile(htmlPath, renderHtml(report), "utf8");
   await writeFile(mdPath, renderMarkdown(report), "utf8");
   await writeFile(jsonPath, renderJson(report), "utf8");

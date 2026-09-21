@@ -196,14 +196,16 @@ export function createServer(): McpServer {
   server.registerTool(
     "eve_predict_ux",
     {
-      title: "Predict UX with confidence intervals",
+      title: "Heuristic simulation estimates (not population inference)",
       description:
-        "Run a population, then extrapolate to the wider user base: predicted " +
-        "abandonment, confusion, onboarding-failure, and accessibility-barrier " +
-        "rates (each a proportion with a 95% Wilson confidence interval), a " +
-        "modeled support-contact rate per 100 users, and the screens predicted " +
-        "to cause struggle. Use to forecast where and how much users will " +
-        "struggle before you ship. Offline with `mock:`.",
+        "Run a population, then produce heuristic simulation estimates: " +
+        "abandonment/confusion/onboarding/accessibility simulation ranges " +
+        "(Wilson intervals over the simulation sample only — NOT real-user " +
+        "confidence intervals), a heuristic support-contact scenario score, " +
+        "and confusion-risk indices per screen. Simulated operators are not " +
+        "a random sample of real users: no population inference is claimed. " +
+        "Use to triage where simulated users struggle before you ship. " +
+        "Offline with `mock:`.",
       inputSchema: RunUsabilityStudySchema.shape,
       annotations: {
         readOnlyHint: false,

@@ -1,6 +1,6 @@
 import { clamp01 } from "../core/random.js";
 import type { Percept, Prediction, VisibleElement } from "../core/types.js";
-import { screenSignature } from "../memory/memory.js";
+import { sensitiveStateKey } from "../memory/surfaceIdentity.js";
 import { tokenize, visibleText } from "./mentalModel.js";
 
 /**
@@ -108,8 +108,8 @@ export function scoreExpectation(
     feedback: 1,
   };
 
-  const beforeSig = screenSignature(before);
-  const afterSig = screenSignature(after);
+  const beforeSig = sensitiveStateKey(before);
+  const afterSig = sensitiveStateKey(after);
   const changed = beforeSig !== afterSig;
   const afterText = visibleText(after).toLowerCase();
 

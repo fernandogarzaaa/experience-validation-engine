@@ -2,6 +2,7 @@ import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { importDriver } from "./driverLoader.js";
+import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -22,7 +23,9 @@ type SeleniumDriver = {
     window(): { setRect(rect: { width: number; height: number }): Promise<void> };
     setTimeouts(t: { pageLoad?: number; script?: number }): Promise<void>;
   };
-  switchTo(): { alert(): Promise<{ getText(): Promise<string>; accept(): Promise<void> }> };
+  switchTo(): {
+    alert(): Promise<{ getText(): Promise<string>; accept(): Promise<void>; dismiss(): Promise<void> }>;
+  };
   sleep?(ms: number): Promise<void>;
 };
 
@@ -42,7 +45,8 @@ export class SeleniumAdapter implements BrowserAdapter {
   private driver: SeleniumDriver | null = null;
   private origin: unknown = null;
   private keyMap: Record<string, string> = {};
-  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
+  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">> &
+    Pick<AdapterOptions, "nativeDialogAction">;
   private readonly browserName: string;
   private readonly launchArgs: readonly string[];
   private readonly chromeBinaryPath: string | undefined;
@@ -72,7 +76,11 @@ export class SeleniumAdapter implements BrowserAdapter {
       chromedriverPath?: string;
     } = {},
   ) {
-    this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
+    this.options = {
+      headless: options.headless ?? true,
+      settleMs: options.settleMs ?? 400,
+      nativeDialogAction: options.nativeDialogAction ?? "dismiss",
+    };
     this.browserName = options.browser ?? "chrome";
     this.launchArgs = options.args ?? [];
     this.chromeBinaryPath = options.chromeBinaryPath;
@@ -125,12 +133,16 @@ export class SeleniumAdapter implements BrowserAdapter {
 
   async snapshot(): Promise<RawSnapshot> {
     const driver = this.requireDriver();
-    const dialogs: { text: string; box: null }[] = [];
+    const dialogs: PendingNativeDialog[] = [];
     // Native alerts block script execution in Selenium: drain them first.
+    // Record-then-dismiss safe default (P0.2) — never auto-accept unless
+    // `nativeDialogAction: "accept"` was explicitly opted into.
     try {
       const alert = await driver.switchTo().alert();
-      dialogs.push({ text: await alert.getText(), box: null });
-      await alert.accept();
+      recordNativeDialog(dialogs, await alert.getText(), this.options.nativeDialogAction);
+      const autoHandled = dialogs.at(-1)!.autoHandled;
+      if (autoHandled === "accepted") await alert.accept();
+      else await alert.dismiss();
     } catch {
       /* no alert open */
     }
@@ -150,7 +162,7 @@ export class SeleniumAdapter implements BrowserAdapter {
       () => driver.executeScript<RawSnapshot>(`return (${PERCEPTION_SCRIPT})`),
       sleep,
     );
-    if (dialogs.length > 0) snap.dialogs = [...snap.dialogs, ...dialogs];
+    if (dialogs.length > 0) snap.dialogs = mergeNativeDialogs(snap.dialogs, dialogs);
     return snap;
   }
 

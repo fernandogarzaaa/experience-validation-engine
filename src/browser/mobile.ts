@@ -1,6 +1,7 @@
 import type { Point, Viewport } from "../core/types.js";
 import { TOUCH_VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, DeviceMetrics, RawSnapshot } from "./adapter.js";
+import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -25,6 +26,17 @@ import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
  * swipe momentum, soft-keyboard cadence — is composed by the humanizer and
  * the engine, one primitive call at a time. This adapter never decides *how
  * many* taps or scrolls to issue.
+ *
+ * HONEST LIMITATIONS (P1.3 — mobile gesture semantics):
+ * - Touch scrolling is delivered as `mouse.wheel` events segmented by the
+ *   humanizer's swipe-momentum plan (flick + decaying segments), NOT as true
+ *   touchstart/touchmove/touchend with velocity, inertial scroll, overscroll
+ *   or pull-to-refresh physics. The TIMING/momentum shape is modeled; the
+ *   INPUT MECHANISM is wheel emulation. Gesture recognizers that key off raw
+ *   touch events will not fire as on hardware.
+ * - Always Chromium, even for iPhone descriptors (documented limitation):
+ *   an "iPhone" result is Chromium emulating an iPhone environment, not
+ *   Safari/iOS behavior.
  */
 
 /**
@@ -89,11 +101,16 @@ export class MobileAdapter implements BrowserAdapter {
   private browser: PlaywrightBrowser | null = null;
   private context: PlaywrightContext | null = null;
   private page: PlaywrightPage | null = null;
-  private pendingNativeDialogs: string[] = [];
-  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
+  private pendingNativeDialogs: PendingNativeDialog[] = [];
+  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">> &
+    Pick<AdapterOptions, "nativeDialogAction">;
 
   constructor(options: AdapterOptions = {}) {
-    this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
+    this.options = {
+      headless: options.headless ?? true,
+      settleMs: options.settleMs ?? 400,
+      nativeDialogAction: options.nativeDialogAction ?? "dismiss",
+    };
     if (options.device !== undefined && !isDeviceName(options.device)) {
       throw new Error(
         `MobileAdapter: unknown device "${options.device}". Supported devices: ` +
@@ -127,8 +144,14 @@ export class MobileAdapter implements BrowserAdapter {
     this.context = await this.browser.newContext(descriptor);
     this.page = await this.context.newPage();
     this.page.on("dialog", (dialog) => {
-      this.pendingNativeDialogs.push(dialog.message());
-      void dialog.accept().catch(() => {});
+      // Record-then-dismiss safe default (P0.2); see PlaywrightAdapter.
+      const autoHandled = recordNativeDialog(
+        this.pendingNativeDialogs,
+        dialog.message(),
+        this.options.nativeDialogAction,
+      );
+      if (autoHandled === "accepted") void dialog.accept().catch(() => {});
+      else void dialog.dismiss().catch(() => {});
     });
     await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await this.page.waitForTimeout(this.options.settleMs);
@@ -141,11 +164,7 @@ export class MobileAdapter implements BrowserAdapter {
       (ms) => page.waitForTimeout(ms),
     );
     if (this.pendingNativeDialogs.length > 0) {
-      snap.dialogs = [
-        ...snap.dialogs,
-        ...this.pendingNativeDialogs.map((text) => ({ text, box: null })),
-      ];
-      this.pendingNativeDialogs = [];
+      snap.dialogs = mergeNativeDialogs(snap.dialogs, this.pendingNativeDialogs);
     }
     return snap;
   }

@@ -25,10 +25,67 @@ export interface Gesture {
   readonly point: Point;
   /** True when the scatter landed outside the intended target. */
   readonly missed: boolean;
+  /**
+   * What the miss MEANT (P1.1):
+   * - "hit": landed on target.
+   * - "corrected": mis-aim noticed and corrected (re-aimed at center) with
+   *   a time cost — the environment sees the intended target.
+   * - "stray": true wrong-target interaction — `point` is the actual
+   *   scattered landing and the environment receives it.
+   */
+  readonly disposition: "hit" | "corrected" | "stray";
   readonly durationMs: number;
 }
 
-export function planClick(target: VisibleElement, persona: Persona, rng: Rng): Gesture {
+/**
+ * Miss-disposition policy (reviewer decision 5).
+ *
+ * Hierarchy (most → least general): global physical interaction model →
+ * device/surface parameters → persona motor parameters. The threshold is
+ * therefore a property of the PLAN CALL (device-aware defaults), not of the
+ * persona — a 12px miss means something different on a touch phone than
+ * under a desktop mouse, and it is normalized against the live scatter
+ * (which already folds in persona accuracy, target geometry and device).
+ *
+ * HEURISTIC PARAMETER — provisional deterministic rule, explicitly
+ * uncalibrated. Do not fit per-persona values until human trajectory data
+ * justifies them.
+ */
+export interface MisclickPolicy {
+  /** Misses within this px distance (near-edge slips) are corrected. */
+  readonly nearMissThresholdPx: number;
+  /** ...or within scatter × this multiple, whichever is larger. */
+  readonly scatterMultiple: number;
+}
+
+export const CLICK_MISCLICK_POLICY: MisclickPolicy = {
+  nearMissThresholdPx: 10,
+  scatterMultiple: 1.5,
+};
+
+export const TAP_MISCLICK_POLICY: MisclickPolicy = {
+  nearMissThresholdPx: 12,
+  scatterMultiple: 1.5,
+};
+
+/** Near-edge slip (corrected) vs far stray, without consuming extra RNG. */
+function missDisposition(
+  missDistancePx: number,
+  scatter: number,
+  policy: MisclickPolicy,
+): Gesture["disposition"] {
+  if (missDistancePx <= 0) return "hit";
+  return missDistancePx <= Math.max(policy.nearMissThresholdPx, scatter * policy.scatterMultiple)
+    ? "corrected"
+    : "stray";
+}
+
+export function planClick(
+  target: VisibleElement,
+  persona: Persona,
+  rng: Rng,
+  policy: MisclickPolicy = CLICK_MISCLICK_POLICY,
+): Gesture {
   const cx = target.box.x + target.box.width / 2;
   const cy = target.box.y + target.box.height / 2;
   const scatter = clickScatterPx(persona);
@@ -39,13 +96,29 @@ export function planClick(target: VisibleElement, persona: Persona, rng: Rng): G
     x > target.box.x + target.box.width ||
     y < target.box.y ||
     y > target.box.y + target.box.height;
-  // A miss on a tiny target: humans notice and correct, which costs time —
-  // the actuator re-aims at the center, but we keep `missed` as a signal.
-  const point: Point = missed ? { x: cx, y: cy } : { x, y };
+  // P1.1: a miss is either corrected (mis-aim + time cost, environment sees
+  // the target) or a true stray (the scattered point actually lands and the
+  // environment receives the wrong interaction). Decided WITHOUT consuming
+  // extra RNG — by how far outside the target the scatter landed — so the
+  // random stream (and hence seeded trajectories) is unchanged.
+  const outsideX = Math.max(target.box.x - x, 0, x - (target.box.x + target.box.width));
+  const outsideY = Math.max(target.box.y - y, 0, y - (target.box.y + target.box.height));
+  const missDistancePx = Math.hypot(outsideX, outsideY);
+  let disposition: Gesture["disposition"] = "hit";
+  let point: Point = { x, y };
+  if (missed) {
+    disposition = missDisposition(missDistancePx, scatter, policy);
+    if (disposition === "corrected") point = { x: cx, y: cy };
+  }
   const durationMs =
     Math.max(120, rng.gaussian(motorActionMs(persona), motorActionMs(persona) * 0.2)) +
     (missed ? motorActionMs(persona) * 0.6 : 0);
-  return { point: { x: Math.round(point.x), y: Math.round(point.y) }, missed, durationMs };
+  return {
+    point: { x: Math.round(point.x), y: Math.round(point.y) },
+    missed,
+    disposition,
+    durationMs,
+  };
 }
 
 /**
@@ -68,6 +141,7 @@ export function planTap(
   persona: Persona,
   rng: Rng,
   viewport: Viewport,
+  policy: MisclickPolicy = TAP_MISCLICK_POLICY,
 ): Gesture {
   const cx = target.box.x + target.box.width / 2;
   const cy = target.box.y + target.box.height / 2;
@@ -81,12 +155,26 @@ export function planTap(
     x > target.box.x + target.box.width ||
     y < target.box.y ||
     y > target.box.y + target.box.height;
-  const point: Point = missed ? { x: cx, y: cy } : { x, y };
+  let disposition: Gesture["disposition"] = "hit";
+  let point: Point = { x, y };
+  if (missed) {
+    // Same RNG-neutral rule as planClick with the touch policy:
+    // reach-inflated scatter makes far strays likelier one-handed.
+    const tOutsideX = Math.max(target.box.x - x, 0, x - (target.box.x + target.box.width));
+    const tOutsideY = Math.max(target.box.y - y, 0, y - (target.box.y + target.box.height));
+    disposition = missDisposition(Math.hypot(tOutsideX, tOutsideY), scatter, policy);
+    if (disposition === "corrected") point = { x: cx, y: cy };
+  }
   const baseDuration = motorActionMs(persona) * (1 + reach * 0.5);
   const durationMs =
     Math.max(120, rng.gaussian(baseDuration, baseDuration * 0.2)) +
     (missed ? motorActionMs(persona) * 0.6 : 0);
-  return { point: { x: Math.round(point.x), y: Math.round(point.y) }, missed, durationMs };
+  return {
+    point: { x: Math.round(point.x), y: Math.round(point.y) },
+    missed,
+    disposition,
+    durationMs,
+  };
 }
 
 /**
@@ -139,8 +227,9 @@ const NEIGHBOR_KEYS: Record<string, string> = {
 
 export function planTyping(text: string, persona: Persona, rng: Rng): TypingPlan {
   const interval = typingIntervalMs(persona);
-  // Typo probability scales with speed and inverse accuracy.
-  const typoP = 0.02 + (1 - persona.traits.clickAccuracy) * 0.05;
+  // P1.2: typo probability comes from TYPING accuracy, never pointer precision.
+  const typingAccuracy = persona.traits.typingAccuracy ?? persona.traits.clickAccuracy;
+  const typoP = 0.02 + (1 - typingAccuracy) * 0.05;
   return buildTypingPlan(text, interval, typoP, rng);
 }
 
@@ -158,7 +247,8 @@ const SOFT_KEYBOARD_TYPO_MULTIPLIER = 1.8;
  */
 export function planSoftKeyType(text: string, persona: Persona, rng: Rng): TypingPlan {
   const interval = typingIntervalMs(persona) * SOFT_KEYBOARD_SLOWDOWN;
-  const typoP = (0.02 + (1 - persona.traits.clickAccuracy) * 0.05) * SOFT_KEYBOARD_TYPO_MULTIPLIER;
+  const typingAccuracy = persona.traits.typingAccuracy ?? persona.traits.clickAccuracy;
+  const typoP = (0.02 + (1 - typingAccuracy) * 0.05) * SOFT_KEYBOARD_TYPO_MULTIPLIER;
   return buildTypingPlan(text, interval, typoP, rng);
 }
 

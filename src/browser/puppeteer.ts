@@ -2,6 +2,7 @@ import type { Point, Viewport } from "../core/types.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { importDriver } from "./driverLoader.js";
+import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -27,7 +28,11 @@ type PuppeteerPage = {
   goBack(opts?: { timeout?: number }): Promise<unknown>;
   on(
     event: "dialog",
-    handler: (dialog: { message(): string; accept(): Promise<void> }) => void,
+    handler: (dialog: {
+      message(): string;
+      accept(): Promise<void>;
+      dismiss(): Promise<void>;
+    }) => void,
   ): void;
   setViewport(size: Viewport): Promise<void>;
 };
@@ -42,8 +47,9 @@ export class PuppeteerAdapter implements BrowserAdapter {
   readonly capabilities = VISUAL_SURFACE;
   private browser: PuppeteerBrowser | null = null;
   private page: PuppeteerPage | null = null;
-  private pendingNativeDialogs: string[] = [];
-  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">>;
+  private pendingNativeDialogs: PendingNativeDialog[] = [];
+  private readonly options: Required<Pick<AdapterOptions, "headless" | "settleMs">> &
+    Pick<AdapterOptions, "nativeDialogAction">;
   private readonly launchArgs: readonly string[];
 
   /**
@@ -54,7 +60,11 @@ export class PuppeteerAdapter implements BrowserAdapter {
    * to start at all without `--no-sandbox`.
    */
   constructor(options: AdapterOptions & { args?: readonly string[] } = {}) {
-    this.options = { headless: options.headless ?? true, settleMs: options.settleMs ?? 400 };
+    this.options = {
+      headless: options.headless ?? true,
+      settleMs: options.settleMs ?? 400,
+      nativeDialogAction: options.nativeDialogAction ?? "dismiss",
+    };
     this.launchArgs = options.args ?? [];
   }
 
@@ -67,8 +77,15 @@ export class PuppeteerAdapter implements BrowserAdapter {
     this.page = await this.browser.newPage();
     await this.page.setViewport(viewport);
     this.page.on("dialog", (dialog) => {
-      this.pendingNativeDialogs.push(dialog.message());
-      void dialog.accept().catch(() => {});
+      // See PlaywrightAdapter: record-then-dismiss (safe default) so the
+      // dialog is cognition-visible without auto-accepting it (P0.2).
+      const autoHandled = recordNativeDialog(
+        this.pendingNativeDialogs,
+        dialog.message(),
+        this.options.nativeDialogAction,
+      );
+      if (autoHandled === "accepted") void dialog.accept().catch(() => {});
+      else void dialog.dismiss().catch(() => {});
     });
     await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await sleep(this.options.settleMs);
@@ -81,11 +98,7 @@ export class PuppeteerAdapter implements BrowserAdapter {
       sleep,
     );
     if (this.pendingNativeDialogs.length > 0) {
-      snap.dialogs = [
-        ...snap.dialogs,
-        ...this.pendingNativeDialogs.map((text) => ({ text, box: null })),
-      ];
-      this.pendingNativeDialogs = [];
+      snap.dialogs = mergeNativeDialogs(snap.dialogs, this.pendingNativeDialogs);
     }
     return snap;
   }

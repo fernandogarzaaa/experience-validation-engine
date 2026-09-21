@@ -64,6 +64,8 @@ export const PERCEPTION_SCRIPT = `
 
   function directText(el) {
     let text = "";
+    let textSource = "visual";
+    var __aria, __aria2, __vis, __lab;
     for (const node of el.childNodes) {
       if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
     }
@@ -71,16 +73,25 @@ export const PERCEPTION_SCRIPT = `
     if (!text) {
       const tag = el.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") {
-        text = el.value || el.getAttribute("placeholder") || el.getAttribute("aria-label") || "";
+        text = el.value || el.getAttribute("placeholder") || "";
+        __aria = el.getAttribute("aria-label") || "";
+        textSource = text ? "visual" : (__aria ? "accessibility" : "visual");
+        text = text || __aria;
         const lbl = el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
         if (lbl && lbl.innerText) text = (lbl.innerText.replace(/\\s+/g," ").trim() + " " + text).trim();
       } else if (tag === "IMG") {
         text = el.getAttribute("alt") || "";
+        textSource = text ? "accessibility" : "visual"; // alt: assistive metadata, not sighted-visible (P0.3).
       } else if (tag === "SELECT") {
         const opt = el.selectedOptions && el.selectedOptions[0];
-        text = (opt && opt.innerText) || el.getAttribute("aria-label") || "";
+        __vis = (opt && opt.innerText) || "";
+        __aria2 = el.getAttribute("aria-label") || "";
+        text = __vis || __aria2;
+        textSource = __vis ? "visual" : (__aria2 ? "accessibility" : "visual");
       } else {
-        text = el.getAttribute("aria-label") || el.getAttribute("title") || "";
+        __lab = el.getAttribute("aria-label") || el.getAttribute("title") || "";
+        text = __lab;
+        textSource = __lab ? "accessibility" : "visual";
       }
     }
     // Leaf-ish interactive containers (e.g. <a><span>Save</span></a>): use
@@ -88,7 +99,7 @@ export const PERCEPTION_SCRIPT = `
     if (!text && el.innerText && el.innerText.length < 120 && el.childElementCount <= 3) {
       text = el.innerText.replace(/\\s+/g, " ").trim();
     }
-    return text.slice(0, 300);
+    return { text: text.slice(0, 300), textSource };
   }
 
   function isLoadingIndicator(el, style, role) {
@@ -121,7 +132,9 @@ export const PERCEPTION_SCRIPT = `
       if (visibleOnOrNearScreen) {
         const role = roleOf(el, style);
         if (isLoadingIndicator(el, style, role)) loadingIndicator = true;
-        const text = directText(el);
+        const __dt = directText(el);
+        const text = __dt.text;
+        const textSource = __dt.textSource;
         const tag = el.tagName;
         const editable = (tag === "TEXTAREA") ||
           (tag === "INPUT" && !["checkbox","radio","submit","button","reset","image","range","file","hidden"].includes((el.getAttribute("type")||"text").toLowerCase())) ||
@@ -144,6 +157,7 @@ export const PERCEPTION_SCRIPT = `
             id: id++,
             role,
             text,
+            textSource,
             box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
             interactive: interactive && !isDialog,
             disabled,

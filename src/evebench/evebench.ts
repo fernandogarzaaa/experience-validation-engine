@@ -58,7 +58,7 @@ export interface EveBenchReport {
   readonly cases: readonly CaseScore[];
   /** Mean composite across cases. */
   readonly overall: number;
-  /** True when composites rank excellent > average > bad (construct validity). */
+  /** True when composites rank excellent > average > bad (internal discrimination regression). */
   readonly ordered: boolean;
   readonly summary: string;
   readonly generatedAt: string;

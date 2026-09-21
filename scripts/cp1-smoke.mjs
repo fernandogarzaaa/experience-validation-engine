@@ -15,11 +15,14 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const { seal } = await import(`${ROOT}/dist/protocol/canonical.js`);
-const { openEnvelope, sealEnvelope } = await import(`${ROOT}/dist/protocol/envelope.js`);
+// pathToFileURL: a bare `${ROOT}/...` string is not a valid ESM specifier on
+// Windows (`E:` parses as a URL scheme) — file URLs work everywhere.
+const mod = (p) => import(pathToFileURL(p).href);
+const { seal } = await mod(`${ROOT}/dist/protocol/canonical.js`);
+const { openEnvelope, sealEnvelope } = await mod(`${ROOT}/dist/protocol/envelope.js`);
 
 const provenance = (origin) => ({
   authored_by: "adam",

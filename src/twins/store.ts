@@ -3,7 +3,7 @@
  * twin survives and keeps evolving across processes and sessions.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { isFileNotFoundError } from "../core/fsErrors.js";
@@ -45,6 +45,8 @@ export class InMemoryTwinStore implements TwinStore {
 
 /** JSON-file-backed twin store for real cross-session persistence. */
 export class FileTwinStore implements TwinStore {
+  private writeQueue: Promise<void> = Promise.resolve();
+
   constructor(private readonly path: string) {}
 
   private async read(): Promise<TwinStoreBody> {
@@ -76,10 +78,21 @@ export class FileTwinStore implements TwinStore {
   }
 
   async save(twin: TwinProfile): Promise<void> {
-    const body = await this.read();
-    body.twins[twin.id] = twin;
-    await mkdir(dirname(this.path), { recursive: true });
-    await writeFile(this.path, JSON.stringify(body, null, 2), "utf8");
+    // Same guarantees as FileMemoryStore (P0.7): mutex-serialized
+    // read-modify-write plus atomic tmp+rename persistence.
+    const task = this.writeQueue.then(async () => {
+      const body = await this.read();
+      body.twins[twin.id] = twin;
+      await mkdir(dirname(this.path), { recursive: true });
+      const tmp = `${this.path}.${process.pid}.tmp`;
+      await writeFile(tmp, JSON.stringify(body, null, 2), "utf8");
+      await rename(tmp, this.path);
+    });
+    this.writeQueue = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    await task;
   }
 
   async list(): Promise<TwinProfile[]> {

@@ -1,7 +1,8 @@
 import type { SurfaceSignal } from "../core/kernel.js";
 import { clamp01 } from "../core/random.js";
 import type { Action, VisibleElement } from "../core/types.js";
-import { screenSignature } from "../memory/memory.js";
+import { isAffordanceAvailable } from "../memory/memory.js";
+import { stableIdentityKey } from "../memory/surfaceIdentity.js";
 import { abandonmentThreshold, readingTimeMs } from "../personas/persona.js";
 import {
   type ExplorationStrategy,
@@ -44,7 +45,7 @@ export class HeuristicCognition implements DecisionPolicy {
 
   async decide(ctx: CognitiveContext): Promise<Decision> {
     const { percept, persona, emotion, memory, goals, rng } = ctx;
-    const sig = screenSignature(percept);
+    const sig = stableIdentityKey(percept);
     const effortBase = clamp01(readingLoad(percept) * 0.5 + choiceLoad(percept) * 0.5);
     const weights = strategyWeights(this.strategy);
 
@@ -976,7 +977,7 @@ export class HeuristicCognition implements DecisionPolicy {
 
   private handleFormSubmit(ctx: CognitiveContext): Decision | null {
     const { percept, memory } = ctx;
-    const sig = screenSignature(percept);
+    const sig = stableIdentityKey(percept);
     const node = memory.knownScreens().find((s) => s.signature === sig);
     if (!node) return null;
     // Only fires when this screen has fields the operator already filled.
@@ -992,8 +993,13 @@ export class HeuristicCognition implements DecisionPolicy {
     const buttons = percept.elements.filter(
       (el) => el.role === "button" && el.interactive && !el.disabled && el.text.trim(),
     );
+    // Availability rule: tried-marks from the stable key only suppress a
+    // button that is available RIGHT NOW — familiarity with state A never
+    // proves availability in state B.
     const untried = buttons.filter(
-      (el) => !node.triedAffordances.has(el.text.trim().toLowerCase()),
+      (el) =>
+        isAffordanceAvailable(percept, el.text) &&
+        !node.triedAffordances.has(el.text.trim().toLowerCase()),
     );
     const submit =
       untried.find((el) => submitRe.test(el.text)) ??
@@ -1010,7 +1016,7 @@ export class HeuristicCognition implements DecisionPolicy {
 
   private handleFormField(ctx: CognitiveContext, goalKeywords: readonly string[]): Decision | null {
     const { percept, persona, memory } = ctx;
-    const sig = screenSignature(percept);
+    const sig = stableIdentityKey(percept);
     const node = memory.knownScreens().find((s) => s.signature === sig);
 
     const emptyFields = percept.elements.filter(

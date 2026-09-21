@@ -174,6 +174,14 @@ function flattenResult(result: CallToolResult): McpCallOutcome {
 /**
  * Connect to an MCP server target.
  *
+ * TRUST BOUNDARY (P1.12): a non-HTTP target SPAWNS A LOCAL PROCESS with the
+ * caller's environment — execute-with-user-authorized-code semantics, NOT
+ * safe-by-default evaluation. Only connect to commands the operator
+ * explicitly authorized (config file, CLI flag). Tokenization never uses a
+ * shell; stderr is inherited for debuggability (protocol failures stay
+ * distinguishable from server diagnostics); callers should impose their own
+ * timeouts and process cleanup via the returned connection's `close()`.
+ *
  * Target forms (after any `mcp:` scheme prefix has been stripped):
  * - `http://…` / `https://…` → Streamable HTTP transport
  * - anything else → a command line spawned over stdio

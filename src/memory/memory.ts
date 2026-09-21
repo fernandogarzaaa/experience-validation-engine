@@ -60,9 +60,36 @@ export interface ScreenEdge {
 }
 
 /**
+ * Availability rule (reviewer concern 12): stable-identity familiarity must
+ * NEVER prove current-state availability.
+ *
+ * `stableIdentityKey` answers "this is basically the same place";
+ * `sensitiveStateKey` answers "this is the state I'm actually in". A tried
+ * affordance learned in state A (button enabled, field present) says nothing
+ * about state B (button disabled, field gone). Cognition must therefore gate
+ * every tried-mark read on the CURRENT percept: the label must belong to an
+ * element that is interactive and enabled RIGHT NOW.
+ *
+ * Returns false for empty labels (never match anything by accident).
+ */
+export function isAffordanceAvailable(percept: Percept, label: string): boolean {
+  const want = label.trim().toLowerCase();
+  if (!want) return false;
+  return percept.elements.some(
+    (e) => e.interactive && !e.disabled && e.text.trim().toLowerCase() === want,
+  );
+}
+
+/**
  * A perceptual signature for "which screen am I on". Humans recognize
  * screens by their gist — URL path, title and dominant headings — not by
  * exact pixel identity.
+ *
+ * NOTE (P0.5): this legacy signature aliases query tabs, open dialogs and
+ * form state. New code should prefer `surfaceIdentity()` from
+ * `./surfaceIdentity.js`, which keeps the same "same perceptual state →
+ * same identity" contract while distinguishing modal/query/interaction
+ * state. Kept byte-identical for backwards compatibility.
  */
 export function screenSignature(percept: Percept): string {
   let path = percept.url;
@@ -88,12 +115,17 @@ export class OperatorMemory {
   private readonly edges = new Map<string, ScreenEdge>();
   private readonly navigationTrail: string[] = [];
   private readonly capacity: number;
+  private readonly identityOf: (percept: Percept) => string;
 
   constructor(
     private readonly persona: Persona,
     private readonly rng: Rng,
+    identityOf?: (percept: Percept) => string,
   ) {
     this.capacity = workingMemoryCapacity(persona);
+    // Default keeps legacy screenSignature keys (backwards compat); sessions
+    // pass surfaceIdentity for query/dialog/form-state discrimination (P0.5).
+    this.identityOf = identityOf ?? screenSignature;
   }
 
   /* ---------------- working memory ---------------- */
@@ -131,7 +163,7 @@ export class OperatorMemory {
     this.episodes.push({
       step,
       url: percept.url,
-      screenSignature: screenSignature(percept),
+      screenSignature: this.identityOf(percept),
       action: actionDescription,
       outcome,
       strength: 1,
@@ -197,7 +229,7 @@ export class OperatorMemory {
   /* ---------------- spatial memory ---------------- */
 
   observeScreen(percept: Percept, step: number): ScreenNode {
-    const sig = screenSignature(percept);
+    const sig = this.identityOf(percept);
     let node = this.screens.get(sig);
     if (!node) {
       node = {
@@ -245,7 +277,7 @@ export class OperatorMemory {
   }
 
   isNovelScreen(percept: Percept): boolean {
-    const node = this.screens.get(screenSignature(percept));
+    const node = this.screens.get(this.identityOf(percept));
     return !node || node.visits <= 1;
   }
 

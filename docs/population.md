@@ -105,9 +105,12 @@ The same capability is exposed as the `eve_run_usability_study` tool, so any
 MCP client (Claude, Codex, Cursor, …) can run a study directly — see
 [integrations.md](integrations.md). Set `output_dir` to also write the dataset.
 
-## Construct validity
+## Construct-discrimination regression (internal — not human validation)
 
 Population studies inherit EVE's benchmark discipline: a population on the
 excellent reference app out-scores the same population on the bad one
 (`tests/population.test.ts` → *"population construct validity"*). If that
-ordering ever breaks, the instrument — not the app — is wrong.
+ordering ever breaks, the instrument — not the app — is wrong. This proves
+the instrument still discriminates its own fixtures; it does NOT prove the
+simulation matches real humans (that requires `eve_calibrate` against human
+traces).
