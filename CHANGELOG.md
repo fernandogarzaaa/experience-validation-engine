@@ -157,6 +157,13 @@ report, or CP/1 document changes.
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
 
+## [0.5.1](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.0...v0.5.1) (2026-09-21)
+
+
+### Documentation
+
+* declare c40a730 as the frozen behavioral-model 1.0.0 baseline with bump rules ([5bf5b07](https://github.com/fernandogarzaaa/experience-validation-engine/commit/5bf5b07c5121e660f96535a7091dad54daa5928b))
+
 ## [0.5.0](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.4.0...v0.5.0) (2026-08-28)
 
 
