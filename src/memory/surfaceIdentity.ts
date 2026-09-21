@@ -111,11 +111,15 @@ export function classifyQueryDetailed(
 ): readonly QueryStateClassification[] {
   try {
     const u = new URL(url);
-    const keys = [...u.searchParams.keys()].sort();
+    // All key-value entries (not just names): `?filter=a&filter=b` and
+    // `?filter=a&filter=c` must not collapse (CodeRabbit PR #39). Sorted as
+    // complete pairs so order swaps don't fork identity either.
+    const entries = [...u.searchParams.entries()].sort(([ka, va], [kb, vb]) =>
+      ka === kb ? (va < vb ? -1 : va > vb ? 1 : 0) : ka < kb ? -1 : 1,
+    );
     const state = new Set(policy.stateBearingKeys.map((k) => k.toLowerCase()));
     const cardinal = new Set(policy.highCardinalityKeys.map((k) => k.toLowerCase()));
-    return keys.map((k) => {
-      const v = u.searchParams.get(k) ?? "";
+    return entries.map(([k, v]) => {
       const lk = k.toLowerCase();
       if (cardinal.has(lk)) {
         return {
@@ -167,9 +171,9 @@ export function classifiedQuery(
   url: string,
   policy: QueryStatePolicy = DEFAULT_QUERY_STATE_POLICY,
 ): string {
-  return classifyQueryDetailed(url, policy)
-    .map((p) => p.normalized)
-    .join("&");
+  // Dedupe exact-duplicate pairs (`?a=1&a=1` ≡ `?a=1`); distinct values
+  // stay distinct.
+  return [...new Set(classifyQueryDetailed(url, policy).map((p) => p.normalized))].join("&");
 }
 
 function structurePart(percept: Percept): string {

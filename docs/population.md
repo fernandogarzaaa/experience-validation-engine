@@ -2,7 +2,10 @@
 
 A single EVE session answers *"how did this one person do?"* A **population
 study** answers the question a UX researcher actually ships on: *"how does the
-distribution of real humans do?"*
+distribution of modeled operators do?"* Simulated personas are not a random
+sample of real humans — this describes the modeled population's behavior,
+never validated real-human performance (see
+[human-calibration.md](human-calibration.md)).
 
 `simulatePopulation` runs many varied operators against the same app — each an
 ordinary seeded [`EveSession`](developer-guide.md), so a study is as

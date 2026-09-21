@@ -163,11 +163,20 @@ export interface SessionOptions {
    * becomes more efficient over repeated runs.
    */
   longTermMemory?: PersistentMemory;
+  /**
+   * Explicit operator identity for persistent memory (CodeRabbit PR #39).
+   * `persona.name` is a template ("office-worker"), not an operator: two
+   * different humans on the same persona must not share episodic history,
+   * frustration spots, shortcuts, or confidence. Pass a per-operator id
+   * (user id, twin id, run label); omitted → legacy `persona.name`
+   * namespacing (unchanged behavior for existing callers).
+   */
+  operatorId?: string;
   /** Cultural profile (locale string or object) shaping reading direction etc. */
   culture?: CultureProfile | string;
   /**
-   * Optional navigation allowlist (exact hostnames) — operational safety
-   * (P1.12). When set, the start URL and every cognition-chosen `navigate`
+   * Optional navigation allowlist (domains + their subdomains) — operational
+   * safety (P1.12). When set, the start URL and every cognition-chosen `navigate`
    * action outside it are blocked. Empty/omitted = unrestricted (default,
    * backwards compatible). Container isolation, time/resource quotas and
    * download control remain deployment concerns — see docs/security.md.
@@ -355,10 +364,13 @@ export class EveSession {
 
     /* ---- Long-term memory: load, forget, seed the operator ---- */
     const appId = appIdForUrl(startUrl);
+    // Explicit operator id when provided; persona name is only the legacy
+    // fallback namespace (see SessionOptions.operatorId).
+    const operatorId = this.options.operatorId ?? this.persona.name;
     let appMemory: ApplicationMemory | null = null;
     if (this.options.longTermMemory) {
       appMemory =
-        (await this.options.longTermMemory.load(appId, this.persona.name)) ??
+        (await this.options.longTermMemory.load(appId, operatorId)) ??
         emptyApplicationMemory(appId, this.appNameFromUrl(startUrl));
       const currentSession = appMemory.sessionsCount + 1;
       applyForgetting(appMemory, currentSession, this.persona.traits.memoryRetention);
@@ -443,6 +455,7 @@ export class EveSession {
     let fillStable: string | null = null;
     let formPopulated = false;
     let prevFormFill: "empty" | "populated" = "empty";
+    let prevError = false;
 
     // De-duplicated: the same mis-chosen signal is re-evaluated on every
     // perception, and one advisory per session is the useful number.
@@ -500,6 +513,12 @@ export class EveSession {
         // Two-tier identity (reviewer decision 1): memory/familiarity keys
         // are STABLE (never fork on typing/focus/query), while transitions,
         // workflow attribution and outcome evidence use the SENSITIVE state.
+        // Error evidence is computed FIRST so normal vs validation-error
+        // states receive distinct sensitive keys everywhere (CodeRabbit PR #39).
+        // Error perception is modality-gated for the same reason the geometry
+        // checks are: on a document surface there is nothing to retry or
+        // dismiss, so prose *about* failures is not a failure the reader faces.
+        const errorNow = errorSnippets(percept, adapter.capabilities.modality).length > 0;
         const stableNow = stableIdentityKey(percept);
         if (fillStable !== stableNow) {
           fillStable = stableNow;
@@ -509,17 +528,15 @@ export class EveSession {
         const signature = sensitiveStateKey(percept, {
           queryPolicy: this.options.queryStatePolicy,
           formFill,
+          errorSignal: errorNow,
         });
         const prevSignature = previousPercept
           ? sensitiveStateKey(previousPercept, {
               queryPolicy: this.options.queryStatePolicy,
               formFill: prevFormFill,
+              errorSignal: prevError,
             })
           : null;
-        // Error perception is modality-gated for the same reason the geometry
-        // checks are: on a document surface there is nothing to retry or
-        // dismiss, so prose *about* failures is not a failure the reader faces.
-        const errorNow = errorSnippets(percept, adapter.capabilities.modality).length > 0;
         memory.observeScreen(percept, step);
         if (prevSignature && prevSignature !== signature && lastVia) {
           memory.recordTransition(prevSignature, signature, lastVia);
@@ -730,6 +747,7 @@ export class EveSession {
               screenshotIndex,
               null,
               formFill,
+              errorNow,
             ),
           );
           break;
@@ -842,12 +860,14 @@ export class EveSession {
           screenshotIndex,
           clickPoint,
           formFill,
+          errorNow,
         );
         iterations.push(iteration);
         await this.events.emit("loop:iteration", { iteration });
 
         previousPercept = after.percept;
         prevFormFill = formFill;
+        prevError = errorSnippets(after.percept, adapter.capabilities.modality).length > 0;
         step += 1;
       }
       if (step >= this.options.maxSteps) endReason = "step-budget-exhausted";
@@ -924,7 +944,7 @@ export class EveSession {
         findings,
         scores,
       });
-      await this.options.longTermMemory.save(appMemory, this.persona.name);
+      await this.options.longTermMemory.save(appMemory, operatorId);
       updatedMemory = appMemory;
       learningMetrics = computeLearningMetrics(appMemory);
     }
@@ -1476,6 +1496,7 @@ export class EveSession {
     screenshotIndex: number | null,
     clickPoint: Point | null,
     formFill?: "empty" | "populated",
+    errorSignal?: boolean,
   ): LoopIteration {
     return {
       step,
@@ -1497,6 +1518,7 @@ export class EveSession {
       sensitiveKey: sensitiveStateKey(percept, {
         queryPolicy: this.options.queryStatePolicy,
         formFill,
+        errorSignal,
       }),
     };
   }

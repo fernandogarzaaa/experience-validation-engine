@@ -1,7 +1,9 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DEMO_APP, MockAdapter } from "../src/browser/index.js";
+import { EveSession } from "../src/engine/index.js";
 import {
   emptyApplicationMemory,
   FileMemoryStore,
@@ -46,6 +48,61 @@ describe("operator memory isolation (P0.6)", () => {
     expect(await store.load("https://x.test", "bob")).toBeNull();
     expect((await store.load("https://x.test", "alice"))!.knownShortcuts).toEqual(["ctrl-s"]);
   });
+
+  it("migrates legacy bare-appId entries to the shared namespace (File)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "eve-mem-legacy-"));
+    const path = join(dir, "memory.json");
+    const legacy = emptyApplicationMemory("https://x.test", "X");
+    legacy.sessionsCount = 4;
+    writeFileSync(path, JSON.stringify({ version: 2, applications: { "https://x.test": legacy } }));
+    const store = new FileMemoryStore(path);
+    // Pre-namespace install reports its memory back, not null.
+    const loaded = await store.load("https://x.test", "shared");
+    expect(loaded?.sessionsCount).toBe(4);
+    // Self-healed: the namespaced key now exists alongside the legacy one.
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
+      applications: Record<string, unknown>;
+    };
+    expect(parsed.applications["shared::https://x.test"]).toBeDefined();
+  });
+
+  it("migrates legacy bare-appId entries to the shared namespace (InMemory)", async () => {
+    const store = new InMemoryStore();
+    const legacy = emptyApplicationMemory("https://x.test", "X");
+    legacy.sessionsCount = 2;
+    // Seed a pre-namespace entry directly (test-only access): InMemoryStore
+    // has no file to read legacy state from, so reach the backing map.
+    (store as unknown as { store: { applications: Record<string, unknown> } }).store.applications[
+      "https://x.test"
+    ] = legacy;
+    expect((await store.load("https://x.test", "shared"))?.sessionsCount).toBe(2);
+  });
+
+  it("session operatorId isolates templates sharing one persona (CodeRabbit PR #39)", async () => {
+    const store = new InMemoryStore();
+    const run = (operatorId?: string) =>
+      new EveSession({
+        adapter: new MockAdapter(DEMO_APP),
+        startUrl: "mock:landing",
+        persona: "office-worker",
+        ...(operatorId ? { operatorId } : {}),
+        longTermMemory: store,
+        seed: 5,
+        maxSteps: 6,
+        paceScale: 0,
+      }).run();
+    await run("op-alice");
+    await run("op-bob");
+    await run(undefined);
+    // Same persona template, distinct operators: three isolated profiles
+    // (appId is opaque here — assert on the stored namespace keys).
+    const keys = Object.keys(store.snapshot().applications).sort();
+    expect(keys).toHaveLength(3);
+    expect(keys.some((k) => k.startsWith("op-alice::"))).toBe(true);
+    expect(keys.some((k) => k.startsWith("op-bob::"))).toBe(true);
+    // Legacy callers without operatorId keep the persona-name namespace.
+    expect(keys.some((k) => k.startsWith("office-worker::"))).toBe(true);
+  }, 60_000);
 });
 
 describe("file persistence concurrency safety (P0.7)", () => {

@@ -39,6 +39,11 @@ export function sanitizeFilename(name: string, fallback = "report"): string {
  * anything else (mock:, about:, data:) is an offline fixture or an internal
  * page, not a network navigation. Absent/empty allowlist = no restriction
  * (backwards compat); present = http(s) navigation outside it throws.
+ *
+ * Matching is domain-and-subdomains (CSP-style): `example.com` covers
+ * `app.example.com` but never `example.com.evil.com` (dot boundary or
+ * full equality required). This is a deliberate policy choice, documented
+ * in docs/security.md — not an exact-match oversight.
  */
 export function assertUrlAllowed(url: string, allowlist?: readonly string[]): void {
   if (!allowlist || allowlist.length === 0) return;

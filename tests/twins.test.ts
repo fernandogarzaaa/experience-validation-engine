@@ -214,3 +214,29 @@ describe("mcp eve_twin_session", () => {
     }
   });
 });
+
+describe("FileTwinStore cross-instance safety (CodeRabbit PR #39)", () => {
+  it("serializes concurrent saves from different instances over the same path", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "eve-twins-shared-"));
+    try {
+      const file = join(dir, "twins.json");
+      const ids = Array.from({ length: 8 }, (_, i) => `twin-${i}`);
+      await Promise.all(
+        ids.map((id, i) => {
+          // A FRESH instance per write: the old per-instance queue could not
+          // serialize these, so updates were lost and tmp files collided.
+          const store = new FileTwinStore(file);
+          const twin = createTwin({ id, name: `Twin ${i}`, basePersona: "office-worker" });
+          return store.save(twin);
+        }),
+      );
+      const reader = new FileTwinStore(file);
+      for (const id of ids) {
+        await expect(reader.load(id)).resolves.not.toBeNull();
+      }
+      await expect(reader.list()).resolves.toHaveLength(ids.length);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

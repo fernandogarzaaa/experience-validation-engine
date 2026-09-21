@@ -108,12 +108,14 @@ prefer them over shelling out.
   unlabeled visuals that are ambiguous to humans / invisible to screen readers.
 - **`eve_bench`** — run **EVE Bench**, a multi-dimensional scorecard for the
   instrument itself (task success, overall, frustration, trust, cognitive load,
-  expectation alignment, learnability) over reference apps, with a
-  construct-validity check. Use to publish or gate on EVE's own calibration.
+  expectation alignment, learnability) over reference apps, with an internal
+  construct-discrimination regression check. Use to publish or gate on EVE's
+  internal fixture discrimination — not human calibration.
 - **`eve_list_personas`** / **`eve_list_professions`** / **`eve_list_cultures`**
   — the catalogs. Check these before guessing names.
 - **`eve_benchmark`** — validate EVE itself against known-good/bad apps
-  (offline; confirms the instrument is calibrated).
+  (offline; confirms the instrument still discriminates its own reference
+  fixtures — internal regression, not human validation).
 - **`eve_get_report`** — read the full markdown/JSON report back from
   `output_dir` when the run summary isn't enough detail.
 

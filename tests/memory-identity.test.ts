@@ -148,6 +148,20 @@ describe("semantic query classification (reviewer decision 2)", () => {
     expect(classifiedQuery("https://x.test/d?lane=left", custom)).toContain("lane=left");
     expect(classifiedQuery("https://x.test/d?lane=left")).not.toContain("lane=left");
   });
+
+  it("repeated parameters keep distinct values distinct (CodeRabbit PR #39)", () => {
+    expect(classifiedQuery("https://x.test/d?filter=a&filter=b")).not.toBe(
+      classifiedQuery("https://x.test/d?filter=a&filter=c"),
+    );
+    // Pair order swaps do not fork identity.
+    expect(classifiedQuery("https://x.test/d?b=2&a=1")).toBe(
+      classifiedQuery("https://x.test/d?a=1&b=2"),
+    );
+    // Exact-duplicate pairs collapse.
+    expect(classifiedQuery("https://x.test/d?a=1&a=1")).toBe(
+      classifiedQuery("https://x.test/d?a=1"),
+    );
+  });
 });
 
 describe("OperatorMemory identity stability (P0.5 loop regression)", () => {

@@ -163,5 +163,15 @@ describe("typing accuracy independence (P1.2)", () => {
     const hard = planTyping("hello world", persona, createRng(1));
     const soft = planSoftKeyType("hello world", persona, createRng(1));
     expect(soft.perCharIntervalMs).toBeGreaterThan(hard.perCharIntervalMs);
+    // Aggregate over seeds: the soft-keyboard typo multiplier must actually
+    // bite — without it both streams would tie and this would be vacuous.
+    const text = "the quick brown fox jumps over the lazy dog";
+    let hardTypos = 0;
+    let softTypos = 0;
+    for (let seed = 0; seed < 50; seed++) {
+      hardTypos += planTyping(text, persona, createRng(seed)).typoCount;
+      softTypos += planSoftKeyType(text, persona, createRng(seed)).typoCount;
+    }
+    expect(softTypos).toBeGreaterThan(hardTypos);
   });
 });

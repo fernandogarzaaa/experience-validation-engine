@@ -45,11 +45,11 @@ export interface CalibrationReport {
   /** Step-count similarity (0..1): efficiency, NOT timing. */
   readonly stepSimilarity: number;
   /**
-   * Trajectory-level similarity placeholder (P1.8-calibration): currently
-   * the transition-distribution cosine (`navigationSimilarity`) — a
-   * distribution over edges, not aligned trajectory comparison. Real
-   * trajectory similarity (action agreement, dwell distributions, hazard)
-   * requires per-step human action logs; null until provided.
+   * Aligned-trajectory similarity placeholder: unimplemented until per-step
+   * human action logs exist (action agreement, dwell distributions,
+   * abandonment hazard). Null until provided. NOTE: this is NOT the
+   * transition-distribution cosine — that edge-overlap measure is exposed
+   * separately as `navigationSimilarity`.
    */
   readonly trajectorySimilarity: number | null;
   /** Pearson correlation of per-screen friction (−1..1); null if unknowable. */

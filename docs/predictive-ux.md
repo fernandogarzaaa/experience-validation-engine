@@ -21,7 +21,7 @@ console.log(renderUXPredictionMarkdown(prediction));
 | Prediction | How |
 |---|---|
 | Abandonment rate | Simulation-sample proportion + 95% Wilson interval **over the simulation sample only (not a real-user CI)** |
-| Confusion rate | Heuristic confusion-risk index over simulated operators (not a probability) |
+| Confusion rate | Simulation-sample proportion of simulated operators flagged confused (same `proportion(...)` semantics as abandonment, valid range 0..1). The heuristic non-probability confusion signal lives in `struggleForecasts` below |
 | Onboarding failure rate | First-time simulated users who fail to activate |
 | Accessibility-barrier rate | Accessibility-sensitive simulated users who hit a barrier (or modeled from a11y findings) |
 | Support contacts (heuristic operational estimate) | **Heuristic** per-100-users scenario score from frustration, abandonment, and broken-interaction prevalence (±30% display band, not a fitted variance). No empirical link to real support contacts — replace via calibration once real support data exists |

@@ -335,8 +335,9 @@ export interface PredictionOutcome {
  * - `modeledMs`: elapsed time on the session clock (simulated human time +
  *   modeled waits in deterministic mode; pace-scaled sleeps in wall mode).
  * - `observedMs`: elapsed WALL time on the host for the same interval —
- *   environmental reality, recorded always, used for appraisal only in
- *   wall-clock mode.
+ *   environmental reality, recorded in wall-clock mode and used for
+ *   appraisal there; deliberately ZERO in deterministic mode so host noise
+ *   can never enter a replayed trajectory (see `latencyEvidenceFor`).
  * - `source`: which one `perceivedLatencyMs` was taken from.
  */
 export interface LatencyEvidence {

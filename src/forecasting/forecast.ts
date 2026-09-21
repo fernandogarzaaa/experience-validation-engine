@@ -292,7 +292,7 @@ function buildSummary(
   const parts = [`Based on ${sessionCount} simulated session(s):`];
   if (topStruggle) {
     parts.push(
-      `future users show the highest heuristic struggle-index at "${topStruggle.location}" (index ${topStruggle.struggleProbability.toFixed(2)} — a scenario score, not a probability).`,
+      `simulated operators showed the highest heuristic struggle-index at "${topStruggle.location}" (index ${topStruggle.struggleIndex.toFixed(2)} — a scenario score, not a probability).`,
     );
   }
   if (topAbandon && topAbandon.abandonmentRisk > 0) {

@@ -192,8 +192,9 @@ nothing here changes a default (phase-1) session.
 ### Long-term memory & learning
 
 - `interface PersistentMemory` — `load(appId, operatorId?)`,
-  `save(memory, operatorId?)`. Operator id namespaces profiles (sessions pass
-  the persona name); omit for legacy shared behavior.
+  `save(memory, operatorId?)`. Operator id namespaces profiles
+  (`SessionOptions.operatorId`, else legacy persona-name fallback); omit for
+  legacy shared behavior. Legacy bare-`appId` entries migrate on first load.
 - `InMemoryStore()`, `FileMemoryStore(path)` — implementations; pass as
   `longTermMemory`. File saves are mutex-serialized and atomic (tmp + rename).
 - `ApplicationMemory`, `emptyApplicationMemory()`, `memoryKeyFor(appId, operatorId)`,

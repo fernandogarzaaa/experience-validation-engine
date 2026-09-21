@@ -34,7 +34,8 @@ Each benchmark case is scored on:
 These roll up into a per-case **composite** (0–100) and an **overall** bench
 score. `ordered` is the standing construct-discrimination regression check
 (internal, not human validation): the composites must rank excellent >
-average > bad, or the instrument is miscalibrated.
+average > bad, or the instrument fails its internal fixture-discrimination
+regression.
 
 ## Extending the suite
 

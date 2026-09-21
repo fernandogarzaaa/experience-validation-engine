@@ -941,6 +941,28 @@ export class HeuristicCognition implements DecisionPolicy {
     if (percept.dialogs.length === 0) return null;
     const dialog = percept.dialogs[0]!;
 
+    // Native dialogs (alert/confirm/prompt) have no box and no page controls:
+    // the adapter already handled them (record-then-dismiss by default) to
+    // unblock perception. Mapping them onto page controls would click an
+    // unrelated "Continue"/"OK" — so the operator only reads and reacts,
+    // never selects a page element for a native dialog.
+    if (dialog.source === "native") {
+      const words = dialog.text.split(/\s+/).filter(Boolean).length;
+      return {
+        action: { kind: "read", target: null, durationMs: readingTimeMs(persona, words) },
+        rationale:
+          `A native dialog said "${dialog.text.slice(0, 80)}". ` +
+          `It was already handled by the surface (${dialog.autoHandled ?? "dismissed"}) — noting it and moving on.`,
+        prediction: {
+          description: "The dialog is already gone; the page underneath is unchanged.",
+          expectedSignals: [],
+          expectsChange: false,
+          confidence: 0.8,
+        },
+        effort: 0.1,
+      };
+    }
+
     // Look for a control inside the dialog to dismiss/accept it.
     const dialogBox = dialog.box;
     const inDialog = percept.elements.filter(

@@ -156,7 +156,11 @@ describe("calibration record (reviewer additional requirement)", () => {
     // calibration harness, never read back by the simulator:
     //
     //   human data → evaluation, NEVER human data → EVE decision.
-    const session = new EveSession({
+    //
+    // Pre-run boundary: even a smuggled unknown option carrying a human
+    // reference must not change the run (no such input is consumed).
+    // NOTE: separate adapter instances — MockAdapter is stateful per run.
+    const baseOpts = () => ({
       adapter: new MockAdapter(DEMO_APP),
       startUrl: "mock:landing",
       persona: "office-worker",
@@ -165,7 +169,13 @@ describe("calibration record (reviewer additional requirement)", () => {
       paceScale: 0,
       deterministic: true,
     });
-    const result = await session.run();
+    const clean = await new EveSession({ ...baseOpts() }).run();
+    const smuggled = await new EveSession({
+      ...baseOpts(),
+      humanReference: { actualAction: "gave up", durationMs: 90000 },
+    } as unknown as import("../src/engine/session.js").SessionOptions).run();
+    expect(JSON.stringify(smuggled.iterations)).toBe(JSON.stringify(clean.iterations));
+    const result = clean;
     const records = buildCalibrationRecords(result);
     for (const r of records) {
       expect(r.humanReference).toBeNull();

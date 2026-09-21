@@ -65,7 +65,7 @@ export const PERCEPTION_SCRIPT = `
   function directText(el) {
     let text = "";
     let textSource = "visual";
-    var __aria, __aria2, __vis, __lab;
+    var __aria, __aria2, __vis, __lab, __ispw, __ph;
     for (const node of el.childNodes) {
       if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
     }
@@ -73,7 +73,15 @@ export const PERCEPTION_SCRIPT = `
     if (!text) {
       const tag = el.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") {
-        text = el.value || el.getAttribute("placeholder") || "";
+        // Password fields render masking dots, never the secret: reading
+        // the typed value would leak credentials into percepts, evidence,
+        // screenshots metadata and reports. Fall back to the visible
+        // placeholder only (CodeRabbit review on PR #39).
+        __ispw =
+          tag === "INPUT" && (el.getAttribute("type") || "").toLowerCase() === "password";
+        text = __ispw ? "" : el.value || "";
+        __ph = el.getAttribute("placeholder") || "";
+        text = text || __ph;
         __aria = el.getAttribute("aria-label") || "";
         textSource = text ? "visual" : (__aria ? "accessibility" : "visual");
         text = text || __aria;

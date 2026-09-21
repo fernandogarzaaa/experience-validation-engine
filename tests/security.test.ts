@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockAdapter } from "../src/browser/index.js";
 import { assertUrlAllowed, safeJoin, sanitizeFilename } from "../src/core/security.js";
 import { EveSession } from "../src/engine/index.js";
@@ -40,12 +40,14 @@ describe("navigation allowlist (P1.12)", () => {
   });
 
   it("session blocks off-allowlist start URLs instead of opening a browser", async () => {
+    const adapter = new MockAdapter({
+      name: "X",
+      start: "home",
+      screens: [{ id: "home", title: "H", elements: [] }],
+    });
+    const open = vi.spyOn(adapter, "open");
     const session = new EveSession({
-      adapter: new MockAdapter({
-        name: "X",
-        start: "home",
-        screens: [{ id: "home", title: "H", elements: [] }],
-      }),
+      adapter,
       startUrl: "https://evil.test/",
       persona: "office-worker",
       seed: 1,
@@ -56,5 +58,7 @@ describe("navigation allowlist (P1.12)", () => {
     const result = await session.run();
     expect(result.endReason).toBe("crashed");
     expect(result.error ?? "").toContain("blocked");
+    // The block happens BEFORE any browser opens — no surface ever launches.
+    expect(open).not.toHaveBeenCalled();
   }, 30_000);
 });

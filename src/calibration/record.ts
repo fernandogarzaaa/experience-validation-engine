@@ -99,9 +99,11 @@ export interface CalibrationRecord {
   /**
    * Epistemic status per record section — the OBSERVATION / DERIVATION /
    * SIMULATION / HEURISTIC / LLM-INFERENCE / HUMAN-CALIBRATION distinction
-   * as data, not documentation.
+   * as data, not documentation. Keys are OMITTED (not labeled) when their
+   * evidence is absent: an abandon-path record with no outcome carries no
+   * `outcome`/`latency`/`motorTime` claim at all (CodeRabbit PR #39).
    */
-  readonly provenance: Readonly<Record<string, EvidenceProvenance>>;
+  readonly provenance: Readonly<Partial<Record<string, EvidenceProvenance>>>;
   readonly calibrationStatus: CalibrationStatus;
   /**
    * Versioned model identifiers (reviewer §10): reproducing a prediction
@@ -144,19 +146,21 @@ export interface CalibrationDataset {
 
 function sectionProvenance(
   outcome: PredictionOutcome | null,
-): Readonly<Record<string, EvidenceProvenance>> {
+): Readonly<Partial<Record<string, EvidenceProvenance>>> {
   return {
     observation: "observed",
     cognitiveState: "derived",
     prediction: "derived",
     action: "observed",
-    outcome: outcome ? "derived" : "modeled",
-    latency: outcome?.latencyEvidence
-      ? outcome.latencyEvidence.deterministic
-        ? "modeled"
-        : "observed"
-      : "modeled",
-    motorTime: "modeled",
+    ...(outcome ? { outcome: "derived" as const } : {}),
+    ...(outcome?.latencyEvidence
+      ? {
+          latency: outcome.latencyEvidence.deterministic
+            ? ("modeled" as const)
+            : ("observed" as const),
+        }
+      : {}),
+    ...(outcome?.motorTimeMs !== undefined ? { motorTime: "modeled" as const } : {}),
     emotionUpdate: "heuristic",
   };
 }
@@ -235,5 +239,6 @@ export function buildCalibrationDataset(
 
 /** One JSON object per line — the append-friendly calibration-dataset format. */
 export function renderCalibrationRecordsJsonl(records: readonly CalibrationRecord[]): string {
-  return records.map((r) => JSON.stringify(r)).join("\n");
+  if (records.length === 0) return "";
+  return `${records.map((r) => JSON.stringify(r)).join("\n")}\n`;
 }

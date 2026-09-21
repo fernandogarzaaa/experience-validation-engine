@@ -11,10 +11,14 @@ deployment must provide.
 EVE navigates arbitrary URLs in Playwright/Puppeteer/Selenium. At the EVE
 layer:
 
-- `SessionOptions.allowedHosts` restricts navigation to an allowlist of exact
-  hostnames (enforced on the start URL and every cognition-chosen `navigate`).
-  Omit it (default) and navigation is unrestricted — suitable for local/dev
-  targets only.
+- `SessionOptions.allowedHosts` restricts http(s) navigation to listed
+  domains **and their subdomains** (`example.com` covers
+  `app.example.com`, never `example.com.evil.com` — the match requires a
+  dot boundary or full equality). Enforced on the start URL (before any
+  browser opens) and every cognition-chosen `navigate`. Non-http(s) targets
+  (`mock:`, `about:`) are offline fixtures, not network navigation, and
+  pass. Omit it (default) and navigation is unrestricted — suitable for
+  local/dev targets only.
 - Every adapter uses an isolated browser instance per session and closes it in
   a `finally` (a crash never leaks the browser process).
 - Native dialogs are record-then-dismiss by default

@@ -114,9 +114,39 @@ describe("prediction/forecast honesty (P1.5–P1.8)", () => {
   it("forecastExperience exposes struggleIndex identical to struggleProbability", () => {
     const forecast = forecastExperience([]);
     expect(forecast.struggles).toHaveLength(0);
-    // Non-empty path exercised via a synthetic session below would need a
-    // full SessionResult; the type-level alias + provenance is covered by
-    // construction — struggleProbability retained for backwards compat.
     expect(forecast.summary).toContain("No sessions");
+  });
+
+  it("forecastExperience builds heuristic struggles on the non-empty path", () => {
+    // Minimal SessionResult: one error-bearing iteration guarantees friction
+    // above the 0.25 gate (errors weigh ×2).
+    const session = {
+      personaName: "op0",
+      abandoned: false,
+      abandonReason: null,
+      findings: [],
+      workflowNodes: [],
+      workflows: [],
+      iterations: [
+        {
+          url: "https://x.test/pay",
+          outcome: {
+            surprise: 0.9,
+            prediction: { expectsChange: true },
+            screenChanged: false,
+            errorPerceived: true,
+            perceivedLatencyMs: 100,
+          },
+          emotion: { confidence: 0.3 },
+        },
+      ],
+    } as unknown as import("../src/engine/session.js").SessionResult;
+    const forecast = forecastExperience([session]);
+    expect(forecast.struggles).toHaveLength(1);
+    const [s] = forecast.struggles;
+    expect(typeof s!.struggleProbability).toBe("number");
+    expect(s!.struggleIndex).toBe(s!.struggleProbability);
+    expect(s!.provenance).toBe("heuristic");
+    expect(s!.signals.join(" ")).toContain("error");
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import { isFileNotFoundError } from "../core/fsErrors.js";
 import type { TwinProfile } from "./types.js";
@@ -45,9 +45,22 @@ export class InMemoryTwinStore implements TwinStore {
 
 /** JSON-file-backed twin store for real cross-session persistence. */
 export class FileTwinStore implements TwinStore {
-  private writeQueue: Promise<void> = Promise.resolve();
+  /**
+   * Write queues shared by RESOLVED PATH (CodeRabbit PR #39): a per-instance
+   * queue cannot serialize two `FileTwinStore` instances over the same file,
+   * which then read the same body and overwrite each other (lost updates) or
+   * collide on one `${pid}.tmp` name (rename races). Path-keyed queues plus
+   * unique tmp names close both gaps within this process. Cross-process
+   * writers remain last-writer-wins (documented — use a DB for that).
+   */
+  private static readonly queues = new Map<string, Promise<void>>();
+  private static tmpCounter = 0;
 
   constructor(private readonly path: string) {}
+
+  private queueKey(): string {
+    return resolve(this.path);
+  }
 
   private async read(): Promise<TwinStoreBody> {
     let text: string;
@@ -80,17 +93,22 @@ export class FileTwinStore implements TwinStore {
   async save(twin: TwinProfile): Promise<void> {
     // Same guarantees as FileMemoryStore (P0.7): mutex-serialized
     // read-modify-write plus atomic tmp+rename persistence.
-    const task = this.writeQueue.then(async () => {
+    const key = this.queueKey();
+    const prev = FileTwinStore.queues.get(key) ?? Promise.resolve();
+    const task = prev.then(async () => {
       const body = await this.read();
       body.twins[twin.id] = twin;
       await mkdir(dirname(this.path), { recursive: true });
-      const tmp = `${this.path}.${process.pid}.tmp`;
+      const tmp = `${this.path}.${process.pid}.${FileTwinStore.tmpCounter++}.tmp`;
       await writeFile(tmp, JSON.stringify(body, null, 2), "utf8");
       await rename(tmp, this.path);
     });
-    this.writeQueue = task.then(
-      () => undefined,
-      () => undefined,
+    FileTwinStore.queues.set(
+      key,
+      task.then(
+        () => undefined,
+        () => undefined,
+      ),
     );
     await task;
   }
