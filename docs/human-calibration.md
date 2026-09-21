@@ -98,12 +98,23 @@ traces.
 
 ## Model freeze
 
-Behavioral calibration runs against a frozen model: `BEHAVIOR_MODEL_VERSION`
-(`src/core/versions.ts`, currently `1.0.0`) bumps on any architectural or
-behavioral change, `PARAMETER_SET_VERSION` on any default-value change, and
-any bump restarts calibration from `uncalibrated`. Every
+Behavioral calibration runs against a frozen model. `BEHAVIOR_MODEL_VERSION
+= 1.0.0` + `PARAMETER_SET_VERSION = 1.0.0` represent the **frozen c40a730
+baseline** — never interpret `1.0.0` as covering earlier commits that happen
+to use the same constants. Bump rules (`src/core/versions.ts`):
+
+```text
+behavioral change (cognition, identity, perception, timing, motor,
+  appraisal, memory, abandonment, learning) → bump BEHAVIOR_MODEL_VERSION
+default parameter value change              → bump PARAMETER_SET_VERSION
+documentation-only change                   → no bump
+bug fix changing observable model behavior  → bump the relevant version
+```
+
+Any bump restarts calibration from `uncalibrated`. Every
 `CalibrationRecord` carries both versions plus the surface adapter, so a
-past prediction is reproducible and auditable.
+past prediction is reproducible and auditable. Keep both versions fixed
+while collecting the first dataset.
 
 ## Via MCP
 

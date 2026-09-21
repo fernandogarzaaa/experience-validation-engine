@@ -1,6 +1,11 @@
 /**
  * Model + parameter version freeze (reviewer: "freeze EVE behavioral model v1").
  *
+ * `BEHAVIOR_MODEL_VERSION = 1.0.0` + `PARAMETER_SET_VERSION = 1.0.0`
+ * represent the FROZEN c40a730 BASELINE — not "all commits that happen to
+ * use these constants". A future reader must interpret 1.0.0 as c40a730,
+ * never as covering earlier commits.
+ *
  * Calibration is meaningless against a moving model: if the architecture or
  * the default parameters change under a dataset, nobody can tell whether an
  * improvement came from better parameters, a more expressive model,
@@ -10,6 +15,9 @@
  *   (cognition cascade, identity rules, appraisal, motor model, ...).
  * - `PARAMETER_SET_VERSION` bumps when a default parameter value changes
  *   (persona baselines, thresholds, weights, bands, ...).
+ * - Documentation-only changes: NO bump.
+ * - Bug fixes that change observable model behavior: bump the relevant
+ *   version (a silent behavior change without a bump contaminates datasets).
  *
  * Any bump requires recalibration: the new version starts `uncalibrated`
  * regardless of what v1 achieved. Every `CalibrationRecord` carries both,
