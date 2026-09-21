@@ -1,0 +1,7 @@
+# Normalize line endings to LF on all platforms so the Biome gate passes
+# identically on Windows and Linux checkouts. Without this, Windows
+# checkouts convert to CRLF and `npm run lint` fails locally while CI
+# (Linux) stays green — the exact drift this file prevents.
+* text=auto eol=lf
+# Pinned evidence and binary-adjacent fixtures keep byte identity.
+*.png binary
