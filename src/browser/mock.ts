@@ -1,4 +1,5 @@
 import type { Point, Viewport, VisibleElement } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { BrowserAdapter, RawSnapshot } from "./adapter.js";
 
@@ -173,6 +174,7 @@ export const DEMO_APP: MockAppSpec = {
 
 export class MockAdapter implements BrowserAdapter {
   readonly name = "mock";
+  readonly version = ADAPTER_VERSION;
   /** Visual/spatial like a real browser, but never produces a screenshot. */
   readonly capabilities = { ...VISUAL_SURFACE, canScreenshot: false } as const;
   private readonly app: MockAppSpec;

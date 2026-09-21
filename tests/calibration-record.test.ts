@@ -111,13 +111,18 @@ describe("calibration record (reviewer additional requirement)", () => {
     });
     const result = await session.run();
     expect(result.surfaceAdapter).toBe("mock");
+    expect(result.surfaceAdapterVersion).toBeTruthy();
     const records = buildCalibrationRecords(result);
     for (const r of records) {
       expect(r.behaviorModelVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(r.parameterSetVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(r.calibrationDatasetVersion).toBeNull();
       expect(r.surfaceAdapter).toBe("mock");
-      expect(r.surfaceAdapterVersion).toBeNull();
+      expect(r.surfaceAdapterVersion).toBe(result.surfaceAdapterVersion);
+      // Optional build stamp: null in dev, never fabricated.
+      expect(
+        r.implementationRevision === null || typeof r.implementationRevision === "string",
+      ).toBe(true);
     }
   }, 30_000);
 
@@ -142,5 +147,44 @@ describe("calibration record (reviewer additional requirement)", () => {
     expect(a.map((r) => r.actionDescription)).toEqual(b.map((r) => r.actionDescription));
     expect(a.map((r) => r.outcome)).toEqual(b.map((r) => r.outcome));
     expect(a.map((r) => r.sensitiveKey)).toEqual(b.map((r) => r.sensitiveKey));
+  }, 60_000);
+
+  it("leakage: humanReference cannot influence EVE's own prediction (reviewer §14)", async () => {
+    // Blindness contract: EveSession accepts NO human data — SessionOptions
+    // has no human-trace input, and buildCalibrationRecords always emits
+    // humanReference: null. References are attached post-hoc by the
+    // calibration harness, never read back by the simulator:
+    //
+    //   human data → evaluation, NEVER human data → EVE decision.
+    const session = new EveSession({
+      adapter: new MockAdapter(DEMO_APP),
+      startUrl: "mock:landing",
+      persona: "office-worker",
+      seed: 77,
+      maxSteps: 8,
+      paceScale: 0,
+      deterministic: true,
+    });
+    const result = await session.run();
+    const records = buildCalibrationRecords(result);
+    for (const r of records) {
+      expect(r.humanReference).toBeNull();
+      expect(r.calibrationStatus).toBe("uncalibrated");
+    }
+    // Two analysts attach DIFFERENT references to the same records: every
+    // EVE-side field (seen/believed/predicted/done/happened) is untouched.
+    const refA = { actualAction: "clicked save", durationMs: 1200 };
+    const refB = {
+      actualAction: "gave up",
+      durationMs: 90000,
+      recovery: { kind: "takeover" as const },
+    };
+    const eveSide = (rs: typeof records) => rs.map(({ humanReference: _h, ...rest }) => rest);
+    const withA = records.map((r) => ({ ...r, humanReference: refA }));
+    const withB = records.map((r) => ({ ...r, humanReference: refB }));
+    expect(eveSide(withA)).toEqual(eveSide(withB));
+    expect(eveSide(withA)).toEqual(eveSide(records));
+    // And the recovery vocabulary fits without migration.
+    expect(withB[0]!.humanReference!.recovery!.kind).toBe("takeover");
   }, 60_000);
 });

@@ -1,8 +1,13 @@
 import type { Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { importDriver } from "./driverLoader.js";
-import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
+import {
+  mergeNativeDialogs,
+  type PendingNativeDialog,
+  recordNativeDialog,
+} from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -24,7 +29,11 @@ type SeleniumDriver = {
     setTimeouts(t: { pageLoad?: number; script?: number }): Promise<void>;
   };
   switchTo(): {
-    alert(): Promise<{ getText(): Promise<string>; accept(): Promise<void>; dismiss(): Promise<void> }>;
+    alert(): Promise<{
+      getText(): Promise<string>;
+      accept(): Promise<void>;
+      dismiss(): Promise<void>;
+    }>;
   };
   sleep?(ms: number): Promise<void>;
 };
@@ -41,6 +50,7 @@ type SeleniumActions = {
 
 export class SeleniumAdapter implements BrowserAdapter {
   readonly name = "selenium";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = VISUAL_SURFACE;
   private driver: SeleniumDriver | null = null;
   private origin: unknown = null;

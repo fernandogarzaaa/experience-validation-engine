@@ -1,8 +1,13 @@
 import type { Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, RawSnapshot } from "./adapter.js";
 import { importDriver } from "./driverLoader.js";
-import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
+import {
+  mergeNativeDialogs,
+  type PendingNativeDialog,
+  recordNativeDialog,
+} from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -44,6 +49,7 @@ type PuppeteerBrowser = {
 
 export class PuppeteerAdapter implements BrowserAdapter {
   readonly name = "puppeteer";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = VISUAL_SURFACE;
   private browser: PuppeteerBrowser | null = null;
   private page: PuppeteerPage | null = null;

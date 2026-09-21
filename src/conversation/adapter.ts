@@ -37,6 +37,7 @@ import type {
   SurfaceSignal,
 } from "../core/kernel.js";
 import type { Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { getPersona } from "../personas/library.js";
 import type { Persona } from "../personas/persona.js";
 import { workingMemoryCapacity } from "../personas/persona.js";
@@ -67,6 +68,7 @@ export interface ConversationAdapterOptions {
 
 export class ConversationAdapter implements BrowserAdapter, KernelSurface {
   readonly name = "conversation";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = { ...CONVERSATIONAL_SURFACE, actionVerbs: CONVERSATION_VERBS };
 
   private readonly backend: ConversationBackend;

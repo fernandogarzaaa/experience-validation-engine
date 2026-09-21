@@ -43,6 +43,16 @@ export interface DeviceMetrics {
 export interface BrowserAdapter {
   readonly name: string;
 
+  /**
+   * EVE adapter implementation version (reviewer: minimal adapter identity
+   * contract for calibration auditability). Optional so third-party adapters
+   * are unaffected; all built-in adapters report `ADAPTER_VERSION`.
+   * Versions the adapter implementation ONLY — not the browser engine,
+   * driver, device profile, or OS those belong in a future execution
+   * fingerprint, never conflated with this field.
+   */
+  readonly version?: string;
+
   /** Which perceptual dimensions this surface actually has. */
   readonly capabilities: SurfaceCapabilities;
 

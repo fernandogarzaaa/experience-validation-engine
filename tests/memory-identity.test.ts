@@ -255,6 +255,50 @@ describe("adversarial collision/aliasing matrix (reviewer §1)", () => {
   });
 });
 
+describe("interaction-state signature (reviewer final defect fix)", () => {
+  // enabled/disabled/editable/interactive flips MUST fork sensitive state
+  // (workflow attribution) while leaving stable identity untouched
+  // (familiarity tier). Typing/focus/text never participate.
+  const cases: Array<{
+    name: string;
+    a: Partial<VisibleElement>;
+    b: Partial<VisibleElement>;
+  }> = [
+    { name: "enabled → disabled", a: {}, b: { disabled: true } },
+    { name: "disabled → enabled", a: { disabled: true }, b: {} },
+    {
+      // Same role/geometry, only the editable flag flips (readonly field):
+      // stable structure is untouched, interaction state differs.
+      name: "editable → non-editable",
+      a: { role: "textbox", editable: true },
+      b: { role: "textbox", editable: false },
+    },
+    {
+      // Menu items stay in the structural filter regardless of
+      // interactivity, so only the sensitive tier observes the flip.
+      name: "interactive → non-interactive",
+      a: { role: "menuitem", interactive: true },
+      b: { role: "menuitem", interactive: false },
+    },
+  ];
+  it.each(cases.map((c) => [c.name, c.a, c.b] as const))(
+    "%s forks sensitive only",
+    (_name, aOver, bOver) => {
+      const a = percept("https://x.test/app", [vis("Save", aOver)]);
+      const b = percept("https://x.test/app", [vis("Save", bOver)]);
+      expect(sameSurface(a, b)).toBe(true);
+      expect(sameState(a, b)).toBe(false);
+    },
+  );
+
+  it("label text edits and focus moves fork NEITHER tier", () => {
+    const a = percept("https://x.test/app", [vis("Save")]);
+    const b = percept("https://x.test/app", [vis("Save now!", { focused: true })]);
+    expect(sameSurface(a, b)).toBe(true);
+    expect(sameState(a, b)).toBe(true);
+  });
+});
+
 describe("query classification explainability", () => {
   it("each component reports parameter, classification, normalization, reason", () => {
     const parts = classifyQueryDetailed("https://x.test/d?tab=settings&q=hello&zzz=1");

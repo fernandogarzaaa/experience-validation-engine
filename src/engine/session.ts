@@ -19,11 +19,10 @@ import {
 } from "../cognition/mentalModel.js";
 import { readingLoad, riskOf } from "../cognition/salience.js";
 import { type Clock, SimulatedClock, WALL_CLOCK } from "../core/clock.js";
-import { assertUrlAllowed } from "../core/security.js";
-import { computePerceivedLatency, latencyEvidenceFor } from "./timing.js";
 import { EventBus } from "../core/events.js";
 import { type KernelPercept, kernelFromWebPercept, surfaceAuthoredText } from "../core/kernel.js";
 import { clamp01, createRng, type Rng, seedFromString } from "../core/random.js";
+import { assertUrlAllowed } from "../core/security.js";
 import type {
   Finding,
   LoopIteration,
@@ -52,7 +51,6 @@ import {
   stableIdentityKey,
 } from "../memory/surfaceIdentity.js";
 import { Observer } from "../observation/perception.js";
-import { assessGoalOnPercepts } from "../planning/evidence.js";
 import {
   CULTURES,
   type CultureProfile,
@@ -62,6 +60,7 @@ import {
 } from "../personas/culture.js";
 import { getPersona } from "../personas/library.js";
 import type { Persona, PersonaTraits } from "../personas/persona.js";
+import { assessGoalOnPercepts } from "../planning/evidence.js";
 import { createGoal, GoalStack } from "../planning/goals.js";
 import { type EvePlugin, type PluginContext, PluginManager } from "../plugins/plugin.js";
 import type { RenderingIssueKind } from "../rendering/reconcile.js";
@@ -69,6 +68,7 @@ import { abbreviate, inspect as inspectRendering } from "../rendering/reconcile.
 import { RENDERING_CATEGORY, registerRenderingVocabulary } from "../rendering/vocabulary.js";
 import { computeScores } from "../scoring/scorer.js";
 import { checkGeometry, checkPixels, checkRegression } from "../vision/analysis.js";
+import { computePerceivedLatency, latencyEvidenceFor } from "./timing.js";
 
 /**
  * Headlines for the rendering check's findings.
@@ -189,6 +189,7 @@ export interface SessionResult {
   readonly personaTraits?: PersonaTraits;
   readonly policyName?: string;
   readonly surfaceAdapter?: string;
+  readonly surfaceAdapterVersion?: string | null;
   readonly seed: number;
   readonly iterations: readonly LoopIteration[];
   readonly findings: readonly Finding[];
@@ -943,6 +944,7 @@ export class EveSession {
           ? (this.policy as { name: string }).name
           : "unknown",
       surfaceAdapter: adapter.name,
+      surfaceAdapterVersion: adapter.version ?? null,
       seed: this.seed,
       iterations,
       findings,

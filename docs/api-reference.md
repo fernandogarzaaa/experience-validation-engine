@@ -243,6 +243,11 @@ nothing here changes a default (phase-1) session.
   corrections, recovery kinds — all optional, no future migration needed).
 - `BEHAVIOR_MODEL_VERSION`, `PARAMETER_SET_VERSION` (`core/versions.ts`) —
   frozen v1; any bump restarts calibration from `uncalibrated`.
+- `ADAPTER_VERSION` (`core/versions.ts`, keep in sync with package.json);
+  every `BrowserAdapter` reports `version` (implementation only — never the
+  browser/driver/OS); `SessionResult.surfaceAdapter[/Version]` feeds the
+  record. `implementationRevision()` reads `EVE_IMPLEMENTATION_REVISION`
+  (build-stamped) or null.
 
 ## Core utilities
 

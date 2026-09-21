@@ -1,7 +1,12 @@
 import type { Point, Viewport } from "../core/types.js";
+import { ADAPTER_VERSION } from "../core/versions.js";
 import { TOUCH_VISUAL_SURFACE } from "../surface/capabilities.js";
 import type { AdapterOptions, BrowserAdapter, DeviceMetrics, RawSnapshot } from "./adapter.js";
-import { mergeNativeDialogs, type PendingNativeDialog, recordNativeDialog } from "./nativeDialog.js";
+import {
+  mergeNativeDialogs,
+  type PendingNativeDialog,
+  recordNativeDialog,
+} from "./nativeDialog.js";
 import { perceiveAcrossNavigation } from "./navigationRetry.js";
 import { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 
@@ -95,6 +100,7 @@ type PlaywrightBrowser = {
 
 export class MobileAdapter implements BrowserAdapter {
   readonly name = "mobile";
+  readonly version = ADAPTER_VERSION;
   readonly capabilities = TOUCH_VISUAL_SURFACE;
   readonly deviceMetrics: DeviceMetrics;
   private readonly deviceName: DeviceName;

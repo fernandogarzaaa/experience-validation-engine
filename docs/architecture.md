@@ -256,12 +256,14 @@ screenshots as data URIs), Markdown and JSON.
   use a DB for multi-process population runs).
 - **Screen identity is two-tier** (`memory/surfaceIdentity.ts`):
   `stableIdentityKey` (origin + path, layout roles + geometry, heading gist —
-  never forks on typing, focus, toggles, dialog text, query values, or error
-  appearance) backs tried-affordances, familiarity, recognition and revisit
-  detection; `sensitiveStateKey` (stable + classified query values + dialog
-  texts + validation-error signal + keyboard band + action-tracked form fill)
-  backs workflow attribution, transitions, outcome interpretation and
-  state-specific findings.
+  never forks on typing, focus, toggles, dialog text, query values, keyboard
+  band, or error appearance) backs tried-affordances, familiarity,
+  recognition and revisit detection; `sensitiveStateKey` (stable + classified
+  query values + dialog texts + validation-error signal + action-tracked form
+  fill + interaction-state signature over role/geometry/interactive/disabled/
+  editable, no text, no focus) backs workflow attribution, transitions,
+  outcome interpretation and state-specific findings. Focus and keyboard-band
+  state are interaction evidence on the Percept, never key components.
   Query classification is configuration-driven (`QueryStatePolicy`,
   `SessionOptions.queryStatePolicy`): state-bearing keys (`tab`, `view`,
   `mode`, `step`, …) discriminate verbatim when short, high-cardinality keys

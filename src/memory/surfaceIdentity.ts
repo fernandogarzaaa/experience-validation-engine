@@ -20,8 +20,12 @@ import type { Percept } from "../core/types.js";
  *   dialog TEXT, query values, keyboard band, error appearance. Used for
  *   tried-affordances, familiarity, recognition, revisit detection.
  * - `sensitiveStateKey` — stable + classified query values + dialog texts +
- *   validation-error signal + keyboard band. Used for workflow attribution,
- *   transition analysis, outcome interpretation, state-specific findings.
+ *   validation-error signal + action-tracked form fill + interaction-state
+ *   signature (role/geometry/interactive/disabled/editable, no text, no
+ *   focus). Used for workflow attribution, transition analysis, outcome
+ *   interpretation, state-specific findings. Focus and keyboard-band state
+ *   are deliberately excluded — they are interaction evidence on the
+ *   Percept, not state discriminators.
  *
  * `screenSignature()` in `./memory.js` is unchanged (backwards compat);
  * `surfaceIdentity()` remains as a deprecated alias of the stable key.
@@ -209,6 +213,29 @@ export interface SensitiveStateOptions {
   readonly formFill?: "empty" | "populated";
 }
 
+/**
+ * Interaction-state signature for the SENSITIVE tier (reviewer final defect
+ * fix): role + rounded geometry + interactive/disabled/editable flags for
+ * relevant controls — NO user-entered text, NO focus flag.
+ *
+ * A disabled "Save" and an enabled "Save" share the stable layout but are
+ * different workflow states (different transitions, expectations, recovery
+ * paths). Typing, focus moves and cursor travel never touch these flags, so
+ * the tried-mark stability invariant is preserved.
+ */
+function interactionStatePart(percept: Percept): string {
+  const items = percept.elements
+    .filter((e) => e.interactive || e.editable)
+    .map((e) => {
+      const b = e.box;
+      const geo = `${Math.round(b.x)},${Math.round(b.y)},${Math.round(b.width)}x${Math.round(b.height)}`;
+      const flags = `${e.interactive ? "i" : "-"}${e.disabled ? "d" : "-"}${e.editable ? "e" : "-"}`;
+      return `${e.role}@${geo}:${flags}`;
+    })
+    .sort();
+  return `ia:${hashStr(items.join("|"))}`;
+}
+
 /** Mutable semantic state — stable key plus state-bearing distinctions. */
 export function sensitiveStateKey(percept: Percept, opts: SensitiveStateOptions = {}): string {
   const query = classifiedQuery(percept.url, opts.queryPolicy);
@@ -221,10 +248,20 @@ export function sensitiveStateKey(percept: Percept, opts: SensitiveStateOptions 
             .sort()
             .join("||"),
         )}`;
-  const kb = percept.keyboardOcclusion ? "kb" : "-";
+  // NOTE: focus and keyboard-band state are deliberately ABSENT (reviewer:
+  // focus belongs neither in stable identity nor as a default sensitive
+  // discriminator). Focus/keyboard remain interaction evidence on the
+  // Percept (`focused`, `keyboardOcclusion`) for outcome analysis.
   const err = opts.errorSignal ? "err" : "-";
   const fill = opts.formFill === "populated" ? "pop" : opts.formFill === "empty" ? "clr" : "-";
-  return [stableIdentityKey(percept), query || "-", dialogs, kb, err, fill].join("::");
+  return [
+    stableIdentityKey(percept),
+    query || "-",
+    dialogs,
+    err,
+    fill,
+    interactionStatePart(percept),
+  ].join("::");
 }
 
 /**

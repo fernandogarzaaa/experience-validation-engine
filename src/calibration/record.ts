@@ -1,5 +1,9 @@
 import type { Action, EvidenceProvenance, Prediction, PredictionOutcome } from "../core/types.js";
-import { BEHAVIOR_MODEL_VERSION, PARAMETER_SET_VERSION } from "../core/versions.js";
+import {
+  BEHAVIOR_MODEL_VERSION,
+  implementationRevision,
+  PARAMETER_SET_VERSION,
+} from "../core/versions.js";
 import type { SessionResult } from "../engine/session.js";
 import type { PersonaTraits } from "../personas/persona.js";
 
@@ -112,6 +116,12 @@ export interface CalibrationRecord {
   readonly surfaceAdapter: string;
   readonly surfaceAdapterVersion: string | null;
   /**
+   * Source revision / build id when available (`EVE_IMPLEMENTATION_REVISION`
+   * at build time), else null. Completes the reproducibility chain:
+   * revision + model version + parameter set + adapter + seed + persona.
+   */
+  readonly implementationRevision: string | null;
+  /**
    * Slot for the paired human step once human traces exist; null until then
    * (reviewer: prefer explicit null over pretending calibration exists).
    * Deliberately richer than current aggregate metrics so recovery and
@@ -154,7 +164,12 @@ function sectionProvenance(
 /** Build per-step calibration records from a finished session result. */
 export function buildCalibrationRecords(
   result: SessionResult,
-  opts: { personaTraits?: PersonaTraits; policy?: string; surfaceAdapter?: string } = {},
+  opts: {
+    personaTraits?: PersonaTraits;
+    policy?: string;
+    surfaceAdapter?: string;
+    surfaceAdapterVersion?: string | null;
+  } = {},
 ): CalibrationRecord[] {
   const traits = opts.personaTraits ?? result.personaTraits;
   if (!traits) {
@@ -164,6 +179,7 @@ export function buildCalibrationRecords(
   }
   const policy = opts.policy ?? result.policyName ?? "unknown";
   const surfaceAdapter = opts.surfaceAdapter ?? result.surfaceAdapter ?? "unknown";
+  const surfaceAdapterVersion = opts.surfaceAdapterVersion ?? result.surfaceAdapterVersion ?? null;
   return result.iterations.map((it) => ({
     version: 1 as const,
     seed: result.seed,
@@ -189,7 +205,8 @@ export function buildCalibrationRecords(
     parameterSetVersion: PARAMETER_SET_VERSION,
     calibrationDatasetVersion: null,
     surfaceAdapter,
-    surfaceAdapterVersion: null,
+    surfaceAdapterVersion,
+    implementationRevision: implementationRevision(),
     humanReference: null,
   }));
 }
@@ -197,7 +214,12 @@ export function buildCalibrationRecords(
 /** Wrap records with session metadata for dataset export. */
 export function buildCalibrationDataset(
   result: SessionResult,
-  opts: { personaTraits?: PersonaTraits; policy?: string; surfaceAdapter?: string } = {},
+  opts: {
+    personaTraits?: PersonaTraits;
+    policy?: string;
+    surfaceAdapter?: string;
+    surfaceAdapterVersion?: string | null;
+  } = {},
 ): CalibrationDataset {
   return {
     version: 1,
