@@ -5,6 +5,6 @@ export {
   isHumanVisibleText,
   provenanceOf,
   textSourceOf,
-  visualOnlyText,
   visuallyGroundedElements,
+  visualOnlyText,
 } from "./provenance.js";

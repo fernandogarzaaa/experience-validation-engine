@@ -249,7 +249,8 @@ function recommendChanges(
         .map((s) => s.location)
         .join(", ")}`,
       estimatedLift: Math.min(0.35, errorScreens.length * 0.1),
-      rationale: "Perceived errors both block completion and durably damage trust across personas. Lift is a heuristic scenario index, not a causal estimate.",
+      rationale:
+        "Perceived errors both block completion and durably damage trust across personas. Lift is a heuristic scenario index, not a causal estimate.",
       provenance: "heuristic",
     });
   }

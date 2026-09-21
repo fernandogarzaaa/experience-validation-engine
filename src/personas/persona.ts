@@ -135,7 +135,8 @@ export function definePersona(spec: PersonaSpec): Persona {
   const traits: PersonaTraits = {
     ...BASELINE_TRAITS,
     ...spec.traits,
-    typingAccuracy: spec.traits?.typingAccuracy ?? spec.traits?.clickAccuracy ?? BASELINE_TRAITS.typingAccuracy,
+    typingAccuracy:
+      spec.traits?.typingAccuracy ?? spec.traits?.clickAccuracy ?? BASELINE_TRAITS.typingAccuracy,
   };
   for (const key of TRAIT_KEYS) {
     const value = traits[key];

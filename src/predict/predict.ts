@@ -14,13 +14,16 @@
  *   (see `humanCalibratedEstimate` + `calibrationStatus`).
  */
 
-import type { OperatorRun, PopulationStudy } from "../population/population.js";
 import type { EvidenceProvenance } from "../core/types.js";
+import type { OperatorRun, PopulationStudy } from "../population/population.js";
 
 export type PredictionBasis = "observed-proportion" | "modeled";
 
 /** Whether this estimate can support inference about real users. */
-export type CalibrationStatus = "uncalibrated-heuristic" | "human-calibrated" | "externally-validated";
+export type CalibrationStatus =
+  | "uncalibrated-heuristic"
+  | "human-calibrated"
+  | "externally-validated";
 
 export interface UXPredictionItem {
   readonly metric: string;

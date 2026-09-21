@@ -31,7 +31,9 @@ export function renderUXPredictionMarkdown(prediction: UXPrediction): string {
     lines.push("- No screens flagged by the heuristic.");
   } else {
     for (const s of prediction.struggleForecasts) {
-      lines.push(`- **${s.screen}** — confusion-risk index ${s.predictedConfusion.toFixed(2)} (${s.reason}).`);
+      lines.push(
+        `- **${s.screen}** — confusion-risk index ${s.predictedConfusion.toFixed(2)} (${s.reason}).`,
+      );
     }
   }
 

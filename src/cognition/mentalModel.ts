@@ -141,7 +141,11 @@ export function classifyErrorEvidence(
     if (lexicalHit(d.text)) snippets.push(d.text.trim().slice(0, 140));
   }
   if (snippets.length > 0) {
-    return { level: "strong", provenance: "observed", snippets: [...new Set(snippets)].slice(0, 5) };
+    return {
+      level: "strong",
+      provenance: "observed",
+      snippets: [...new Set(snippets)].slice(0, 5),
+    };
   }
   // 3. Form-validation context: error text on/near an interactive control.
   const moderate: string[] = [];
@@ -151,7 +155,11 @@ export function classifyErrorEvidence(
     if (el.interactive || el.editable || el.disabled) moderate.push(el.text.trim().slice(0, 140));
   }
   if (moderate.length > 0) {
-    return { level: "moderate", provenance: "derived", snippets: [...new Set(moderate)].slice(0, 5) };
+    return {
+      level: "moderate",
+      provenance: "derived",
+      snippets: [...new Set(moderate)].slice(0, 5),
+    };
   }
   // 4. Weak lexical fallback, filtered.
   const weak: string[] = [];

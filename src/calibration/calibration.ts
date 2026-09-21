@@ -166,7 +166,9 @@ export function calibrate(human: HumanStudy, eve: PopulationStudy): CalibrationR
       "Human traces report durationMs but EVE population operators do not carry wall durations — timing similarity omitted; step-count similarity reported separately.",
     );
   } else {
-    notes.push("No duration data on either side — timing similarity omitted; see step-count similarity.");
+    notes.push(
+      "No duration data on either side — timing similarity omitted; see step-count similarity.",
+    );
   }
 
   const { xs, ys } = pairShared(e.perScreenAbandon, h.perScreenAbandon);
