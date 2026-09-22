@@ -299,6 +299,74 @@ screenshots as data URIs), Markdown and JSON.
   calibration status) and as JSONL — the foundation of the future human
   calibration dataset. See [human-calibration.md](human-calibration.md).
 
+## Calibration substrate (current, prepared, future)
+
+Labels: **Current** (implemented, tested) · **Prepared** (schema/interfaces
+ready, no fitting) · **Future** (research direction, not built).
+
+- **Current — `ExperienceTrace` (`src/trace/`)**: the canonical ordered
+  trajectory primitive. Every action carries before/after state
+  (`state_before → action → state_after`, chained through the session's
+  own observation forwarding), choice context, prediction, outcome, timing,
+  affect, and provenance — plus a genuine terminal observation
+  (`SessionResult.terminalState`: last post-action state, goal-satisfying
+  percept, or abandonment percept; never a bare URL) with descriptive
+  abandonment info (time/step/state/cause/last action). Deterministic
+  serialization; explicit nulls where evidence is absent.
+  `CalibrationRecord[]` now derives from the trace (`recordsFromTrace`),
+  byte-identical to the legacy direct mapping (pinned by test).
+- **Current — `TaskSpec` (`src/planning/task.ts`)**: stable experimental
+  task identity (`taskId`, description, goal, success signals, starting
+  conditions, bounds, family) recorded on sessions/results/traces/manifests.
+  A human trace and an EVE trace sharing a normalized `taskId` are
+  comparable without embedding semantics in URLs.
+- **Current — `ChoiceSet` (`src/core/types.ts`, `src/cognition/choiceSet.ts`)**:
+  what alternatives were available at decision time. Strict evidence
+  ladder: listed candidate → scored → probabilistic (utility softmax
+  ONLY — the heuristic cascade records order/eligibility/scores, never
+  probabilities). Absent where branches select without scoring.
+- **Current — `CanonicalSurfaceIdentity` (`src/memory/surfaceIdentity.ts`)**:
+  one envelope for human, EVE, and agent state references (task + url +
+  whichever keys each side carries), matched by reported basis
+  (`task+stable` → … → `url`), never raw-URL equality alone, never DOM ids.
+- **Current — parameter registry (`src/calibration/parameters.ts`)**:
+  STRUCTURAL / EMPIRICAL / POLICY classification of the model's constants
+  with sources and prior-range placeholders. Read-only in the frozen model;
+  `snapshotParameters()` answers which parameters generated a run.
+- **Current — environment fingerprint (`src/calibration/environment.ts`)**:
+  adapter, viewport, modality, locale, timezone, OS where available; null
+  elsewhere. Reproducibility, not metadata inflation.
+- **Current — `TraceAlignment` (`src/calibration/alignment.ts`)**:
+  deterministic greedy human-step ↔ EVE-step pairing (state identity →
+  action semantics → flagged order fallback) with coverage counts, method,
+  and documented limitations. No fuzzy matching, no alignment scores.
+- **Current — sampling semantics (`src/population/distribution.ts`)**:
+  `BalancedPanel` round-robin (default, unchanged) vs weighted
+  `PopulationDistribution` with seeded draws. Weights are scenario
+  parameters, never demographic claims.
+- **Current — metric primitives (`src/calibration/metrics.ts`)**: pure
+  top-k agreement, Brier score, Spearman rank, L1 transition divergence,
+  log-duration error — vocabulary for future objectives, not evidence.
+- **Current — baseline policies (`src/cognition/baselines.ts`)**:
+  `RandomPolicy`, `GoalGreedyPolicy` (seeded, deterministic, no choice
+  sets) enabling future model comparison. Complexity is never assumed
+  better; that is what comparison is for.
+- **Current — run identity (`src/trace/runSpec.ts`)**: `RunSpec` +
+  `pairedRunKey` for variant pairing without cloning runtime state.
+- **Current — experiment manifests (`src/research/manifest.ts`)**:
+  `ExperimentSpec` (tasks, environment, frozen model reference,
+  population, variants, seeds, held-out split contract) with structural
+  validation and deterministic JSON.
+- **Current — sanitization boundary (`src/calibration/sanitize.ts`)**:
+  deterministic idempotent redaction (emails, tokens, secret fields,
+  high-cardinality query values) that MUST run before any human dataset
+  is accepted. See [human-calibration.md](human-calibration.md).
+- **Prepared**: parameter fitting against the registry; held-out
+  evaluation on `TraceAlignment` coverage; survival/hazard modeling on
+  trace abandonment info; `HumanStep` ingestion via `importHumanSteps`.
+- **Future**: pixel→cognition affordances, learned (not authored)
+  persona distributions, causal effect estimation.
+
 ## Extension points
 
 | To add… | Implement… |

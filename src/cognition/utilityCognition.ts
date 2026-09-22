@@ -1,10 +1,17 @@
 import { clamp01 } from "../core/random.js";
 import type { ExplorationStrategy, StrategyWeights } from "../planning/strategies.js";
+import { utilityChoiceSet } from "./choiceSet.js";
 import type { CognitiveContext, Decision } from "./cognition.js";
 import { HeuristicCognition } from "./heuristicCognition.js";
 import { predictInteraction } from "./mentalModel.js";
 import { scoreAffordances } from "./salience.js";
-import { decisionWeights, evaluateUtilities, softmaxChoice, wantsVerification } from "./utility.js";
+import {
+  decisionWeights,
+  evaluateUtilities,
+  softmaxChoice,
+  softmaxDistribution,
+  wantsVerification,
+} from "./utility.js";
 
 /**
  * Utility-based decision policy.
@@ -59,6 +66,16 @@ export class UtilityCognition extends HeuristicCognition {
     const el = chosen.element;
     memory.markTried(sig, el.text);
     this.lastPointer = { x: el.box.x + el.box.width / 2, y: el.box.y + el.box.height / 2 };
+    // Phase 3: record the true softmax distribution the sample came from.
+    // `softmaxDistribution` only reads; sampling still flows exclusively
+    // through `softmaxChoice` above, so decisions cannot shift.
+    const distribution = softmaxDistribution(positive, weights);
+    const choiceSet = utilityChoiceSet(
+      positive,
+      distribution.probabilities,
+      distribution.temperature,
+      positive.indexOf(chosen),
+    );
 
     // Keyboard-only handling mirrors the base policy.
     if (persona.accessibility.keyboardOnly && !el.focused) {
@@ -72,6 +89,7 @@ export class UtilityCognition extends HeuristicCognition {
           confidence: 0.75,
         },
         effort: effortBase + 0.1,
+        choiceSet,
       };
     }
     if (
@@ -83,6 +101,7 @@ export class UtilityCognition extends HeuristicCognition {
         rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
         prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
         effort: effortBase,
+        choiceSet,
       };
     }
 
@@ -101,6 +120,7 @@ export class UtilityCognition extends HeuristicCognition {
       rationale,
       prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
       effort: clamp01(effortBase + chosen.features.effort * 0.3 + (verify ? 0.15 : 0)),
+      choiceSet,
     };
   }
 

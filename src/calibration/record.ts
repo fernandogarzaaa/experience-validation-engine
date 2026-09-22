@@ -1,11 +1,11 @@
 import type { Action, EvidenceProvenance, Prediction, PredictionOutcome } from "../core/types.js";
-import {
-  BEHAVIOR_MODEL_VERSION,
-  implementationRevision,
-  PARAMETER_SET_VERSION,
-} from "../core/versions.js";
+import { PARAMETER_SET_VERSION } from "../core/versions.js";
 import type { SessionResult } from "../engine/session.js";
 import type { PersonaTraits } from "../personas/persona.js";
+import type { ExperienceTrace } from "../trace/trace.js";
+import { buildExperienceTrace } from "../trace/trace.js";
+import type { EnvironmentFingerprint } from "./environment.js";
+import { snapshotParameters } from "./parameters.js";
 
 /**
  * Machine-readable experiment record (reviewer additional requirement).
@@ -142,6 +142,15 @@ export interface CalibrationDataset {
   readonly goalAchieved: boolean;
   readonly records: readonly CalibrationRecord[];
   readonly generatedAt: string;
+  /** Task identity when the run was named (else null). */
+  readonly taskId?: string | null;
+  /** Parameter snapshot answering "which parameters generated this run". */
+  readonly parameterSet?: {
+    readonly parameterSetVersion: string;
+    readonly parameters: readonly { id: string; value: number | string }[];
+  };
+  /** Environment fingerprint when the caller supplied one. */
+  readonly environment?: EnvironmentFingerprint;
 }
 
 function sectionProvenance(
@@ -175,42 +184,67 @@ export function buildCalibrationRecords(
     surfaceAdapterVersion?: string | null;
   } = {},
 ): CalibrationRecord[] {
-  const traits = opts.personaTraits ?? result.personaTraits;
+  // Canonical path (Phase 7): records derive from the experience trace,
+  // never directly from the result. Output is identical to the legacy
+  // direct mapping (pinned by test) — the trace is now the primitive.
+  const trace = buildExperienceTrace(result);
+  return recordsFromTrace(trace, {
+    personaTraits: opts.personaTraits ?? result.personaTraits,
+    policy: opts.policy ?? result.policyName,
+    surfaceAdapter: opts.surfaceAdapter ?? result.surfaceAdapter,
+    surfaceAdapterVersion: opts.surfaceAdapterVersion ?? result.surfaceAdapterVersion,
+  });
+}
+
+/**
+ * Map an experience trace to per-step research rows. Pure function of the
+ * trace: same trace → byte-identical records.
+ */
+export function recordsFromTrace(
+  trace: ExperienceTrace,
+  opts: {
+    personaTraits?: PersonaTraits;
+    policy?: string;
+    surfaceAdapter?: string;
+    surfaceAdapterVersion?: string | null;
+  } = {},
+): CalibrationRecord[] {
+  const traits = opts.personaTraits ?? trace.personaTraits;
   if (!traits) {
     throw new Error(
-      "buildCalibrationRecords: no persona traits — pass opts.personaTraits or use a SessionResult carrying personaTraits",
+      "recordsFromTrace: no persona traits — pass opts.personaTraits or use a trace carrying personaTraits",
     );
   }
-  const policy = opts.policy ?? result.policyName ?? "unknown";
-  const surfaceAdapter = opts.surfaceAdapter ?? result.surfaceAdapter ?? "unknown";
-  const surfaceAdapterVersion = opts.surfaceAdapterVersion ?? result.surfaceAdapterVersion ?? null;
-  return result.iterations.map((it) => ({
+  const policy = opts.policy ?? trace.model.policy;
+  const surfaceAdapter = opts.surfaceAdapter ?? trace.surfaceAdapter;
+  const surfaceAdapterVersion = opts.surfaceAdapterVersion ?? trace.surfaceAdapterVersion;
+  return trace.steps.map((st) => ({
     version: 1 as const,
-    seed: result.seed,
-    persona: result.personaName,
+    seed: trace.seed,
+    persona: trace.persona,
     personaTraits: traits,
     policy,
-    step: it.step,
-    timestampMs: it.timestamp,
-    url: it.url,
-    goal: it.goal,
-    subgoal: it.subgoal,
-    stableKey: it.stableKey ?? null,
-    sensitiveKey: it.sensitiveKey ?? null,
-    actionKind: it.action.kind,
-    actionDescription: it.actionDescription,
-    rationale: it.rationale,
-    prediction: it.prediction,
-    outcome: it.outcome,
-    emotion: it.emotion,
-    provenance: sectionProvenance(it.outcome),
+    step: st.index,
+    timestampMs: st.timestampMs,
+    url: st.stateBefore.url,
+    goal: st.goal,
+    subgoal: st.subgoal,
+    stableKey: st.stateBefore.stableKey,
+    sensitiveKey: st.stateBefore.sensitiveKey,
+    actionKind: st.selectedAction.kind,
+    actionDescription: st.actionDescription,
+    rationale: st.rationale,
+    prediction: st.prediction,
+    outcome: st.outcome,
+    emotion: st.affective,
+    provenance: sectionProvenance(st.outcome),
     calibrationStatus: "uncalibrated" as const,
-    behaviorModelVersion: BEHAVIOR_MODEL_VERSION,
-    parameterSetVersion: PARAMETER_SET_VERSION,
+    behaviorModelVersion: trace.model.behaviorModelVersion,
+    parameterSetVersion: trace.model.parameterSetVersion,
     calibrationDatasetVersion: null,
     surfaceAdapter,
     surfaceAdapterVersion,
-    implementationRevision: implementationRevision(),
+    implementationRevision: trace.model.implementationRevision,
     humanReference: null,
   }));
 }
@@ -223,8 +257,10 @@ export function buildCalibrationDataset(
     policy?: string;
     surfaceAdapter?: string;
     surfaceAdapterVersion?: string | null;
+    environment?: EnvironmentFingerprint;
   } = {},
 ): CalibrationDataset {
+  const trace = buildExperienceTrace(result);
   return {
     version: 1,
     persona: result.personaName,
@@ -232,8 +268,11 @@ export function buildCalibrationDataset(
     startUrl: result.startUrl,
     endReason: result.endReason,
     goalAchieved: result.goalAchieved,
-    records: buildCalibrationRecords(result, opts),
+    records: recordsFromTrace(trace, opts),
     generatedAt: new Date().toISOString(),
+    taskId: trace.taskId,
+    parameterSet: snapshotParameters(PARAMETER_SET_VERSION),
+    ...(opts.environment ? { environment: opts.environment } : {}),
   };
 }
 

@@ -285,6 +285,64 @@ function label(el: VisibleElement): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* Choice context (calibration substrate)                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * How the winning action was selected. The calibration-critical
+ * distinction: only `probabilistic` carries model probabilities, because
+ * only the utility policy computes them. Anything else claiming
+ * probabilities would be manufactured evidence.
+ */
+export type ChoiceSetKind =
+  /** Ordered/eligible candidates from a rule cascade (no probabilities). */
+  | "heuristic-ordered"
+  /** Scored candidates with a softmax distribution (utility policy). */
+  | "probabilistic"
+  /** Exactly one eligible action existed; selection is trivial. */
+  | "deterministic-single";
+
+export interface ChoiceCandidate {
+  /** The candidate action itself. */
+  readonly action: Action;
+  /** Human-readable label, captured at record time. */
+  readonly label: string;
+  /** Whether the policy considered this candidate eligible. */
+  readonly eligible: boolean;
+  /** Why an ineligible candidate was excluded, when known. */
+  readonly ineligibilityReason?: string;
+  /**
+   * Model score where the policy computes one: salience total for the
+   * heuristic cascade, expected utility for the utility policy. Absent for
+   * unscored (merely listed) candidates — explicit absence.
+   */
+  readonly score?: number;
+  /**
+   * Selection probability. Present ONLY for `probabilistic` sets from a
+   * real softmax. Never synthesize this for rule-cascade decisions.
+   */
+  readonly probability?: number;
+}
+
+/**
+ * What alternatives were available at the moment of decision, and how the
+ * winner was chosen. Absent (`undefined` on the iteration) when the
+ * deciding branch selects without scoring — e.g. dialog handling, loading
+ * waits, abandonment. Candidate < scored < probabilistic is a strict
+ * evidence ladder: each level claims only what the policy computed.
+ */
+export interface ChoiceSet {
+  readonly kind: ChoiceSetKind;
+  readonly candidates: readonly ChoiceCandidate[];
+  /** Index into `candidates` of the selected action; null if selected outside the set. */
+  readonly selectedIndex: number | null;
+  /** Softmax temperature — present only when `kind` is `probabilistic`. */
+  readonly temperature?: number;
+  /** One-line account of the selection rule, when rule-based. */
+  readonly selectionRule?: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* Predictions & expectation checking                                 */
 /* ------------------------------------------------------------------ */
 
@@ -477,7 +535,27 @@ export interface LoopIteration {
   readonly stableKey?: string;
   /** Sensitive semantic state of the decision-time screen (attribution key). */
   readonly sensitiveKey?: string;
+  /**
+   * The choice context the decision was selected from, when the policy
+   * records one (Phase 3 calibration substrate). Absent for cascade
+   * branches that select without scoring — explicit absence, never
+   * a fabricated candidate list.
+   */
+  readonly choiceSet?: ChoiceSet;
+  /**
+   * The genuine post-action observation for this step's action
+   * (screenshot buffer stripped). Null when no actuation occurred
+   * (e.g. abandon decisions) — explicit absence.
+   */
+  readonly stateAfter?: PerceptSnapshot | null;
 }
+
+/**
+ * A percept with the screenshot buffer stripped: serializable, replayable,
+ * and safe to persist in traces and datasets. All semantic content
+ * (elements, dialogs, geometry, occlusion) is preserved.
+ */
+export type PerceptSnapshot = Omit<Percept, "screenshot"> & { readonly screenshot: null };
 
 export interface SessionUsage {
   readonly steps: number;

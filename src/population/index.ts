@@ -3,6 +3,8 @@
  * aggregate their experiences into a statistical usability study.
  */
 
+export type { PopulationDistribution, PopulationSegment } from "./distribution.js";
+export { sampleDistribution } from "./distribution.js";
 export {
   type AggregatedFinding,
   type HeatmapEntry,

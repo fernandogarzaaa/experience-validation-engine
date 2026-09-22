@@ -62,11 +62,13 @@ import { getPersona } from "../personas/library.js";
 import type { Persona, PersonaTraits } from "../personas/persona.js";
 import { assessGoalOnPercepts } from "../planning/evidence.js";
 import { createGoal, GoalStack } from "../planning/goals.js";
+import { resolveTaskId, type TaskSpec } from "../planning/task.js";
 import { type EvePlugin, type PluginContext, PluginManager } from "../plugins/plugin.js";
 import type { RenderingIssueKind } from "../rendering/reconcile.js";
 import { abbreviate, inspect as inspectRendering } from "../rendering/reconcile.js";
 import { RENDERING_CATEGORY, registerRenderingVocabulary } from "../rendering/vocabulary.js";
 import { computeScores } from "../scoring/scorer.js";
+import { stripPercept, type TerminalObservation } from "../trace/trace.js";
 import { checkGeometry, checkPixels, checkRegression } from "../vision/analysis.js";
 import { computePerceivedLatency, latencyEvidenceFor } from "./timing.js";
 
@@ -175,6 +177,15 @@ export interface SessionOptions {
   /** Cultural profile (locale string or object) shaping reading direction etc. */
   culture?: CultureProfile | string;
   /**
+   * Stable experimental task identity (Phase 2 calibration substrate).
+   * Recorded on the result for calibration matching and manifests; it does
+   * NOT alter goals, signals, or navigation — behavior is unchanged whether
+   * or not a task is named. Prefer `taskSpec` for full specifications.
+   */
+  taskId?: string;
+  /** Full task specification; `taskId` wins when both are present. */
+  taskSpec?: TaskSpec;
+  /**
    * Optional navigation allowlist (domains + their subdomains) — operational
    * safety (P1.12). When set, the start URL and every cognition-chosen `navigate`
    * action outside it are blocked. Empty/omitted = unrestricted (default,
@@ -199,6 +210,14 @@ export interface SessionResult {
   readonly policyName?: string;
   readonly surfaceAdapter?: string;
   readonly surfaceAdapterVersion?: string | null;
+  /** Stable experimental task identity, when the run was named (else null). */
+  readonly taskId?: string | null;
+  /**
+   * Genuine terminal observation: the last post-action state (or the
+   * goal-satisfying / abandonment percept). Never a bare URL. Null only
+   * when the run produced no observation at all (explicit absence).
+   */
+  readonly terminalState?: TerminalObservation | null;
   readonly seed: number;
   readonly iterations: readonly LoopIteration[];
   readonly findings: readonly Finding[];
@@ -456,6 +475,11 @@ export class EveSession {
     let formPopulated = false;
     let prevFormFill: "empty" | "populated" = "empty";
     let prevError = false;
+    // Terminal observation (Phase 1 trace substrate): the last genuine
+    // post-action state. Recording-only — assigned, never branched on.
+    let terminalPercept: Percept | null = null;
+    let terminalStep = 0;
+    const taskId = resolveTaskId(this.options.taskId, this.options.taskSpec);
 
     // De-duplicated: the same mis-chosen signal is re-evaluated on every
     // perception, and one advisory per session is the useful number.
@@ -667,6 +691,8 @@ export class EveSession {
           }
           this.log(`goal achieved: ${goal.description}`);
           await this.events.emit("goal:changed", { goal: goal.description, subgoal: null });
+          terminalPercept = percept;
+          terminalStep = step;
           break;
         }
 
@@ -748,8 +774,11 @@ export class EveSession {
               null,
               formFill,
               errorNow,
+              percept,
             ),
           );
+          terminalPercept = percept;
+          terminalStep = step;
           break;
         }
 
@@ -861,6 +890,7 @@ export class EveSession {
           clickPoint,
           formFill,
           errorNow,
+          after.percept,
         );
         iterations.push(iteration);
         await this.events.emit("loop:iteration", { iteration });
@@ -868,6 +898,8 @@ export class EveSession {
         previousPercept = after.percept;
         prevFormFill = formFill;
         prevError = errorSnippets(after.percept, adapter.capabilities.modality).length > 0;
+        terminalPercept = after.percept;
+        terminalStep = step;
         step += 1;
       }
       if (step >= this.options.maxSteps) endReason = "step-budget-exhausted";
@@ -965,6 +997,11 @@ export class EveSession {
           : "unknown",
       surfaceAdapter: adapter.name,
       surfaceAdapterVersion: adapter.version ?? null,
+      taskId,
+      // Genuine terminal observation (Phase 1): the last post-action state,
+      // the goal-satisfying percept, or the abandonment percept — recorded,
+      // never branched on. Null only when no observation exists at all.
+      terminalState: terminalPercept ? this.terminalStateOf(terminalPercept, terminalStep) : null,
       seed: this.seed,
       iterations,
       findings,
@@ -1497,6 +1534,7 @@ export class EveSession {
     clickPoint: Point | null,
     formFill?: "empty" | "populated",
     errorSignal?: boolean,
+    stateAfter?: Percept | null,
   ): LoopIteration {
     return {
       step,
@@ -1520,11 +1558,43 @@ export class EveSession {
         formFill,
         errorSignal,
       }),
+      // Choice context passthrough (Phase 3): present only when the policy
+      // recorded one; cascade branches without scoring leave it absent.
+      ...(decision.choiceSet ? { choiceSet: decision.choiceSet } : {}),
+      // Genuine post-action observation, screenshot stripped for safe
+      // persistence. The caller supplies the AFTER percept (main loop) or
+      // the decision-time percept when no actuation occurred (abandon).
+      ...(stateAfter !== undefined
+        ? { stateAfter: stateAfter ? stripPercept(stateAfter) : null }
+        : {}),
     };
   }
 
   private log(line: string): void {
     this.options.onLog?.(line);
+  }
+
+  /**
+   * Build the terminal observation snapshot (Phase 1 trace substrate).
+   * Pure recording: identity keys, counts, and a truncated visible-text
+   * excerpt of a percept the session genuinely observed. No screenshots
+   * (buffers must never enter persisted traces).
+   */
+  private terminalStateOf(percept: Percept, step: number): TerminalObservation {
+    const text = visibleText(percept);
+    return {
+      url: percept.url,
+      title: percept.title,
+      timestampMs: percept.timestamp,
+      step,
+      stableKey: stableIdentityKey(percept),
+      sensitiveKey: sensitiveStateKey(percept, {
+        queryPolicy: this.options.queryStatePolicy,
+      }),
+      elementCount: percept.elements.length,
+      dialogCount: percept.dialogs.length,
+      text: text ? text.slice(0, 2000) : null,
+    };
   }
 }
 

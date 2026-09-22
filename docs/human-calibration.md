@@ -116,6 +116,44 @@ Any bump restarts calibration from `uncalibrated`. Every
 past prediction is reproducible and auditable. Keep both versions fixed
 while collecting the first dataset.
 
+## Trajectory alignment (`calibration/alignment.ts`)
+
+Aggregate metrics (completion, abandonment, transition cosine) remain
+available, but calibration now starts from aligned trajectories:
+`alignTraces(humanSteps, eveSteps)` pairs human step X ↔ EVE step Y through
+state identity → action semantics → flagged order fallback. Greedy,
+deterministic, earliest-match-wins; each step used at most once. Human
+per-step detail arrives via `importHumanSteps` (all fields optional) or the
+`HumanIterationReference` slot — timestamps, intended/actual action,
+target, coordinates, durations, corrections, transitions, abandonment,
+self-reports, recovery kinds.
+
+Limitations (not hidden): greedy matching can misalign repeated identical
+states; order fallback is positional, not correspondence evidence;
+action-label matching is crude substring, not paraphrase understanding.
+Filter pairs by `basis` (e.g. keep only `task+stable`) before fitting.
+Align on `taskId` first — step numbers alone are never sufficient.
+
+## Human data governance (MUST read before ingesting traces)
+
+`importHumanStudy` trusts its input. Sanitization is a separate, mandatory
+gate: run `sanitizeHumanStudy` / `sanitizeHumanStep`
+(`src/calibration/sanitize.ts`) BEFORE any human dataset is accepted for
+calibration. Redacted before acceptance, without exception:
+
+```text
+email addresses → [redacted:email]
+bearer/API tokens, token-like blobs → [redacted:secret]
+password/secret/token/key/auth/credential/ssn/passport field contents
+high-cardinality URL query values (kept only as length buckets)
+```
+
+Raw screenshots must never enter trace datasets — record derived visual
+features instead. Sanitization is deterministic and idempotent; redactions
+are explicit markers so analysis distinguishes redacted from absent.
+`eve_calibrate` callers are responsible for sanitizing `human_file`
+first (see the schema description).
+
 ## Via MCP
 
 `eve_calibrate` loads a human-study file, runs a matching EVE population, and

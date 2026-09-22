@@ -89,6 +89,13 @@ Three principles make it a simulation rather than automation:
 - **Mobile web** — real device emulation with genuine touch actuation (fat-
   finger tap scatter, swipe momentum, soft-keyboard cadence and occlusion),
   not just a resized viewport. See [docs/mobile-web.md](docs/mobile-web.md).
+- **Calibration substrate** — first-class experience traces with genuine
+  terminal states, stable task ids, recorded choice sets, canonical
+  human/EVE/agent state identity, a read-only parameter registry, and
+  deterministic trajectory alignment — the infrastructure for future
+  human calibration, not a claim of it. See
+  [docs/architecture.md](docs/architecture.md) and
+  [docs/human-calibration.md](docs/human-calibration.md).
 - **MCP server evaluation** — EVE speaks MCP natively (it *is* an MCP
   server), so it can evaluate other MCP servers: personas operate them
   through the session loop (`eve run "mcp:node server.js"`), and a

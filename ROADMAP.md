@@ -78,6 +78,25 @@ great first contributions.
 - **Multi-operator sessions**: two simulated users collaborating (shared
   documents, chat) to evaluate multiplayer UX.
 
+## Calibration substrate (delivered, frozen-model infrastructure)
+
+- First-class `ExperienceTrace` with genuine terminal observations.
+- `TaskSpec` stable task identity; `ChoiceSet` recording (ordered vs
+  softmax, never invented probabilities).
+- `CanonicalSurfaceIdentity` for human/EVE/agent state mapping.
+- Read-only STRUCTURAL/EMPIRICAL/POLICY parameter registry +
+  environment fingerprints.
+- Deterministic `TraceAlignment`, weighted population distributions,
+  pure metric primitives, baseline policies, paired-run identity,
+  experiment manifests, human-data sanitization boundary.
+
+## Next: empirical calibration (not more features)
+
+- Human-trace ingestion → pilot dataset → pre-registered objectives →
+  parameter fitting → held-out evaluation (users/tasks/interfaces).
+- See `docs/human-calibration.md` (maturity scale) and the frozen-model
+  bump rules in `src/core/versions.ts`.
+
 ## Non-goals
 
 - Replacing functional test suites — EVE evaluates experience, not

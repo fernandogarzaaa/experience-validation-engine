@@ -2,7 +2,7 @@
  * Population simulation — run many varied operators against the same app and
  * aggregate their experiences statistically. Where a single {@link EveSession}
  * answers "how did this one person do?", a population study answers "how does
- * the distribution of real humans do?": success/drop-off rates, confidence and
+ * the distribution of modeled operators do?": success/drop-off rates, confidence and
  * frustration distributions, a task-completion histogram, a navigation
  * heatmap, and the expected user segments.
  *
@@ -25,6 +25,7 @@ import {
   listPersonas,
   type Persona,
 } from "../personas/index.js";
+import { type PopulationDistribution, sampleDistribution } from "./distribution.js";
 import { classifySegment, type Segment, segmentPopulation } from "./segments.js";
 import { type Distribution, type Histogram, histogram, summarize } from "./stats.js";
 
@@ -119,6 +120,13 @@ export interface PopulationOptions {
   readonly size?: number;
   /** Persona names to sample from (default: the whole built-in library). */
   readonly personas?: readonly string[];
+  /**
+   * Weighted population distribution (Phase 10). When present, the roster
+   * is drawn by deterministic weighted sampling instead of the default
+   * round-robin BalancedPanel. Weights are scenario parameters — they do
+   * NOT represent real demographics without human evidence.
+   */
+  readonly distribution?: PopulationDistribution;
   /** Professional overlays to mix across the population (round-robin). */
   readonly professions?: readonly string[];
   /** Cultural profiles to mix across the population (round-robin). */
@@ -173,6 +181,16 @@ function severityRank(severity: string): number {
 
 /** Build the deterministic roster of operators to simulate. */
 export function sampleOperators(options: PopulationOptions): OperatorSpec[] {
+  // Weighted distribution mode (Phase 10): explicit segment weights with
+  // seeded draws. Default path below is untouched (BalancedPanel).
+  if (options.distribution) {
+    return sampleDistribution(
+      options.distribution,
+      options.size ?? 25,
+      options.seed ?? 1,
+      options.personas,
+    );
+  }
   const size = Math.max(1, Math.floor(options.size ?? 25));
   const base = String(options.seed ?? 1);
   const personaPool =

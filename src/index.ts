@@ -158,6 +158,8 @@ export {
   type McpConnection,
   type McpConnector,
 } from "./surface/mcpClient.js";
+// Calibration substrate: first-class experience traces (canonical trajectory primitive)
+export * from "./trace/index.js";
 // Phase-3: continuous UX regression (experience trends across builds)
 export * from "./trends/index.js";
 // Phase-3: human digital twins (persistent, evolving user models)
