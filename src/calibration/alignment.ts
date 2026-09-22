@@ -1,18 +1,26 @@
 import type { Action } from "../core/types.js";
 import { type CanonicalSurfaceIdentity, canonicalMatchBasis } from "../memory/surfaceIdentity.js";
+import { matchTaskIds } from "../planning/task.js";
 import type { HumanIterationReference } from "./record.js";
 
 /**
  * Deterministic trajectory alignment (Phase 8 calibration substrate).
  *
  * Answers `human step X ↔ EVE step Y` WITHOUT fuzzy matching: greedy,
- * order-preserving, earliest-match-wins. Step numbers alone are never
+ * NON-CROSSING, earliest-match-wins. Step numbers alone are never
  * trusted — alignment proceeds through an explicit evidence ladder:
  *
  * 1. task + stable state (strongest structural match)
  * 2. task + sensitive state
  * 3. task + action semantics (kind, then label)
  * 4. order proximity (weakest — only when nothing else matches)
+ *
+ * Monotonicity is enforced: once human step X pairs with EVE step Y, no
+ * later human step may pair with an EVE step at or before Y. Crossing
+ * matches are refused even when states are identical — backtracking
+ * surfaces as unmatched + re-matched-forward, never as time travel.
+ * Task-conflicting pairs are refused at every level: steps from different
+ * tasks are different experiments, full stop.
  *
  * LIMITATIONS (documented, not hidden): greedy matching can misalign
  * repeated identical states; order proximity is a fallback, not evidence
@@ -102,7 +110,9 @@ function eveCanonical(e: EveAlignStep, taskId?: string | null): CanonicalSurface
 function humanCanonical(h: HumanStep, taskId?: string | null): CanonicalSurfaceIdentity {
   return {
     kind: "human",
-    taskId: taskId ?? h.taskId ?? null,
+    // Nested state task IDs are honored: a step carrying its task inside
+    // `state` must not lose it when no top-level id is present.
+    taskId: taskId ?? h.taskId ?? h.state?.taskId ?? null,
     url: h.url ?? h.state?.url ?? null,
     ...(h.state?.eveStableKey ? { eveStableKey: h.state.eveStableKey } : {}),
     ...(h.state?.eveSensitiveKey ? { eveSensitiveKey: h.state.eveSensitiveKey } : {}),
@@ -120,8 +130,9 @@ function labelsMatch(humanLabel: string | undefined, eveLabel: string): boolean 
 
 /**
  * Align human steps to EVE steps. Deterministic: same inputs →
- * byte-identical alignment. Greedy earliest-match; each step used at most
- * once on either side.
+ * byte-identical alignment. Greedy earliest-match, strictly monotone
+ * (non-crossing); each step used at most once on either side. Steps from
+ * conflicting tasks never pair at any level.
  */
 export function alignTraces(
   human: readonly HumanStep[],
@@ -129,16 +140,30 @@ export function alignTraces(
   opts: { taskId?: string | null } = {},
 ): TraceAlignment {
   const usedEve = new Set<number>();
+  let floor = -1;
   const pairs: AlignedPair[] = [];
   const unmatchedHuman: number[] = [];
+
+  /** True when both sides name a task and the names disagree. */
+  const taskConflicts = (humanTask: string | null, e: EveAlignStep): boolean => {
+    const eveTask = opts.taskId ?? e.taskId ?? null;
+    return (
+      humanTask != null &&
+      humanTask.trim() !== "" &&
+      eveTask != null &&
+      eveTask.trim() !== "" &&
+      !matchTaskIds(humanTask, eveTask)
+    );
+  };
 
   for (const h of human) {
     const hc = humanCanonical(h, opts.taskId);
     let match: { index: number; basis: AlignmentBasis } | null = null;
 
-    // Pass 1: state identity (strongest first).
+    // Pass 1: state identity (strongest first). Canonical matching already
+    // refuses task disagreement, so any basis here is task-compatible.
     for (const e of eve) {
-      if (usedEve.has(e.index)) continue;
+      if (e.index <= floor || usedEve.has(e.index)) continue;
       const basis = canonicalMatchBasis(hc, eveCanonical(e, opts.taskId));
       if (
         basis === "task+stable" ||
@@ -152,10 +177,11 @@ export function alignTraces(
         break;
       }
     }
-    // Pass 2: action semantics.
+    // Pass 2: action semantics — skipped entirely on task conflict.
     if (!match) {
       for (const e of eve) {
-        if (usedEve.has(e.index)) continue;
+        if (e.index <= floor || usedEve.has(e.index)) continue;
+        if (taskConflicts(hc.taskId, e)) continue;
         if (h.actionKind && h.actionKind === e.actionKind) {
           match = { index: e.index, basis: "action-kind" };
           break;
@@ -164,7 +190,8 @@ export function alignTraces(
     }
     if (!match) {
       for (const e of eve) {
-        if (usedEve.has(e.index)) continue;
+        if (e.index <= floor || usedEve.has(e.index)) continue;
+        if (taskConflicts(hc.taskId, e)) continue;
         if (labelsMatch(h.actionLabel, e.actionLabel)) {
           match = { index: e.index, basis: "action-label" };
           break;
@@ -172,13 +199,17 @@ export function alignTraces(
       }
     }
     // Pass 3: order proximity fallback (weak — flagged by basis).
+    // Also task-gated: positional pairing across experiments is meaningless.
     if (!match) {
-      const fallback = eve.find((e) => !usedEve.has(e.index));
+      const fallback = eve.find(
+        (e) => e.index > floor && !usedEve.has(e.index) && !taskConflicts(hc.taskId, e),
+      );
       if (fallback) match = { index: fallback.index, basis: "order" };
     }
 
     if (match) {
       usedEve.add(match.index);
+      floor = match.index;
       pairs.push({ humanIndex: h.index, eveIndex: match.index, basis: match.basis });
     } else {
       unmatchedHuman.push(h.index);
@@ -196,7 +227,8 @@ export function alignTraces(
       eveMatched: pairs.length,
       eveTotal: eve.length,
     },
-    method: "greedy earliest-match: task+state identity → action semantics → order fallback",
+    method:
+      "greedy earliest-match, strictly monotone: task+state identity → action semantics → order fallback",
     limitations: [
       "Greedy matching can misalign repeated identical states.",
       "Order-proximity pairs are positional fallback, not correspondence evidence.",
@@ -224,6 +256,14 @@ export function importHumanSteps(raw: unknown): HumanStep[] {
       typeof tr.recovery === "object" && tr.recovery !== null
         ? (tr.recovery as HumanStep["recovery"])
         : undefined;
+    const state =
+      typeof tr.state === "object" && tr.state !== null
+        ? parseCanonicalState(tr.state as Record<string, unknown>)
+        : undefined;
+    const selfReport =
+      typeof tr.selfReport === "object" && tr.selfReport !== null
+        ? parseSelfReport(tr.selfReport as Record<string, unknown>)
+        : undefined;
     return {
       index: typeof tr.index === "number" ? tr.index : i,
       ...(str(tr.taskId) ? { taskId: str(tr.taskId)! } : {}),
@@ -237,7 +277,39 @@ export function importHumanSteps(raw: unknown): HumanStep[] {
       ...(str(tr.outcome) ? { outcome: str(tr.outcome)! } : {}),
       ...(str(tr.correction) ? { correction: str(tr.correction)! } : {}),
       ...(recovery ? { recovery } : {}),
+      ...(state ? { state } : {}),
+      ...(selfReport ? { selfReport } : {}),
       ...(typeof tr.abandoned === "boolean" ? { abandoned: tr.abandoned } : {}),
     };
   });
+}
+
+/**
+ * Validate a nested canonical state reference. Only known primitive
+ * fields are admitted; unknown or mistyped fields are dropped, never
+ * trusted. `kind` defaults to "human" — a human log is the expected
+ * source here.
+ */
+function parseCanonicalState(raw: Record<string, unknown>): CanonicalSurfaceIdentity | undefined {
+  const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
+  const kind = str(raw.kind);
+  const out: CanonicalSurfaceIdentity = {
+    kind: kind === "eve-stable" || kind === "eve-sensitive" || kind === "agent" ? kind : "human",
+    taskId: str(raw.taskId) ?? null,
+    url: str(raw.url) ?? null,
+    ...(str(raw.eveStableKey) ? { eveStableKey: str(raw.eveStableKey)! } : {}),
+    ...(str(raw.eveSensitiveKey) ? { eveSensitiveKey: str(raw.eveSensitiveKey)! } : {}),
+    ...(str(raw.externalStateId) ? { externalStateId: str(raw.externalStateId)! } : {}),
+    provenance: "human-report",
+  };
+  return out;
+}
+
+/** Validate a self-report map: finite numeric values only. */
+function parseSelfReport(raw: Record<string, unknown>): Record<string, number> | undefined {
+  const entries = Object.entries(raw).filter(
+    (entry): entry is [string, number] =>
+      typeof entry[0] === "string" && typeof entry[1] === "number" && Number.isFinite(entry[1]),
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

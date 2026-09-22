@@ -37,7 +37,13 @@ export function heuristicChoiceSet(
     ...refused.map(({ score, reason }) => ineligibleCandidate(score, reason)),
   ];
   if (candidates.length === 1) {
-    return { kind: "deterministic-single", candidates, selectedIndex: 0, selectionRule };
+    // A trivial selection carries no probability: retaining one would
+    // violate the evidence contract (a single candidate is not a
+    // distribution). Score is kept — it was genuinely computed.
+    const [only] = candidates as [ChoiceCandidate];
+    const { probability: _dropped, ...rest } = only!;
+    void _dropped;
+    return { kind: "deterministic-single", candidates: [rest], selectedIndex: 0, selectionRule };
   }
   return { kind: "heuristic-ordered", candidates, selectedIndex: chosenIndex, selectionRule };
 }
@@ -48,17 +54,32 @@ export function utilityChoiceSet(
   probabilities: readonly number[],
   temperature: number,
   chosenIndex: number,
+  refused: readonly { score: SalienceScore; reason: string }[] = [],
+  belowThreshold: readonly { score: UtilityScore; reason: string }[] = [],
 ): ChoiceSet {
-  const candidates: ChoiceCandidate[] = positive.map((u, i) => ({
-    action: { kind: "click" as const, target: u.element },
-    label: describeAction({ kind: "click", target: u.element }),
-    eligible: true,
-    rank: i,
-    score: u.utility,
-    probability: probabilities[i],
-  }));
-  if (candidates.length === 1) {
-    return { kind: "deterministic-single", candidates, selectedIndex: 0 };
+  const candidates: ChoiceCandidate[] = [
+    ...positive.map((u, i) => ({
+      action: { kind: "click" as const, target: u.element },
+      label: describeAction({ kind: "click", target: u.element }),
+      eligible: true,
+      rank: i,
+      score: u.utility,
+      probability: probabilities[i],
+    })),
+    ...refused.map(({ score, reason }) => ineligibleCandidate(score, reason)),
+    ...belowThreshold.map(({ score, reason }) => ({
+      action: { kind: "click" as const, target: score.element },
+      label: describeAction({ kind: "click", target: score.element }),
+      eligible: false as const,
+      ineligibilityReason: reason,
+      score: score.utility,
+    })),
+  ];
+  if (positive.length === 1 && refused.length === 0 && belowThreshold.length === 0) {
+    const [only] = candidates as [ChoiceCandidate];
+    const { probability: _dropped, ...rest } = only!;
+    void _dropped;
+    return { kind: "deterministic-single", candidates: [rest], selectedIndex: 0 };
   }
   return { kind: "probabilistic", candidates, selectedIndex: chosenIndex, temperature };
 }

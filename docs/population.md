@@ -87,7 +87,7 @@ Each segment reports its size, share, mean score, and mean steps.
 | `distribution` | none | weighted `PopulationDistribution`: deterministic seeded sampling INSTEAD of round-robin |
 | `professions` / `cultures` | none | overlays mixed round-robin |
 | `goal` / `goalSuccessSignals` | none | the task every operator attempts |
-| `seed` | `1` | base seed; operator *i* uses `"<seed>#<i>"` |
+| `seed` | `1` | base seed; round-robin operator *i* uses `"<seed>#<i>"`; distribution mode uses `"<seed>#weighted-<i>"` (never colliding) |
 | `maxSteps` / `maxDurationMs` | `60` / `10min` | per-operator budgets |
 | `cognitive` / `utility` | `false` | deeper cognition / utility decisions |
 | `browser` | inferred | `mock` for `mock:` URLs, else `playwright` |

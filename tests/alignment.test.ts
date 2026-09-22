@@ -41,15 +41,19 @@ describe("TraceAlignment (Phase 8)", () => {
     expect(a.coverage).toEqual({ humanMatched: 3, humanTotal: 3, eveMatched: 3, eveTotal: 3 });
   });
 
-  it("handles reordered trajectories greedily in order", () => {
+  it("refuses crossing matches: monotonicity over greedy reuse", () => {
     const e = [eve(0, "s0"), eve(1, "s1"), eve(2, "s2")];
     const h = [human(0, "s1"), human(1, "s0")];
     const a = alignTraces(h, e);
+    // h0→e1 consumes the frontier; h1's s0 lies behind it, so h1 can only
+    // pair FORWARD (order fallback to e2), never back to e0. Backtracking
+    // surfaces as forward fallback, never as a crossing pair.
     expect(a.pairs).toEqual([
       { humanIndex: 0, eveIndex: 1, basis: "stable" },
-      { humanIndex: 1, eveIndex: 0, basis: "stable" },
+      { humanIndex: 1, eveIndex: 2, basis: "order" },
     ]);
-    expect(a.unmatchedEve).toEqual([2]);
+    expect(a.unmatchedHuman).toEqual([]);
+    expect(a.unmatchedEve).toEqual([0]);
   });
 
   it("reports missing and extra states explicitly", () => {
@@ -79,13 +83,14 @@ describe("TraceAlignment (Phase 8)", () => {
     expect(a.pairs[0]!.basis).toBe("action-kind");
   });
 
-  it("degrades task disagreement to flagged order fallback, never a state match", () => {
+  it("refuses every level on task disagreement (different experiments)", () => {
     const e = [{ ...eve(0, "s0"), taskId: "task_a" }];
     const h = [{ ...human(0, "s0"), taskId: "task_b" }];
     const a = alignTraces(h, e);
-    // State/task disagree and actions are unset → order fallback still pairs
-    // positionally (weakest basis, flagged as such).
-    expect(a.pairs[0]!.basis).toBe("order");
+    // Not even the order fallback may pair across conflicting tasks.
+    expect(a.pairs).toHaveLength(0);
+    expect(a.unmatchedHuman).toEqual([0]);
+    expect(a.unmatchedEve).toEqual([0]);
   });
 
   it("aligns terminal abandonment steps", () => {
@@ -99,6 +104,24 @@ describe("TraceAlignment (Phase 8)", () => {
     const e = [eve(0, "s0"), eve(1, "s1")];
     const h = [human(1, "s1"), human(0, "s0")];
     expect(JSON.stringify(alignTraces(h, e))).toBe(JSON.stringify(alignTraces(h, e)));
+  });
+
+  it("honors task ids nested inside human state", () => {
+    const e = [{ ...eve(0, "s0"), taskId: "checkout_basic_01" }];
+    const h: HumanStep[] = [
+      {
+        index: 0,
+        state: {
+          kind: "human",
+          taskId: "checkout_basic_01",
+          url: null,
+          eveStableKey: "s0",
+          provenance: "human-report",
+        },
+      },
+    ];
+    const a = alignTraces(h, e);
+    expect(a.pairs).toEqual([{ humanIndex: 0, eveIndex: 0, basis: "task+stable" }]);
   });
 
   it("documents method and limitations on every result", () => {
@@ -122,5 +145,25 @@ describe("importHumanSteps", () => {
   it("rejects non-arrays and non-objects", () => {
     expect(() => importHumanSteps(null)).toThrow();
     expect(() => importHumanSteps([42])).toThrow();
+  });
+
+  it("parses nested state and self-reports, dropping mistyped fields", () => {
+    const [step] = importHumanSteps([
+      {
+        taskId: "t1",
+        state: {
+          kind: "human",
+          taskId: "t1",
+          url: "https://x.test/a",
+          eveStableKey: "s0",
+          externalStateId: 42,
+          injected: true,
+        },
+        selfReport: { confidence: 0.7, mood: "good", broken: Number.NaN },
+      },
+    ]);
+    expect(step!.state?.eveStableKey).toBe("s0");
+    expect(step!.state?.externalStateId).toBeUndefined();
+    expect(step!.selfReport).toEqual({ confidence: 0.7 });
   });
 });

@@ -67,11 +67,24 @@ export function validateExperimentSpec(spec: ExperimentSpec): string[] {
   if (!spec.behaviorModelVersion.trim()) errors.push("behaviorModelVersion must be non-empty.");
   if (!spec.parameterSetVersion.trim()) errors.push("parameterSetVersion must be non-empty.");
   if (spec.population.size < 1) errors.push("population.size must be >= 1.");
+  if (!Number.isFinite(spec.population.size)) {
+    errors.push("population.size must be a finite number.");
+  }
+  if (!Number.isInteger(spec.population.size)) {
+    errors.push("population.size must be an integer (fractional sizes diverge from manifests).");
+  }
   if (
     spec.population.kind === "distribution" &&
     (!spec.population.distribution || spec.population.distribution.segments.length === 0)
   ) {
     errors.push("distribution populations require a non-empty distribution.");
+  }
+  const weights = spec.population.distribution?.segments.map((s) => s.weight) ?? [];
+  if (weights.some((w) => !Number.isFinite(w) || w < 0)) {
+    errors.push("distribution weights must be finite numbers >= 0.");
+  }
+  if (weights.length > 0 && weights.every((w) => w === 0)) {
+    errors.push("distribution weights must sum to more than 0.");
   }
   if (spec.variants.length === 0) errors.push("at least one variant is required.");
   const names = spec.variants.map((v) => v.name);

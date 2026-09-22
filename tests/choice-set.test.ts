@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { utilityChoiceSet } from "../src/cognition/choiceSet.js";
 import { HeuristicCognition } from "../src/cognition/heuristicCognition.js";
+import type { SalienceScore } from "../src/cognition/salience.js";
+import type { UtilityScore } from "../src/cognition/utility.js";
 import { UtilityCognition } from "../src/cognition/utilityCognition.js";
 import { createRng } from "../src/core/random.js";
 import type { Percept, VisibleElement } from "../src/core/types.js";
@@ -38,8 +41,8 @@ function percept(elements: VisibleElement[], dialogs: Percept["dialogs"] = []): 
   };
 }
 
-function ctxFor(p: Percept, goal = "water the plants") {
-  const persona = getPersona("office-worker");
+function ctxFor(p: Percept, goal = "water the plants", personaName = "office-worker") {
+  const persona = getPersona(personaName);
   const memory = new OperatorMemory(persona, createRng(1));
   // Seen twice: not novel, so the cascade reaches affordance choice
   // instead of the first-encounter read. Goal keywords unrelated to the
@@ -94,11 +97,18 @@ describe("ChoiceSet recording (Phase 3)", () => {
     const set = decision.choiceSet;
     expect(set).toBeDefined();
     if (set!.kind === "probabilistic") {
-      const probs = set!.candidates.map((c) => c.probability ?? NaN);
+      // Only ELIGIBLE candidates carry probabilities; ineligible ones
+      // (risk-refused, below-threshold) are recorded without them.
+      const eligible = set!.candidates.filter((c) => c.eligible);
+      const probs = eligible.map((c) => c.probability ?? NaN);
       expect(probs.every((x) => x >= 0 && x <= 1)).toBe(true);
       expect(probs.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 8);
       expect(set!.temperature).toBeGreaterThan(0);
-      for (const c of set!.candidates) expect(c.score).toBeDefined();
+      for (const c of eligible) expect(c.score).toBeDefined();
+      for (const c of set!.candidates.filter((c) => !c.eligible)) {
+        expect(c.probability).toBeUndefined();
+        expect(c.ineligibilityReason).toBeTruthy();
+      }
     }
   });
 
@@ -114,5 +124,72 @@ describe("ChoiceSet recording (Phase 3)", () => {
     const a = await new HeuristicCognition().decide(ctxFor(p));
     const b = await new HeuristicCognition().decide(ctxFor(p));
     expect(JSON.stringify(a.choiceSet)).toBe(JSON.stringify(b.choiceSet));
+  });
+
+  it("single-candidate choices carry no probability (CodeRabbit PR #46)", async () => {
+    // One eligible button: trivial selection is not a distribution.
+    const p = percept([el("Save")]);
+    for (const policy of [new HeuristicCognition(), new UtilityCognition()]) {
+      const decision = await policy.decide(ctxFor(p));
+      const set = decision.choiceSet;
+      expect(set).toBeDefined();
+      expect(set!.kind).toBe("deterministic-single");
+      expect(set!.candidates).toHaveLength(1);
+      expect(set!.candidates[0]!.probability).toBeUndefined();
+      expect(set!.temperature).toBeUndefined();
+      expect(set!.selectedIndex).toBe(0);
+    }
+  });
+
+  it("keyboard actuations null the selected index (CodeRabbit PR #46)", async () => {
+    // power-user (keyboardPreference 0.85) + focused control → press/Enter.
+    // The click set was considered, but the press was not a candidate.
+    // Both controls marked focused so whichever wins takes the Enter branch.
+    const p = percept([el("Save", { focused: true }), el("Cancel", { focused: true })]);
+    const decision = await new HeuristicCognition().decide(
+      ctxFor(p, "water the plants", "power-user"),
+    );
+    expect(decision.action.kind).toBe("press");
+    expect(decision.choiceSet).toBeDefined();
+    expect(decision.choiceSet!.selectedIndex).toBeNull();
+    expect(decision.choiceSet!.candidates.length).toBeGreaterThan(0);
+  });
+
+  it("utility sets include barred alternatives as ineligible (CodeRabbit PR #46)", async () => {
+    // Builder-level: refused + below-threshold entries are recorded with
+    // reasons and no probabilities, while eligible probabilities still
+    // describe the sampled distribution.
+    const mkUtility = (text: string, utility: number): UtilityScore => ({
+      element: el(text),
+      features: {
+        expectedSuccess: 0.5,
+        reward: 0.5,
+        curiosity: 0.5,
+        risk: 0.1,
+        effort: 0.1,
+        time: 0.1,
+      },
+      utility,
+    });
+    const mkSalience = (text: string): SalienceScore => ({
+      element: el(text),
+      total: 0.9,
+      goalRelevance: 0.1,
+      prominence: 0.5,
+      novelty: 1,
+      risk: 1,
+    });
+    const positive = [mkUtility("Save", 1.0), mkUtility("Cancel", 0.2)];
+    const set = utilityChoiceSet(positive, [0.7, 0.3], 0.4, 0, [
+      { score: mkSalience("Delete"), reason: "risk-refused" },
+    ]);
+    expect(set.kind).toBe("probabilistic");
+    expect(set.candidates).toHaveLength(3);
+    const barred = set.candidates.filter((c) => !c.eligible);
+    expect(barred).toHaveLength(1);
+    expect(barred[0]!.probability).toBeUndefined();
+    expect(barred[0]!.ineligibilityReason).toBe("risk-refused");
+    const eligible = set.candidates.filter((c) => c.eligible);
+    expect(eligible.map((c) => c.probability)).toEqual([0.7, 0.3]);
   });
 });

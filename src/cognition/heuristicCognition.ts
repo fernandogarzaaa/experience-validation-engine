@@ -269,6 +269,9 @@ export class HeuristicCognition implements DecisionPolicy {
     );
 
     // Keyboard-first personas prefer pressing Enter on focused controls.
+    // Press actuations null the selected index (see utilityCognition):
+    // the click set was considered, the press itself was not a candidate.
+    const pressChoiceSet = { ...choiceSet, selectedIndex: null as number | null };
     if (
       persona.accessibility.keyboardOnly ||
       (persona.traits.keyboardPreference > 0.7 && el.focused)
@@ -279,7 +282,7 @@ export class HeuristicCognition implements DecisionPolicy {
           rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
           prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
           effort: effortBase,
-          choiceSet,
+          choiceSet: pressChoiceSet,
         };
       }
       if (persona.accessibility.keyboardOnly) {
@@ -293,7 +296,7 @@ export class HeuristicCognition implements DecisionPolicy {
             confidence: 0.75,
           },
           effort: effortBase + 0.1,
-          choiceSet,
+          choiceSet: pressChoiceSet,
         };
       }
     }

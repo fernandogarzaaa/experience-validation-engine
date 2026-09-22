@@ -477,8 +477,12 @@ export class EveSession {
     let prevError = false;
     // Terminal observation (Phase 1 trace substrate): the last genuine
     // post-action state. Recording-only — assigned, never branched on.
+    // Form-fill and error state travel alongside so the terminal sensitive
+    // key reflects the terminal observation, not loop leftovers.
     let terminalPercept: Percept | null = null;
     let terminalStep = 0;
+    let terminalFormFill: "empty" | "populated" = "empty";
+    let terminalError = false;
     const taskId = resolveTaskId(this.options.taskId, this.options.taskSpec);
 
     // De-duplicated: the same mis-chosen signal is re-evaluated on every
@@ -693,6 +697,8 @@ export class EveSession {
           await this.events.emit("goal:changed", { goal: goal.description, subgoal: null });
           terminalPercept = percept;
           terminalStep = step;
+          terminalFormFill = formFill;
+          terminalError = errorNow;
           break;
         }
 
@@ -779,6 +785,8 @@ export class EveSession {
           );
           terminalPercept = percept;
           terminalStep = step;
+          terminalFormFill = formFill;
+          terminalError = errorNow;
           break;
         }
 
@@ -900,6 +908,8 @@ export class EveSession {
         prevError = errorSnippets(after.percept, adapter.capabilities.modality).length > 0;
         terminalPercept = after.percept;
         terminalStep = step;
+        terminalFormFill = formPopulated ? "populated" : "empty";
+        terminalError = prevError;
         step += 1;
       }
       if (step >= this.options.maxSteps) endReason = "step-budget-exhausted";
@@ -1001,7 +1011,9 @@ export class EveSession {
       // Genuine terminal observation (Phase 1): the last post-action state,
       // the goal-satisfying percept, or the abandonment percept — recorded,
       // never branched on. Null only when no observation exists at all.
-      terminalState: terminalPercept ? this.terminalStateOf(terminalPercept, terminalStep) : null,
+      terminalState: terminalPercept
+        ? this.terminalStateOf(terminalPercept, terminalStep, terminalFormFill, terminalError)
+        : null,
       seed: this.seed,
       iterations,
       findings,
@@ -1580,7 +1592,12 @@ export class EveSession {
    * excerpt of a percept the session genuinely observed. No screenshots
    * (buffers must never enter persisted traces).
    */
-  private terminalStateOf(percept: Percept, step: number): TerminalObservation {
+  private terminalStateOf(
+    percept: Percept,
+    step: number,
+    formFill: "empty" | "populated",
+    errorSignal: boolean,
+  ): TerminalObservation {
     const text = visibleText(percept);
     return {
       url: percept.url,
@@ -1590,6 +1607,8 @@ export class EveSession {
       stableKey: stableIdentityKey(percept),
       sensitiveKey: sensitiveStateKey(percept, {
         queryPolicy: this.options.queryStatePolicy,
+        formFill,
+        errorSignal,
       }),
       elementCount: percept.elements.length,
       dialogCount: percept.dialogs.length,

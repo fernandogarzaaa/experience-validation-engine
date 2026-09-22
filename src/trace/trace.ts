@@ -15,6 +15,7 @@ import {
   PARAMETER_SET_VERSION,
 } from "../core/versions.js";
 import type { SessionResult } from "../engine/session.js";
+import { sensitiveStateKey, stableIdentityKey } from "../memory/surfaceIdentity.js";
 import type { PersonaTraits } from "../personas/persona.js";
 
 /**
@@ -197,10 +198,14 @@ function refOf(
  * Build the canonical trace from a finished session result. Pure and
  * deterministic: same result → byte-identical trace (verified by test).
  *
- * `stateAfter` chaining: step[i].stateAfter is step[i+1].stateBefore, which
- * is genuine because the session forwards each post-action observation as
- * the next pre-action percept. The final action's after-state is the
- * terminal observation. Abandon steps (no actuation) reuse stateBefore.
+ * `stateAfter` uses the RECORDED immediate observation
+ * (`LoopIteration.stateAfter`) whenever present — it is the genuine
+ * post-action percept, while the next step's before-state is a LATER
+ * observation that may already include settle drift. Only when no
+ * recording exists (older results, crashed runs) does the builder fall
+ * back to next-before chaining, then the terminal observation. The final
+ * action's after-state is the terminal observation. Abandon steps (no
+ * actuation) reuse stateBefore.
  */
 export function buildExperienceTrace(
   result: SessionResult,
@@ -224,17 +229,25 @@ export function buildExperienceTrace(
     const next = result.iterations[i + 1];
     const isAbandon = it.action.kind === "abandon";
     const before = refOf(it.url, it.stableKey, it.sensitiveKey);
+    // Prefer the RECORDED immediate post-action observation: it is the
+    // genuine after-state, while next-before chaining can already include
+    // settle drift. Keys are recomputed from the snapshot (snapshots carry
+    // percepts, not keys) with default state options.
+    const recorded = it.stateAfter
+      ? refOf(it.stateAfter.url, stableIdentityKey(it.stateAfter), sensitiveStateKey(it.stateAfter))
+      : null;
     const stateAfter: TraceStateRef | null = isAbandon
       ? before
-      : next
-        ? refOf(next.url, next.stableKey, next.sensitiveKey)
-        : result.terminalState
-          ? refOf(
-              result.terminalState.url,
-              result.terminalState.stableKey,
-              result.terminalState.sensitiveKey,
-            )
-          : null;
+      : (recorded ??
+        (next
+          ? refOf(next.url, next.stableKey, next.sensitiveKey)
+          : result.terminalState
+            ? refOf(
+                result.terminalState.url,
+                result.terminalState.stableKey,
+                result.terminalState.sensitiveKey,
+              )
+            : null));
     return {
       index: it.step,
       timestampMs: it.timestamp,

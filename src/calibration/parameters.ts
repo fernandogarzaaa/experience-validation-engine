@@ -76,11 +76,11 @@ export const BEHAVIOR_PARAMETERS: readonly ParameterDefinition[] = [
   // -- motor behavior (browser/humanizer) --
   E(
     "motor.clickScatterPxPerUnit",
-    "browser/humanizer",
+    "personas/persona",
     14,
     { min: 4, max: 30 },
     "Gaussian click-scatter sigma per unit of (1 - clickAccuracy), px",
-    "src/browser/humanizer.ts:clickScatterPx",
+    "src/personas/persona.ts:clickScatterPx",
     "px",
   ),
   E(

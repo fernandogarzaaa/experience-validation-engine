@@ -50,6 +50,18 @@ describe("RunSpec pairing (Phase 13)", () => {
   it("is deterministic", () => {
     expect(pairedRunKey(base)).toBe(pairedRunKey({ ...base }));
   });
+
+  it("distinguishes numeric seed 7 from string seed '7' (CodeRabbit PR #46)", () => {
+    // Seed type changes the RNG stream: coercing both to "7" would pair
+    // runs that cannot reproduce each other. JSON encoding preserves types.
+    expect(pairedRunKey(base)).not.toBe(pairedRunKey({ ...base, seed: "7" }));
+  });
+
+  it("never collides across delimiter-bearing components (CodeRabbit PR #46)", () => {
+    const a: RunSpec = { ...base, operatorId: "op::1", taskId: "t" };
+    const b: RunSpec = { ...base, operatorId: "op", taskId: "1::t" };
+    expect(pairedRunKey(a)).not.toBe(pairedRunKey(b));
+  });
 });
 
 describe("ExperimentSpec manifest (Phase 14)", () => {
@@ -86,5 +98,33 @@ describe("ExperimentSpec manifest (Phase 14)", () => {
         }),
       ),
     ).toContain("distribution populations require a non-empty distribution.");
+  });
+
+  it("rejects non-integer, non-finite, and zero-weight populations (CodeRabbit PR #46)", () => {
+    expect(
+      validateExperimentSpec(spec({ population: { kind: "balanced", size: 2.5, seed: 1 } })),
+    ).toContain("population.size must be an integer (fractional sizes diverge from manifests).");
+    expect(
+      validateExperimentSpec(spec({ population: { kind: "balanced", size: NaN, seed: 1 } })),
+    ).toContain("population.size must be a finite number.");
+    expect(
+      validateExperimentSpec(
+        spec({
+          population: {
+            kind: "distribution",
+            size: 5,
+            seed: 1,
+            distribution: { segments: [{ weight: 0 }, { weight: 0 }] },
+          },
+        }),
+      ),
+    ).toContain("distribution weights must sum to more than 0.");
+    expect(
+      validateExperimentSpec(
+        spec({
+          population: { kind: "balanced", size: 5, seed: 1 },
+        }),
+      ),
+    ).toEqual([]);
   });
 });

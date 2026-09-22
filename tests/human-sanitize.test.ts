@@ -4,6 +4,7 @@ import {
   REDACTED_EMAIL,
   REDACTED_SECRET,
   redactTextSecrets,
+  sanitizeCanonicalState,
   sanitizeHumanStep,
   sanitizeHumanStudy,
   sanitizeHumanTrace,
@@ -64,7 +65,9 @@ describe("human-trace sanitization (Phase 15)", () => {
     });
     expect(out.target).toBe(REDACTED_SECRET);
     expect(out.actionLabel).toContain(REDACTED_EMAIL);
-    expect(out.selfReport).toEqual({ confidence: 0.7, [REDACTED_SECRET]: 1 });
+    // Secret-keyed entries are DROPPED: renaming would preserve the value
+    // under a colliding marker key — both a leak and data corruption.
+    expect(out.selfReport).toEqual({ confidence: 0.7 });
   });
 
   it("is idempotent", () => {
@@ -75,5 +78,67 @@ describe("human-trace sanitization (Phase 15)", () => {
     expect(sanitizeHumanTrace(once)).toEqual(once);
     const step = sanitizeHumanStep({ index: 0, actionLabel: "a@b.co" });
     expect(sanitizeHumanStep(step)).toEqual(step);
+  });
+
+  it("scrubs nested state, task strings, and URL path segments (CodeRabbit PR #46)", () => {
+    const out = sanitizeHumanStep({
+      index: 0,
+      taskId: "checkout for jane@x.test",
+      state: {
+        kind: "human",
+        taskId: null,
+        url: "https://x.test/users/john@x.test?session=aaa",
+        externalStateId: "node-Bearer abcdefgh12345678",
+        provenance: "human-report",
+      },
+      url: "https://x.test/users/john@x.test",
+    });
+    expect(out.taskId).toContain(REDACTED_EMAIL);
+    expect(out.state?.url).toBe("https://x.test/users/[redacted:email]?session=s");
+    expect(out.state?.externalStateId).toContain(REDACTED_SECRET);
+    // No query on this URL: nothing appended, nothing leaked.
+    expect(out.url).toBe("https://x.test/users/[redacted:email]");
+  });
+
+  it("sanitizeCanonicalState scrubs every nested field", () => {
+    const out = sanitizeCanonicalState({
+      kind: "human",
+      taskId: "help bob@x.test",
+      url: "https://x.test/p?token=secret123",
+      eveStableKey: "stable-1",
+      externalStateId: "sess-abc",
+      provenance: "human-report",
+    });
+    expect(out.taskId).toContain(REDACTED_EMAIL);
+    // Stable keys are structural hashes, preserved verbatim for matching.
+    expect(out.eveStableKey).toBe("stable-1");
+    // Benign external ids pass through; token-like ones are redacted.
+    expect(out.externalStateId).toBe("sess-abc");
+    expect(
+      sanitizeCanonicalState({
+        kind: "agent",
+        taskId: null,
+        url: null,
+        externalStateId: "k-9f8e7d6c5b4a39485746352413098765",
+        provenance: "agent-log",
+      }).externalStateId,
+    ).toContain(REDACTED_SECRET);
+  });
+
+  it("email redaction is linear-time on adversarial input (CodeQL)", () => {
+    // Unanchored global scans are O(n²) here (every start position consumes
+    // a long run before failing); anchored per-token tests must stay flat.
+    // Generous budget: linear handling finishes in milliseconds.
+    const evil = `a@${"a".repeat(200_000)}!`;
+    const start = Date.now();
+    const out = redactTextSecrets(evil);
+    expect(Date.now() - start).toBeLessThan(5000);
+    // Not an email (no dot), but the 200k-char blob IS token-like: the
+    // blob redactor legitimately fires. Linearity is the assertion.
+    expect(out).toBe(`a@${REDACTED_SECRET}!`);
+    expect(redactTextSecrets("write to jane.doe+shop@example.co.uk!")).toBe(
+      `write to ${REDACTED_EMAIL}!`,
+    );
+    expect(redactTextSecrets("(see jane@x.test)")).toBe(`(see ${REDACTED_EMAIL})`);
   });
 });

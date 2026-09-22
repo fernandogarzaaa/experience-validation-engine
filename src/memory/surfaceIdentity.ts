@@ -327,16 +327,22 @@ export interface CanonicalSurfaceIdentity {
   readonly provenance: CanonicalStateProvenance;
 }
 
-/** Deterministic canonical string for maps and alignment keys. */
+/**
+ * Deterministic canonical string for maps and alignment keys. JSON-array
+ * encoding (not a joined delimiter): component values may legally contain
+ * any delimiter character (`::`, `|`, …), and joining would let distinct
+ * tuples collide (`["a::b", "c"]` vs `["a", "b::c"]`). JSON arrays are
+ * unambiguous by construction.
+ */
 export function canonicalSurfaceId(c: CanonicalSurfaceIdentity): string {
-  return [
+  return JSON.stringify([
     c.kind,
-    c.taskId ?? "-",
-    c.url ?? "-",
-    c.eveStableKey ?? "-",
-    c.eveSensitiveKey ?? "-",
-    c.externalStateId ?? "-",
-  ].join("::");
+    c.taskId,
+    c.url,
+    c.eveStableKey ?? null,
+    c.eveSensitiveKey ?? null,
+    c.externalStateId ?? null,
+  ]);
 }
 
 /** Build the canonical EVE-stable reference for a percept. */

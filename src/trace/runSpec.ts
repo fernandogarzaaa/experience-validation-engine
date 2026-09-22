@@ -25,18 +25,21 @@ export interface RunSpec {
 /**
  * Pairing key: runs sharing it are the same experimental unit and may be
  * contrasted across variants. Excludes `variant` (the contrast dimension)
- * and `runId` (a label, not identity).
+ * and `runId` (a label, not identity). JSON-array encoding (not a joined
+ * delimiter): numeric seed `7` and string seed `"7"` — or values containing
+ * the delimiter — must never collide. Types are preserved (`7` vs `"7"`
+ * differ), because seed type changes the RNG stream.
  */
 export function pairedRunKey(spec: RunSpec): string {
-  return [
-    spec.operatorId ?? "-",
-    spec.taskId ?? "-",
+  return JSON.stringify([
+    spec.operatorId ?? null,
+    spec.taskId ?? null,
     spec.startUrl,
-    String(spec.seed),
-    spec.persona ?? "-",
-    spec.behaviorModelVersion ?? "-",
-    spec.parameterSetVersion ?? "-",
-  ].join("::");
+    spec.seed,
+    spec.persona ?? null,
+    spec.behaviorModelVersion ?? null,
+    spec.parameterSetVersion ?? null,
+  ]);
 }
 
 /** True when two specs are pairable variants of one experimental unit. */

@@ -87,4 +87,24 @@ describe("CanonicalSurfaceIdentity (Phase 4)", () => {
     };
     expect(canonicalMatchBasis(a, b)).toBeNull();
   });
+
+  it("never collides across delimiter-bearing components (CodeRabbit PR #46)", () => {
+    // Under naive "::" joining, ["a::b", "c"] and ["a", "b::c"] collide.
+    // JSON-array encoding keeps every tuple distinct.
+    const a: CanonicalSurfaceIdentity = {
+      kind: "human",
+      taskId: "a::b",
+      url: "c",
+      provenance: "human-report",
+    };
+    const b: CanonicalSurfaceIdentity = {
+      kind: "human",
+      taskId: "a",
+      url: "b::c",
+      provenance: "human-report",
+    };
+    expect(canonicalSurfaceId(a)).not.toBe(canonicalSurfaceId(b));
+    // Identical tuples still encode identically (deterministic).
+    expect(canonicalSurfaceId(a)).toBe(canonicalSurfaceId({ ...a }));
+  });
 });

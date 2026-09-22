@@ -140,4 +140,71 @@ describe("file persistence concurrency safety (P0.7)", () => {
     // inside the mutex means no save was lost.
     expect(Object.keys(parsed.applications)).toHaveLength(10);
   });
+
+  it("concurrent saves from DIFFERENT store instances over one path all survive", async () => {
+    // The old per-instance queue could not serialize these: two instances
+    // read the same body and the second write silently dropped the first.
+    const dir = mkdtempSync(join(tmpdir(), "eve-mem-shared-"));
+    const path = join(dir, "memory.json");
+    await Promise.all(
+      Array.from({ length: 8 }, (_, i) => {
+        const store = new FileMemoryStore(path);
+        const m = emptyApplicationMemory(`https://shared-${i}.test`, "App");
+        m.sessionsCount = 1;
+        return store.save(m, "shared");
+      }),
+    );
+    const reader = new FileMemoryStore(path);
+    for (let i = 0; i < 8; i++) {
+      await expect(reader.load(`https://shared-${i}.test`, "shared")).resolves.not.toBeNull();
+    }
+  });
+});
+
+describe("legacy key migration (CodeRabbit PR #46)", () => {
+  it("FileMemoryStore falls back to bare-appId entries and self-heals", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "eve-mem-legacy-"));
+    const path = join(dir, "memory.json");
+    const legacy = emptyApplicationMemory("https://legacy.test", "Legacy");
+    legacy.sessionsCount = 7;
+    // Simulate a pre-namespace store file: profile keyed by bare appId.
+    writeFileSync(
+      path,
+      JSON.stringify({ version: 2, applications: { "https://legacy.test": legacy } }),
+    );
+    const store = new FileMemoryStore(path);
+    const loaded = await store.load("https://legacy.test", "shared");
+    expect(loaded?.sessionsCount).toBe(7);
+    // Self-healed: the namespaced key now exists.
+    expect(await store.load("https://legacy.test", "shared")).not.toBeNull();
+    const raw = JSON.parse(readFileSync(path, "utf8")) as {
+      applications: Record<string, unknown>;
+    };
+    expect(raw.applications["shared::https://legacy.test"]).toBeDefined();
+  });
+
+  it("does not migrate for non-shared operators (no cross-operator leak)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "eve-mem-legacy-"));
+    const path = join(dir, "memory.json");
+    const legacy = emptyApplicationMemory("https://legacy.test", "Legacy");
+    writeFileSync(
+      path,
+      JSON.stringify({ version: 2, applications: { "https://legacy.test": legacy } }),
+    );
+    const store = new FileMemoryStore(path);
+    expect(await store.load("https://legacy.test", "alice")).toBeNull();
+  });
+
+  it("InMemoryStore applies the same legacy fallback", async () => {
+    const store = new InMemoryStore();
+    const legacy = emptyApplicationMemory("https://legacy.test", "Legacy");
+    legacy.sessionsCount = 3;
+    // Seed the pre-namespace shape directly (test-only backdoor: the
+    // public save() always namespaces, which is the point).
+    (store as unknown as { store: { applications: Record<string, unknown> } }).store.applications[
+      "https://legacy.test"
+    ] = legacy;
+    expect((await store.load("https://legacy.test", "shared"))?.sessionsCount).toBe(3);
+    expect(await store.load("https://legacy.test", "alice")).toBeNull();
+  });
 });

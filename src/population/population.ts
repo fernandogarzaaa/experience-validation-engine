@@ -189,7 +189,12 @@ export function sampleOperators(options: PopulationOptions): OperatorSpec[] {
       options.size ?? 25,
       options.seed ?? 1,
       options.personas,
+      options.professions,
+      options.cultures,
     );
+  }
+  if (typeof options.size === "number" && !Number.isFinite(options.size)) {
+    throw new Error(`PopulationOptions.size must be a finite number, got ${options.size}.`);
   }
   const size = Math.max(1, Math.floor(options.size ?? 25));
   const base = String(options.seed ?? 1);

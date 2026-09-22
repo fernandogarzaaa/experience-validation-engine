@@ -43,10 +43,15 @@ export class UtilityCognition extends HeuristicCognition {
   ): Decision | null {
     const { persona, emotion, memory } = ctx;
 
-    const scored = scoreAffordances(ctx, goalKeywords).filter((s) => {
-      if (s.risk >= 1 && persona.traits.riskTolerance < 0.2) return false;
-      return true;
-    });
+    const allScored = scoreAffordances(ctx, goalKeywords);
+    const refused = allScored
+      .filter((s) => s.risk >= 1 && persona.traits.riskTolerance < 0.2)
+      .map((s) => ({
+        score: s,
+        reason: "risk-refused: destructive control below risk tolerance",
+      }));
+    const refusedSet = new Set(refused.map((r) => r.score));
+    const scored = allScored.filter((s) => !refusedSet.has(s));
     if (scored.length === 0) return null;
 
     const weights = decisionWeights(persona, emotion);
@@ -58,8 +63,15 @@ export class UtilityCognition extends HeuristicCognition {
     });
 
     // Only consider positive-utility candidates; if none, let the cascade
-    // fall through to scroll/backtrack.
+    // fall through to scroll/backtrack. Below-threshold alternatives are
+    // recorded as ineligible (never silently dropped from the evidence).
     const positive = utilities.filter((u) => u.utility > -0.5);
+    const belowThreshold = utilities
+      .filter((u) => u.utility <= -0.5)
+      .map((score) => ({
+        score,
+        reason: "below-threshold: utility at or under the candidacy cutoff",
+      }));
     if (positive.length === 0) return null;
 
     const chosen = softmaxChoice(positive, weights, () => ctx.rng.next());
@@ -75,7 +87,14 @@ export class UtilityCognition extends HeuristicCognition {
       distribution.probabilities,
       distribution.temperature,
       positive.indexOf(chosen),
+      refused,
+      belowThreshold,
     );
+    // Keyboard actuations (Tab/Enter) realize a click-candidate choice
+    // through a different action: the candidates were considered, but the
+    // SELECTED action lives outside the click set — selectedIndex null
+    // keeps that distinction explicit instead of mislabeling a press.
+    const pressChoiceSet: typeof choiceSet = { ...choiceSet, selectedIndex: null };
 
     // Keyboard-only handling mirrors the base policy.
     if (persona.accessibility.keyboardOnly && !el.focused) {
@@ -89,7 +108,7 @@ export class UtilityCognition extends HeuristicCognition {
           confidence: 0.75,
         },
         effort: effortBase + 0.1,
-        choiceSet,
+        choiceSet: pressChoiceSet,
       };
     }
     if (
@@ -101,7 +120,7 @@ export class UtilityCognition extends HeuristicCognition {
         rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
         prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
         effort: effortBase,
-        choiceSet,
+        choiceSet: pressChoiceSet,
       };
     }
 

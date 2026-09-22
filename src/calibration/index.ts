@@ -53,6 +53,7 @@ export {
   REDACTED_EMAIL,
   REDACTED_SECRET,
   redactTextSecrets,
+  sanitizeCanonicalState,
   sanitizeHumanStep,
   sanitizeHumanStudy,
   sanitizeHumanTrace,

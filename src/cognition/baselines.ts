@@ -1,3 +1,4 @@
+import { stableIdentityKey } from "../memory/surfaceIdentity.js";
 import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
 import { predictInteraction } from "./mentalModel.js";
 
@@ -62,10 +63,13 @@ export class GoalGreedyPolicy implements DecisionPolicy {
 
   async decide(ctx: CognitiveContext): Promise<Decision> {
     const candidates = candidatesOf(ctx);
-    const tried = new Set<string>();
-    for (const node of ctx.memory.knownScreens()) {
-      for (const label of node.triedAffordances) tried.add(label);
-    }
+    // Screen-scoped tried marks: a label tried on screen A must not
+    // suppress it on screen B. Only the current screen's node counts —
+    // cross-screen leakage would let stale familiarity veto fresh options.
+    const node = ctx.memory
+      .knownScreens()
+      .find((s) => s.signature === stableIdentityKey(ctx.percept));
+    const tried = new Set(node?.triedAffordances ?? []);
     const untried = candidates.filter((el) => !tried.has(el.text.trim().toLowerCase()));
     const pool = untried.length > 0 ? untried : candidates;
     if (pool.length === 0) {

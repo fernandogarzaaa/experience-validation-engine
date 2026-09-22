@@ -12,8 +12,9 @@ import type { OperatorSpec } from "./population.js";
  *   every persona appears equally often. This is NOT a population model.
  * - `PopulationDistribution`: weighted, seeded sampling from explicit
  *   segment weights. Deterministic given (distribution, size, seed):
- *   cumulative-weight draws from the session RNG, so the same spec always
- *   yields the same roster.
+ *   cumulative-weight draws from a dedicated `createRng` stream derived
+ *   from the base seed (never a live session RNG), so the same spec
+ *   always yields the same roster.
  *
  * Weights are OPERATOR-specified scenario parameters, never demographic
  * claims: nothing here asserts these weights represent real user
@@ -38,7 +39,9 @@ function normalizeWeights(distribution: PopulationDistribution): number[] {
     throw new Error("PopulationDistribution needs at least one segment.");
   }
   const weights = distribution.segments.map((s) => s.weight);
-  if (weights.some((w) => !(w >= 0))) {
+  // Non-finite weights are rejected outright: Infinity/Infinity is NaN and
+  // silently biases every draw to the final segment (CodeRabbit PR #46).
+  if (weights.some((w) => !Number.isFinite(w) || w < 0)) {
     throw new Error("PopulationDistribution weights must be finite numbers >= 0.");
   }
   const total = weights.reduce((a, b) => a + b, 0);
@@ -51,16 +54,22 @@ function normalizeWeights(distribution: PopulationDistribution): number[] {
 /**
  * Deterministic weighted roster. Draw `size` operators by cumulative-weight
  * sampling; personas/professions/cultures default per draw (segment value,
- * else pool round-robin within the draw index, else library default).
+ * else the caller's fallback pools round-robin, else library default).
  * Seeds derive as `${base}#weighted-${i}` so weighted rosters never collide
- * with round-robin `#i` seeds.
+ * with round-robin `#i` seeds. Non-finite or sub-1 sizes throw — a NaN size
+ * must never silently yield zero operators.
  */
 export function sampleDistribution(
   distribution: PopulationDistribution,
   size: number,
   seed: number | string,
   fallbackPersonas?: readonly string[],
+  fallbackProfessions?: readonly string[],
+  fallbackCultures?: readonly string[],
 ): OperatorSpec[] {
+  if (!Number.isFinite(size)) {
+    throw new Error(`PopulationDistribution size must be a finite number, got ${size}.`);
+  }
   const n = Math.max(1, Math.floor(size));
   const normalized = normalizeWeights(distribution);
   const cumulative: number[] = [];
@@ -84,8 +93,16 @@ export function sampleDistribution(
       index: i,
       persona: seg.persona ?? pool[i % pool.length]!,
       seed: `${String(seed)}#weighted-${i}`,
-      ...(seg.profession ? { profession: seg.profession } : {}),
-      ...(seg.culture ? { culture: seg.culture } : {}),
+      profession:
+        seg.profession ??
+        (fallbackProfessions && fallbackProfessions.length > 0
+          ? fallbackProfessions[i % fallbackProfessions.length]!
+          : undefined),
+      culture:
+        seg.culture ??
+        (fallbackCultures && fallbackCultures.length > 0
+          ? fallbackCultures[i % fallbackCultures.length]!
+          : undefined),
     });
   }
   return specs;

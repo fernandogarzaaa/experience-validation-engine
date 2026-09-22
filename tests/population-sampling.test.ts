@@ -48,6 +48,52 @@ describe("population sampling semantics (Phase 10)", () => {
     );
   });
 
+  it("rejects non-finite weights instead of biasing draws (CodeRabbit PR #46)", () => {
+    // Infinity/Infinity is NaN: without the guard every draw silently
+    // lands on the final segment.
+    expect(() => sampleDistribution({ segments: [{ weight: Infinity }] }, 5, 1)).toThrow(/finite/);
+    expect(() => sampleDistribution({ segments: [{ weight: 1 }, { weight: NaN }] }, 5, 1)).toThrow(
+      /finite/,
+    );
+  });
+
+  it("rejects non-finite sizes instead of yielding zero operators (CodeRabbit PR #46)", () => {
+    expect(() => sampleDistribution({ segments: [{ weight: 1 }] }, NaN, 1)).toThrow(/finite/);
+    expect(() => sampleOperators({ url: "mock:", size: NaN, seed: 1 })).toThrow(/finite/);
+  });
+
+  it("falls back to caller pools for segment-missing profession/culture (CodeRabbit PR #46)", () => {
+    const specs = sampleDistribution(
+      { segments: [{ persona: "office-worker", weight: 1 }] },
+      4,
+      7,
+      undefined,
+      ["accountant", "designer"],
+      ["en-US", "de-DE"],
+    );
+    expect(specs.map((s) => s.profession)).toEqual([
+      "accountant",
+      "designer",
+      "accountant",
+      "designer",
+    ]);
+    expect(specs.map((s) => s.culture)).toEqual(["en-US", "de-DE", "en-US", "de-DE"]);
+  });
+
+  it("prefers segment values over fallback pools", () => {
+    const specs = sampleDistribution(
+      { segments: [{ persona: "power-user", profession: "ceo", weight: 1 }] },
+      2,
+      7,
+      undefined,
+      ["accountant"],
+      ["de-DE"],
+    );
+    expect(specs.every((s) => s.persona === "power-user")).toBe(true);
+    expect(specs.every((s) => s.profession === "ceo")).toBe(true);
+    expect(specs.every((s) => s.culture === "de-DE")).toBe(true);
+  });
+
   it("floors size at 1 and honors segment profession/culture", () => {
     const specs = sampleDistribution(
       { segments: [{ persona: "office-worker", profession: "accountant", weight: 1 }] },

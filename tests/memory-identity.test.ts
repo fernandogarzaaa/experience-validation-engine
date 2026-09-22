@@ -358,3 +358,22 @@ describe("availability rule (reviewer concern 12)", () => {
     expect(isAffordanceAvailable(stateB, "save")).toBe(false);
   });
 });
+
+describe("repeated query parameters (CodeRabbit PR #46)", () => {
+  it("preserves distinct repeated values instead of collapsing to the first", () => {
+    expect(classifiedQuery("https://x.test/d?filter=a&filter=b")).not.toBe(
+      classifiedQuery("https://x.test/d?filter=a&filter=c"),
+    );
+  });
+
+  it("is order-insensitive across repeated pairs", () => {
+    expect(classifiedQuery("https://x.test/d?filter=b&filter=a")).toBe(
+      classifiedQuery("https://x.test/d?filter=a&filter=b"),
+    );
+  });
+
+  it("reports every occurrence in detailed classification", () => {
+    const parts = classifyQueryDetailed("https://x.test/d?filter=a&filter=b");
+    expect(parts.filter((p) => p.parameter === "filter")).toHaveLength(2);
+  });
+});
