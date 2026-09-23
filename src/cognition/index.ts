@@ -4,6 +4,8 @@ export {
   attendedPercept,
   visualSalience,
 } from "./attention.js";
+export { GoalGreedyPolicy, RandomPolicy } from "./baselines.js";
+export { heuristicChoiceSet, ineligibleCandidate, utilityChoiceSet } from "./choiceSet.js";
 export type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
 export type { CognitiveLoadBreakdown } from "./cognitiveLoad.js";
 export {
@@ -44,6 +46,7 @@ export {
   evaluateUtilities,
   motorEffort,
   softmaxChoice,
+  softmaxDistribution,
   wantsVerification,
 } from "./utility.js";
 export { UtilityCognition } from "./utilityCognition.js";

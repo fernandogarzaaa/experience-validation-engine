@@ -233,6 +233,38 @@ nothing here changes a default (phase-1) session.
 - `runCollaborative(scenario) → CollaborativeResult` — multi-operator
   handoff / approval chains.
 
+### Calibration substrate
+
+- `buildExperienceTrace(result, opts?) → ExperienceTrace` (+
+  `renderTraceJson` / `renderTraceJsonl`, `traceIdFor`, `stripPercept`) —
+  canonical ordered trajectory; records derive via `recordsFromTrace`.
+- `TaskSpec` (`planning/task.ts`): `taskId`, description, goal, success
+  signals, starting conditions, bounds, family; `normalizeTaskId`,
+  `matchTaskIds`, `resolveTaskId`. `SessionOptions.taskId/taskSpec` →
+  `SessionResult.taskId`.
+- `ChoiceSet` on `Decision` / `LoopIteration`: heuristic-ordered (no
+  probabilities) vs probabilistic (utility softmax) vs
+  deterministic-single; `heuristicChoiceSet`, `utilityChoiceSet`,
+  `softmaxDistribution`.
+- `CanonicalSurfaceIdentity`: human/EVE/agent references in one envelope;
+  `canonicalSurfaceId`, `canonicalMatchBasis`, `canonicalFromPercept`.
+- `BEHAVIOR_PARAMETERS`, `getParameter`, `parametersByClass`,
+  `snapshotParameters` — STRUCTURAL / EMPIRICAL / POLICY registry
+  (read-only in the frozen model).
+- `fingerprintEnvironment(opts?) → EnvironmentFingerprint` — available
+  values only, null elsewhere.
+- `alignTraces(human, eve) → TraceAlignment` (+ `importHumanSteps`,
+  `HumanStep`); `topKAgreement`, `brierScore`,
+  `spearmanRankCorrelation`, `transitionDivergenceL1`,
+  `meanLogDurationError` — pure metric vocabulary, not evidence.
+- `sampleDistribution(dist, size, seed)` + `PopulationDistribution`;
+  `simulatePopulation({ distribution })` for weighted rosters.
+- `RandomPolicy`, `GoalGreedyPolicy` — seeded deterministic baselines.
+- `RunSpec`, `pairedRunKey`, `isPairable` — variant pairing identity.
+- `ExperimentSpec`, `validateExperimentSpec`, `renderExperimentJson`.
+- `sanitizeHumanStudy` / `sanitizeHumanStep` / `sanitizeTraceUrl` /
+  `redactTextSecrets` — mandatory gate before accepting human data.
+
 ### Calibration records & versions
 
 - `buildCalibrationRecords(result, opts?) → CalibrationRecord[]`,

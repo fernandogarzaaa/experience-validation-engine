@@ -1,6 +1,6 @@
 import type { KernelPercept } from "../core/kernel.js";
 import type { Rng } from "../core/random.js";
-import type { Action, Percept, Prediction } from "../core/types.js";
+import type { Action, ChoiceSet, Percept, Prediction } from "../core/types.js";
 import type { EmotionVector } from "../emotion/emotionalState.js";
 import type { OperatorMemory } from "../memory/memory.js";
 import type { Persona } from "../personas/persona.js";
@@ -55,6 +55,12 @@ export interface Decision {
   readonly prediction: Prediction;
   /** Estimated cognitive effort of making this decision, 0..1. */
   readonly effort: number;
+  /**
+   * Choice context recorded at decision time (Phase 3 calibration
+   * substrate). Present only when the policy scores alternatives; cascade
+   * branches that select without scoring omit it — absence is explicit.
+   */
+  readonly choiceSet?: ChoiceSet;
 }
 
 /**

@@ -11,6 +11,22 @@ never validated real-human performance (see
 ordinary seeded [`EveSession`](developer-guide.md), so a study is as
 reproducible as its seed — and aggregates them statistically.
 
+## Sampling semantics: BalancedPanel vs PopulationDistribution
+
+Two modes, explicitly distinguished:
+
+- **`BalancedPanel` (default)**: deterministic round-robin over the
+  persona/profession/culture pools. Guarantees balanced coverage — not a
+  population model, not demographics.
+- **`PopulationDistribution`**: pass `distribution: { segments:
+  [{ persona?, profession?, culture?, weight }] }` for deterministic
+  weighted sampling (cumulative-weight draws, seeds
+  `"<base>#weighted-<i>"`, never colliding with round-robin seeds).
+
+Weights are operator-specified scenario parameters. They do NOT represent
+real user populations without human evidence — that claim requires
+calibration, not configuration.
+
 ## Quick start
 
 ```ts
@@ -68,9 +84,10 @@ Each segment reports its size, share, mean score, and mean steps.
 | `label` | `url` | human-facing target name shown in reports (set when an `adapterFactory` drives an app that isn't the literal `url`) |
 | `size` | `25` | number of operators |
 | `personas` | whole library | names to sample from (round-robin) |
+| `distribution` | none | weighted `PopulationDistribution`: deterministic seeded sampling INSTEAD of round-robin |
 | `professions` / `cultures` | none | overlays mixed round-robin |
 | `goal` / `goalSuccessSignals` | none | the task every operator attempts |
-| `seed` | `1` | base seed; operator *i* uses `"<seed>#<i>"` |
+| `seed` | `1` | base seed; round-robin operator *i* uses `"<seed>#<i>"`; distribution mode uses `"<seed>#weighted-<i>"` (never colliding) |
 | `maxSteps` / `maxDurationMs` | `60` / `10min` | per-operator budgets |
 | `cognitive` / `utility` | `false` | deeper cognition / utility decisions |
 | `browser` | inferred | `mock` for `mock:` URLs, else `playwright` |

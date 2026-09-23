@@ -1,4 +1,5 @@
 import type { Percept } from "../core/types.js";
+import { normalizeTaskId } from "../planning/task.js";
 
 /**
  * Two-tier surface identity (P0.5, reviewer decision 1).
@@ -285,4 +286,116 @@ export function sameSurface(a: Percept, b: Percept): boolean {
 /** True when two percepts share full semantic state. */
 export function sameState(a: Percept, b: Percept, opts: SensitiveStateOptions = {}): boolean {
   return sensitiveStateKey(a, opts) === sensitiveStateKey(b, opts);
+}
+
+/* ------------------------------------------------------------------ */
+/* Canonical surface identity (Phase 4 calibration layer)             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Which experimental world a state reference comes from. Canonical identity
+ * maps all three into one comparable shape WITHOUT equating them: an EVE
+ * key, a human screen id, and an agent state id are different evidence
+ * carried in one envelope.
+ */
+export type CanonicalStateKind = "eve-stable" | "eve-sensitive" | "human" | "agent";
+
+/** Provenance of a canonical state reference. */
+export type CanonicalStateProvenance = "eve-perception" | "human-report" | "agent-log" | "manifest";
+
+/**
+ * Canonical surface identity: the smallest envelope that lets a human
+ * observed state, an EVE state, and an AI-agent state refer to the same
+ * experimental moment. Matching across kinds uses `taskId` + `url` +
+ * whichever key the other side actually carries — never raw URL equality
+ * alone, never DOM ids (explicitly excluded: DOM structure is an
+ * implementation detail, not experimental state).
+ */
+export interface CanonicalSurfaceIdentity {
+  readonly kind: CanonicalStateKind;
+  readonly taskId: string | null;
+  readonly url: string | null;
+  /** EVE stable key, when the reference comes from EVE memory. */
+  readonly eveStableKey?: string;
+  /** EVE sensitive key, when the reference carries full EVE state. */
+  readonly eveSensitiveKey?: string;
+  /**
+   * Foreign state id (human screen id, agent state id). Opaque strings —
+   * compared by equality only, never parsed.
+   */
+  readonly externalStateId?: string;
+  readonly provenance: CanonicalStateProvenance;
+}
+
+/**
+ * Deterministic canonical string for maps and alignment keys. JSON-array
+ * encoding (not a joined delimiter): component values may legally contain
+ * any delimiter character (`::`, `|`, …), and joining would let distinct
+ * tuples collide (`["a::b", "c"]` vs `["a", "b::c"]`). JSON arrays are
+ * unambiguous by construction.
+ */
+export function canonicalSurfaceId(c: CanonicalSurfaceIdentity): string {
+  return JSON.stringify([
+    c.kind,
+    c.taskId,
+    c.url,
+    c.eveStableKey ?? null,
+    c.eveSensitiveKey ?? null,
+    c.externalStateId ?? null,
+  ]);
+}
+
+/** Build the canonical EVE-stable reference for a percept. */
+export function canonicalFromPercept(
+  percept: Percept,
+  taskId: string | null = null,
+): CanonicalSurfaceIdentity {
+  return {
+    kind: "eve-stable",
+    taskId,
+    url: percept.url,
+    eveStableKey: stableIdentityKey(percept),
+    provenance: "eve-perception",
+  };
+}
+
+/**
+ * Whether two canonical references may denote the same experimental
+ * moment: same normalized task (when both name one) plus a shared key —
+ * EVE-stable equality, EVE-sensitive equality, external-id equality, or
+ * URL equality as the weakest fallback. Returns the matched basis, or
+ * null when they cannot be the same moment. Basis is reported (not just
+ * a boolean) so alignment stays debuggable.
+ */
+export function canonicalMatchBasis(
+  a: CanonicalSurfaceIdentity,
+  b: CanonicalSurfaceIdentity,
+):
+  | "task+stable"
+  | "task+sensitive"
+  | "task+external-id"
+  | "task+url"
+  | "stable"
+  | "sensitive"
+  | "external-id"
+  | "url"
+  | null {
+  const tasksAgree =
+    !a.taskId || !b.taskId || normalizeTaskId(a.taskId) === normalizeTaskId(b.taskId);
+  if (!tasksAgree) return null;
+  const taskPrefix = Boolean(a.taskId && b.taskId);
+  if (a.eveStableKey && b.eveStableKey && a.eveStableKey === b.eveStableKey) {
+    return taskPrefix ? "task+stable" : "stable";
+  }
+  // Reachable when callers carry sensitive keys without stable keys.
+  // (Full sensitive keys embed the stable key, so with both present the
+  // stable branch above always fires first.)
+  if (a.eveSensitiveKey && b.eveSensitiveKey && a.eveSensitiveKey === b.eveSensitiveKey) {
+    return taskPrefix ? "task+sensitive" : "sensitive";
+  }
+  if (a.externalStateId && b.externalStateId && a.externalStateId === b.externalStateId) {
+    return taskPrefix ? "task+external-id" : "external-id";
+  }
+  if (a.url && b.url && a.url === b.url) return taskPrefix ? "task+url" : "url";
+  return null;
 }

@@ -9,6 +9,7 @@ import {
   type StrategyWeights,
   strategyWeights,
 } from "../planning/strategies.js";
+import { heuristicChoiceSet } from "./choiceSet.js";
 import type { CognitiveContext, Decision, DecisionPolicy } from "./cognition.js";
 import { predictInteraction, tokenize } from "./mentalModel.js";
 import { choiceLoad, readingLoad, scoreAffordances } from "./salience.js";
@@ -229,11 +230,18 @@ export class HeuristicCognition implements DecisionPolicy {
     sig: string,
   ): Decision | null {
     const { persona, emotion, memory, goals, rng } = ctx;
-    const scored = scoreAffordances(ctx, goalKeywords).filter((s) => {
-      // Anxious/low-risk personas refuse plainly destructive controls.
-      if (s.risk >= 1 && persona.traits.riskTolerance < 0.2) return false;
-      return true;
-    });
+    const allScored = scoreAffordances(ctx, goalKeywords);
+    // Anxious/low-risk personas refuse plainly destructive controls.
+    // Refused controls are recorded as ineligible candidates (Phase 3):
+    // available-but-barred, distinct from never-considered.
+    const refused = allScored
+      .filter((s) => s.risk >= 1 && persona.traits.riskTolerance < 0.2)
+      .map((s) => ({
+        score: s,
+        reason: "risk-refused: destructive control below risk tolerance",
+      }));
+    const refusedSet = new Set(refused.map((r) => r.score));
+    const scored = allScored.filter((s) => !refusedSet.has(s));
 
     const viable = scored.filter((s) => s.total > 0.05);
     if (viable.length === 0) return null;
@@ -249,8 +257,21 @@ export class HeuristicCognition implements DecisionPolicy {
     );
     const el = chosen.element;
     memory.markTried(sig, el.text);
+    // Phase 3: record what was available and how the winner was picked.
+    // Ordering + eligibility + salience scores only — the cascade computes
+    // no probabilities and none are recorded. Pure mapping: no RNG consumed.
+    const choiceSet = heuristicChoiceSet(
+      considered,
+      considered.indexOf(chosen),
+      `salience order, top-${considered.length} of ${viable.length} viable ` +
+        `(attention-limited); weighted pick exp(total*(1+goalWeight))`,
+      refused,
+    );
 
     // Keyboard-first personas prefer pressing Enter on focused controls.
+    // Press actuations null the selected index (see utilityCognition):
+    // the click set was considered, the press itself was not a candidate.
+    const pressChoiceSet = { ...choiceSet, selectedIndex: null as number | null };
     if (
       persona.accessibility.keyboardOnly ||
       (persona.traits.keyboardPreference > 0.7 && el.focused)
@@ -261,6 +282,7 @@ export class HeuristicCognition implements DecisionPolicy {
           rationale: `"${el.text.trim()}" is focused; Enter should activate it.`,
           prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
           effort: effortBase,
+          choiceSet: pressChoiceSet,
         };
       }
       if (persona.accessibility.keyboardOnly) {
@@ -274,6 +296,7 @@ export class HeuristicCognition implements DecisionPolicy {
             confidence: 0.75,
           },
           effort: effortBase + 0.1,
+          choiceSet: pressChoiceSet,
         };
       }
     }
@@ -293,6 +316,7 @@ export class HeuristicCognition implements DecisionPolicy {
       rationale,
       prediction: predictInteraction(el, "click", this.baseConfidence(ctx)),
       effort: clamp01(effortBase + (hesitant ? 0.2 : 0)),
+      choiceSet,
     };
   }
 

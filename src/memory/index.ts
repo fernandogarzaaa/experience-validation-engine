@@ -30,6 +30,9 @@ export type {
 } from "./memory.js";
 export { isAffordanceAvailable, OperatorMemory, screenSignature } from "./memory.js";
 export type {
+  CanonicalStateKind,
+  CanonicalStateProvenance,
+  CanonicalSurfaceIdentity,
   QueryNormalization,
   QueryParameterClassification,
   QueryStateClassification,
@@ -37,6 +40,9 @@ export type {
   SensitiveStateOptions,
 } from "./surfaceIdentity.js";
 export {
+  canonicalFromPercept,
+  canonicalMatchBasis,
+  canonicalSurfaceId,
   classifiedQuery,
   classifyQueryDetailed,
   DEFAULT_QUERY_STATE_POLICY,

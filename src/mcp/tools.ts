@@ -18,7 +18,12 @@ import { validateBenchmarks } from "../benchmarks/index.js";
 import type { AdapterName, BrowserAdapter } from "../browser/index.js";
 import { createAdapter } from "../browser/index.js";
 import type { HumanStudy } from "../calibration/index.js";
-import { calibrate, importHumanStudy, renderCalibrationMarkdown } from "../calibration/index.js";
+import {
+  calibrate,
+  importHumanStudy,
+  renderCalibrationMarkdown,
+  sanitizeHumanStudy,
+} from "../calibration/index.js";
 import type { DecisionPolicy } from "../cognition/cognition.js";
 import { HeuristicCognition } from "../cognition/heuristicCognition.js";
 import { UtilityCognition } from "../cognition/utilityCognition.js";
@@ -486,12 +491,16 @@ export async function runPredictUX(input: RunUsabilityStudyInput): Promise<ToolO
 /**
  * Calibrate EVE against a human study: load anonymized human traces from a
  * file, run a matching EVE population, and score the simulation's realism.
+ *
+ * The imported study is passed through `sanitizeHumanStudy` before use:
+ * ingestion trusts nothing about caller anonymization. Sanitization is
+ * deterministic and idempotent, so pre-sanitized files are unaffected.
  */
 export async function runCalibrate(input: CalibrateInput): Promise<ToolOutput> {
   let human: HumanStudy;
   try {
     const raw = await readFile(input.human_file, "utf8");
-    human = importHumanStudy(JSON.parse(raw));
+    human = sanitizeHumanStudy(importHumanStudy(JSON.parse(raw)));
   } catch (err) {
     throw new ToolInputError(
       `Could not read the human study at "${input.human_file}": ${err instanceof Error ? err.message : String(err)}`,

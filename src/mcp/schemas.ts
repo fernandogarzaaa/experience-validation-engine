@@ -350,7 +350,11 @@ export const CalibrateSchema = z
     human_file: z
       .string()
       .min(1)
-      .describe("Path to a JSON file with anonymized human traces ({ task?, traces: [...] })."),
+      .describe(
+        "Path to a JSON file with anonymized human traces ({ task?, traces: [...] }). " +
+          "Sanitize before acceptance: strip emails, tokens/secrets, and high-cardinality " +
+          "URL values (see sanitizeHumanStudy in docs/human-calibration.md). Raw PII must never enter calibration.",
+      ),
     url: z.string().min(1).describe("The same app the humans used (or `mock:`)."),
     size: z.number().int().min(2).max(200).default(30).describe("EVE operators to simulate."),
     goal: z.string().optional().describe("The task (should match the human study's task)."),
