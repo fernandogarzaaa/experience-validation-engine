@@ -24,15 +24,16 @@ import type { HumanStudy, HumanTrace } from "./types.js";
  */
 
 /**
- * Linear-time email pattern, used ANCHORED per whitespace-delimited token
- * (see `redactEmails`). A global scan with any `@`-containing pattern is
- * quadratic on hostile input: at every start position the engine consumes
- * a long run before failing on the missing `@`/`.`, for O(n²) total.
- * Anchored full-token tests are O(token) each — linear overall.
+ * Email matching is done ANCHORED per whitespace-delimited token (see
+ * `redactEmails`): a global unanchored scan is O(n²) on hostile input
+ * because every start position consumes a long run before failing.
+ * Anchored full-token tests are O(token) each — linear overall. Trailing
+ * punctuation is stripped with an explicit backwards scan, never a
+ * `$`-anchored greedy pattern (same quadratic shape on `!!!…!x` input).
  */
 const EMAIL_TOKEN_RE = /^([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/;
 const LEAD_PUNCT_RE = /^[([{"']+/;
-const TRAIL_PUNCT_RE = /[!?,;:.)\]]+$/;
+const TRAIL_PUNCT_CHARS = new Set(["!", "?", ",", ";", ":", ".", ")", "]"]);
 const BEARER_RE = /\b(Bearer|bearer)\s+[A-Za-z0-9\-._~+/=]{8,}/g;
 const API_KEY_RE = /\b(api[_-]?key|apikey|client[_-]?secret)\b\s*[:=]\s*\S+/gi;
 const TOKEN_BLOB_RE = /\b[A-Za-z0-9_-]{32,}\b/g;
@@ -62,8 +63,11 @@ function redactEmails(text: string): string {
       if (tok === "" || /^\s+$/.test(tok)) return tok;
       const lead = (tok.match(LEAD_PUNCT_RE) ?? [""])[0]!;
       const rest = tok.slice(lead.length);
-      const trail = (rest.match(TRAIL_PUNCT_RE) ?? [""])[0]!;
-      const core = trail ? rest.slice(0, -trail.length) : rest;
+      // Backwards scan for trailing punctuation: O(token), no backtracking.
+      let end = rest.length;
+      while (end > 0 && TRAIL_PUNCT_CHARS.has(rest[end - 1]!)) end -= 1;
+      const trail = rest.slice(end);
+      const core = rest.slice(0, end);
       return EMAIL_TOKEN_RE.test(core) ? `${lead}${REDACTED_EMAIL}${trail}` : tok;
     })
     .join("");

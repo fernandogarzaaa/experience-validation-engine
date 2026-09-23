@@ -136,6 +136,12 @@ describe("human-trace sanitization (Phase 15)", () => {
     // Not an email (no dot), but the 200k-char blob IS token-like: the
     // blob redactor legitimately fires. Linearity is the assertion.
     expect(out).toBe(`a@${REDACTED_SECRET}!`);
+    // The exact shape CodeQL flagged: a long punctuation run that matches
+    // nothing must also stay linear (no backtracking engine involved).
+    const punct = `${"!".repeat(200_000)}x`;
+    const start2 = Date.now();
+    expect(redactTextSecrets(punct)).toBe(punct);
+    expect(Date.now() - start2).toBeLessThan(5000);
     expect(redactTextSecrets("write to jane.doe+shop@example.co.uk!")).toBe(
       `write to ${REDACTED_EMAIL}!`,
     );
