@@ -100,7 +100,7 @@
     "@puppeteer/browsers": "^3.2.1",
     "@types/node": "^20.11.0",
     "@types/pngjs": "^6.0.4",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.0",
     "puppeteer": "^25.8.0",
     "selenium-webdriver": "^4.16.0",
     "typescript": "^7.0.2",
