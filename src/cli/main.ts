@@ -607,8 +607,25 @@ async function runMcpEvalCommand(rest: readonly string[]): Promise<number> {
       format: { type: "string" },
       seed: { type: "string" },
       timeout: { type: "string" },
+      help: { type: "boolean" },
     },
   });
+
+  if (values.help) {
+    process.stdout.write(`eve mcp-eval <target>  Evaluate an MCP server (schema, conformance, fuzzing)
+
+  eve mcp-eval "node my-server.js"           # deterministic MCP server evaluation
+  eve mcp-eval "node my-server.js" --no-fuzz # schema + conformance only
+
+Options for "mcp-eval":
+  --no-fuzz             Skip robustness fuzzing (schema + conformance only)
+  --format <fmt>        markdown | json (default markdown)
+  --seed <value>        Reproducibility seed for fuzz case selection
+  --timeout <ms>        Per-call timeout for fuzz probes (default 5000)
+  --help                Show this help
+`);
+    return 0;
+  }
 
   const target = positionals.join(" ");
   if (!target) {
