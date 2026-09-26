@@ -157,6 +157,14 @@ report, or CP/1 document changes.
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
 
+## [0.5.2](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.1...v0.5.2) (2026-09-26)
+
+
+### Fixes
+
+* add docs/getting-started.md referenced by README ([#49](https://github.com/fernandogarzaaa/experience-validation-engine/issues/49)) ([7fe3841](https://github.com/fernandogarzaaa/experience-validation-engine/commit/7fe38412a67cb100b5dd3368c7513a797d231355))
+* **cli:** make 'eve mcp-eval --help' print help instead of crashing ([#47](https://github.com/fernandogarzaaa/experience-validation-engine/issues/47)) ([d47e684](https://github.com/fernandogarzaaa/experience-validation-engine/commit/d47e684155ab2d710dcd2cd0e6af7de5bf65c4ea))
+
 ## [0.5.1](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.0...v0.5.1) (2026-09-21)
 
 
