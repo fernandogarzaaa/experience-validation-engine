@@ -95,6 +95,9 @@
       "optional": true
     }
   },
+  "overrides": {
+    "hono": "4.13.7"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
     "@puppeteer/browsers": "^3.2.1",
