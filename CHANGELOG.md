@@ -157,6 +157,16 @@ report, or CP/1 document changes.
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
 
+## [0.5.2](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.1...v0.5.2) (2026-10-04)
+
+
+### Fixes
+
+* add docs/getting-started.md referenced by README ([#49](https://github.com/fernandogarzaaa/experience-validation-engine/issues/49)) ([7fe3841](https://github.com/fernandogarzaaa/experience-validation-engine/commit/7fe38412a67cb100b5dd3368c7513a797d231355))
+* **cli:** make 'eve mcp-eval --help' print help instead of crashing ([#47](https://github.com/fernandogarzaaa/experience-validation-engine/issues/47)) ([d47e684](https://github.com/fernandogarzaaa/experience-validation-engine/commit/d47e684155ab2d710dcd2cd0e6af7de5bf65c4ea))
+* **deps:** bump transitive qs 6.15.3 to 6.16.0 ([#51](https://github.com/fernandogarzaaa/experience-validation-engine/issues/51)) ([6ee1c01](https://github.com/fernandogarzaaa/experience-validation-engine/commit/6ee1c010dc74719f645d3ddc69db1f2e1cbfc706))
+* **deps:** pin transitive hono to 4.13.7 via overrides (XSS GHSA-hxh3-vqpv-xpqv) ([#59](https://github.com/fernandogarzaaa/experience-validation-engine/issues/59)) ([89eff8a](https://github.com/fernandogarzaaa/experience-validation-engine/commit/89eff8a425e06d28bbbe3641eb2fbc94fbe98e2d))
+
 ## [0.5.1](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.0...v0.5.1) (2026-09-21)
 
 
