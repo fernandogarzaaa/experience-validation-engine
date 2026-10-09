@@ -126,6 +126,10 @@ Three principles make it a simulation rather than automation:
 
 ## Quick start
 
+> Note: the published npm package is currently at 0.3.1 while this repo is at 0.5.1.
+> For the latest build, install from git instead:
+> `npm install github:fernandogarzaaa/experience-validation-engine`
+
 ```bash
 npm install experience-validation-engine
 
