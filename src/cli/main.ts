@@ -196,7 +196,8 @@ const HELP_MCP_EVAL = `Options for "mcp-eval":
   --timeout <ms>        Per-call timeout for fuzz probes (default 5000)
 `;
 
-const HELP = HELP_HEADER + HELP_RUN + HELP_STUDY + HELP_EXAMPLES + HELP_READ + HELP_CHAT + HELP_MCP_EVAL;
+const HELP =
+  HELP_HEADER + HELP_RUN + HELP_STUDY + HELP_EXAMPLES + HELP_READ + HELP_CHAT + HELP_MCP_EVAL;
 
 const COMMAND_HELP: Record<string, string> = {
   run: HELP_RUN,
