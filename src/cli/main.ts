@@ -84,7 +84,9 @@ Usage:
   eve --help                  Show this help
 
 `;
-const HELP_RUN = `Options for "run":
+const HELP_RUN = `Usage: eve run <url> [options]
+
+Options for "run":
   --config <file>       YAML configuration file (CLI flags override it)
   --persona <name>      Persona to simulate (default: first-time-user)
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
@@ -114,7 +116,9 @@ const HELP_RUN = `Options for "run":
   --quiet               Only print the final summary
 
 `;
-const HELP_STUDY = `Options for "study" (population usability study):
+const HELP_STUDY = `Usage: eve study <url> [options]
+
+Options for "study" (population usability study):
   --size <n>            Number of simulated operators (default 25)
   --personas <a,b,c>    Persona pool to sample (default: whole library)
   --professions <a,b>   Professional overlays to mix (comma-separated)
@@ -155,7 +159,9 @@ const HELP_EXAMPLES = `Examples:
     --header "authorization: Bearer $TOKEN" --persona impatient-user
 
 `;
-const HELP_READ = `Options for "read":
+const HELP_READ = `Usage: eve read <target> [options]
+
+Options for "read":
   --persona <name>      Reader to simulate (default: first-time-user)
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --genre <name>        document | presentation | analytics | transcript |
@@ -171,7 +177,9 @@ const HELP_READ = `Options for "read":
   --quiet               Only print the final summary
 
 `;
-const HELP_CHAT = `Options for "chat":
+const HELP_CHAT = `Usage: eve chat <target> [options]
+
+Options for "chat":
   --persona <name>      Who is doing the talking (default: first-time-user)
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --goal <text>         What they came for — becomes their opening line
@@ -189,7 +197,9 @@ const HELP_CHAT = `Options for "chat":
   --quiet               Only print the final summary
 
 `;
-const HELP_MCP_EVAL = `Options for "mcp-eval":
+const HELP_MCP_EVAL = `Usage: eve mcp-eval <target> [options]
+
+Options for "mcp-eval":
   --no-fuzz             Skip robustness fuzzing (schema + conformance only)
   --format <fmt>        markdown | json (default markdown)
   --seed <value>        Reproducibility seed for fuzz case selection
@@ -221,7 +231,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   if (rest.includes("--help") || rest.includes("-h")) {
     const block = COMMAND_HELP[command];
     if (block) {
-      process.stdout.write(`eve ${command} — usage\n\n${block}`);
+      process.stdout.write(block);
       return 0;
     }
   }
