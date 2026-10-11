@@ -224,8 +224,9 @@ function reconcileWith(
       // be is still a failure — the fill is visible, the words are not.
       // Single glyphs ("—", "·") are exempt: a lone punctuation mark carries
       // legitimately sub-threshold ink in a roomy box, and flagging it buries
-      // real findings in noise.
-      if (el.text.trim().length > 1) {
+      // real findings in noise. Count code points, not UTF-16 units, so one
+      // emoji still counts as one glyph.
+      if ([...el.text.trim()].length > 1) {
         issues.push({
           kind: "unrendered-text",
           box: el.box,

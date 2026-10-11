@@ -287,6 +287,34 @@ describe("degenerate input", () => {
     expect(regions.length).toBeGreaterThan(0);
     expect(regions.some((r) => r.kind === "text")).toBe(false);
   });
+
+  it("keeps a gapped line of small text as text, not a rule", () => {
+    // Same footprint as the rule above, but with word gaps: continuous ink
+    // is what distinguishes a divider from set type.
+    const W = 1072;
+    const H = 40;
+    const png = new PNG({ width: W, height: H });
+    for (let i = 0; i < W * H; i++) {
+      png.data[i * 4] = 255;
+      png.data[i * 4 + 1] = 255;
+      png.data[i * 4 + 2] = 255;
+      png.data[i * 4 + 3] = 255;
+    }
+    for (let y = 18; y < 22; y++) {
+      for (let x = 0; x < W; x++) {
+        if (x % 24 < 6) continue; // word gaps
+        const i = (y * W + x) * 4;
+        png.data[i] = 30;
+        png.data[i + 1] = 30;
+        png.data[i + 2] = 30;
+      }
+    }
+    const img = decodePng(PNG.sync.write(png));
+    const grid = inkGrid(img, cellFor(1));
+    const regions = findRegions(grid, 1, backgroundLuminance(grid));
+    expect(regions.length).toBeGreaterThan(0);
+    expect(regions[0]!.kind).toBe("text");
+  });
 });
 
 /**
