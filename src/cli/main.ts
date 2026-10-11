@@ -64,7 +64,7 @@ import { McpAdapter } from "../surface/mcp.js";
  *   eve --help
  */
 
-const HELP = `eve — Experience Validation Engine ("AI that experiences software like a human")
+const HELP_HEADER = `eve — Experience Validation Engine ("AI that experiences software like a human")
 
 Usage:
   eve run <url> [options]     Run a simulated-human session against a URL
@@ -83,12 +83,15 @@ Usage:
   eve doctor                  Check which surfaces are usable on this machine
   eve --help                  Show this help
 
-Options for "run":
+`;
+const HELP_RUN = `Options for "run":
   --config <file>       YAML configuration file (CLI flags override it)
   --persona <name>      Persona to simulate (default: first-time-user)
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --culture <locale>    Cultural profile (en-US, de-DE, ja-JP, ar-SA, ...)
   --goal <text>         Task for the operator (default: open-ended exploration)
+  --success <a,b>       Words that mean the goal is done (comma-separated);
+                        matched against visible text every step
   --browser <name>      playwright | puppeteer | selenium | mobile | mock
   --device <name>       Device to emulate when --browser mobile (default
                         "iPhone 14"): iPhone 14 | iPhone SE | Pixel 7 | iPad Mini
@@ -110,7 +113,8 @@ Options for "run":
   --out <dir>           Output directory (default .eve-output)
   --quiet               Only print the final summary
 
-Options for "study" (population usability study):
+`;
+const HELP_STUDY = `Options for "study" (population usability study):
   --size <n>            Number of simulated operators (default 25)
   --personas <a,b,c>    Persona pool to sample (default: whole library)
   --professions <a,b>   Professional overlays to mix (comma-separated)
@@ -129,7 +133,8 @@ Options for "study" (population usability study):
                         workflows, business goals, friction, drop-off causes)
   --quiet               Suppress per-operator progress
 
-Examples:
+`;
+const HELP_EXAMPLES = `Examples:
   eve run https://myapp.example.com --persona impatient-user --goal "sign up for an account"
   eve run mock: --persona curious-explorer --cognitive --utility
   eve run mock: --persona office-worker --profession accountant --culture de-DE
@@ -149,7 +154,8 @@ Examples:
   eve chat https://api.example.com/v1/chat --reply-path choices.0.message.content \\
     --header "authorization: Bearer $TOKEN" --persona impatient-user
 
-Options for "read":
+`;
+const HELP_READ = `Options for "read":
   --persona <name>      Reader to simulate (default: first-time-user)
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --genre <name>        document | presentation | analytics | transcript |
@@ -164,7 +170,8 @@ Options for "read":
   --json                Print the comprehension analysis as JSON
   --quiet               Only print the final summary
 
-Options for "chat":
+`;
+const HELP_CHAT = `Options for "chat":
   --persona <name>      Who is doing the talking (default: first-time-user)
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --goal <text>         What they came for — becomes their opening line
@@ -181,12 +188,23 @@ Options for "chat":
   --json                Print the conversation analysis as JSON
   --quiet               Only print the final summary
 
-Options for "mcp-eval":
+`;
+const HELP_MCP_EVAL = `Options for "mcp-eval":
   --no-fuzz             Skip robustness fuzzing (schema + conformance only)
   --format <fmt>        markdown | json (default markdown)
   --seed <value>        Reproducibility seed for fuzz case selection
   --timeout <ms>        Per-call timeout for fuzz probes (default 5000)
 `;
+
+const HELP = HELP_HEADER + HELP_RUN + HELP_STUDY + HELP_EXAMPLES + HELP_READ + HELP_CHAT + HELP_MCP_EVAL;
+
+const COMMAND_HELP: Record<string, string> = {
+  run: HELP_RUN,
+  study: HELP_STUDY,
+  read: HELP_READ,
+  chat: HELP_CHAT,
+  "mcp-eval": HELP_MCP_EVAL,
+};
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
   const [command, ...rest] = argv;
@@ -194,6 +212,17 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   if (!command || command === "--help" || command === "-h" || command === "help") {
     process.stdout.write(HELP);
     return 0;
+  }
+
+  // Per-subcommand help: `eve <cmd> --help` prints that command's usage
+  // instead of falling through to the subcommand's arg parser, which would
+  // reject the flag as unknown.
+  if (rest.includes("--help") || rest.includes("-h")) {
+    const block = COMMAND_HELP[command];
+    if (block) {
+      process.stdout.write(`eve ${command} — usage\n\n${block}`);
+      return 0;
+    }
   }
 
   if (command === "personas") {
@@ -279,6 +308,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       config: { type: "string" },
       persona: { type: "string" },
       goal: { type: "string" },
+      success: { type: "string" },
       browser: { type: "string" },
       device: { type: "string" },
       steps: { type: "string" },
@@ -316,6 +346,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
     if (values.persona) config.persona = values.persona;
     if (values.goal) config.goal = values.goal;
+    if (values.success) {
+      config.goalSuccessSignals = values.success
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
     if (values.browser) config = resolveConfig({ ...configToRaw(config), browser: values.browser });
     if (values.device) config.device = values.device;
     if (values.steps) config.maxSteps = parsePositiveInt(values.steps, "--steps");
