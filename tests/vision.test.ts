@@ -4,6 +4,7 @@ import type { Percept, VisibleElement } from "../src/core/types.js";
 import { DEFAULT_ACCESSIBILITY } from "../src/personas/index.js";
 import {
   checkGeometry,
+  checkPixels,
   checkRegression,
   contrastRatio,
   decodePng,
@@ -11,6 +12,7 @@ import {
   luminanceVariance,
   parseHexColor,
   relativeLuminance,
+  sampleLuminances,
   simulateColorVision,
 } from "../src/vision/index.js";
 
@@ -78,6 +80,104 @@ describe("pixel math", () => {
   it("blank frames have near-zero luminance variance", () => {
     const blank = decodePng(solidPng(60, 60, [250, 250, 250]));
     expect(luminanceVariance(blank)).toBeLessThan(0.0001);
+  });
+
+  it("samples densely enough to catch small text inside a large box", () => {
+    // A 200x120 white cell with a thin dark "text" bar near the top-left.
+    // A fixed 12x12 grid can miss the bar entirely and report the cell as
+    // blank; the adaptive grid must see dark pixels.
+    const W = 200;
+    const H = 120;
+    const png = new PNG({ width: W, height: H });
+    for (let i = 0; i < W * H; i++) {
+      png.data[i * 4] = 255;
+      png.data[i * 4 + 1] = 255;
+      png.data[i * 4 + 2] = 255;
+      png.data[i * 4 + 3] = 255;
+    }
+    for (let y = 18; y < 34; y++) {
+      for (let x = 24; x < 124; x++) {
+        const i = (y * W + x) * 4;
+        png.data[i] = 20;
+        png.data[i + 1] = 20;
+        png.data[i + 2] = 20;
+      }
+    }
+    const img = decodePng(PNG.sync.write(png));
+    const box = { x: 0, y: 0, width: W, height: H };
+    const lums = sampleLuminances(img, box);
+    const dark = lums.filter((l) => l < 0.5).length;
+    // The bar covers ~7% of the box: the 1st percentile must be dark, which
+    // is what the low-contrast check in checkPixels relies on.
+    expect(dark).toBeGreaterThan(lums.length * 0.01);
+    const lo = lums[Math.floor(lums.length * 0.01)]!;
+    const hi = lums[Math.floor(lums.length * 0.99)]!;
+    expect(contrastRatio(hi, lo)).toBeGreaterThan(2.2);
+  });
+
+  it("checkPixels does not flag readable text in a roomy box", () => {
+    const W = 200;
+    const H = 120;
+    const png = new PNG({ width: W, height: H });
+    for (let i = 0; i < W * H; i++) {
+      png.data[i * 4] = 255;
+      png.data[i * 4 + 1] = 255;
+      png.data[i * 4 + 2] = 255;
+      png.data[i * 4 + 3] = 255;
+    }
+    for (let y = 18; y < 34; y++) {
+      for (let x = 24; x < 124; x++) {
+        const i = (y * W + x) * 4;
+        png.data[i] = 20;
+        png.data[i + 1] = 20;
+        png.data[i + 2] = 20;
+      }
+    }
+    const screenshot = PNG.sync.write(png);
+    const p = percept([
+      el({
+        text: "readable label",
+        box: { x: 0, y: 0, width: W, height: H },
+        // No declared colors: forces the pixel-sampled contrast path.
+        color: undefined,
+        backgroundColor: undefined,
+      }),
+    ]);
+    const issues = checkPixels({ ...p, screenshot });
+    expect(issues.filter((i) => i.kind === "low-contrast")).toEqual([]);
+  });
+
+  it("checkPixels does not flag a short heading in a full-width box", () => {
+    // A block-level h1/h2 box spans the viewport while the glyphs cover ~3%.
+    // The percentile estimator must still see the ink.
+    const W = 1068;
+    const H = 36;
+    const png = new PNG({ width: W, height: H });
+    for (let i = 0; i < W * H; i++) {
+      png.data[i * 4] = 255;
+      png.data[i * 4 + 1] = 255;
+      png.data[i * 4 + 2] = 255;
+      png.data[i * 4 + 3] = 255;
+    }
+    for (let y = 12; y < 24; y++) {
+      for (let x = 8; x < 120; x++) {
+        const i = (y * W + x) * 4;
+        png.data[i] = 20;
+        png.data[i + 1] = 20;
+        png.data[i + 2] = 20;
+      }
+    }
+    const screenshot = PNG.sync.write(png);
+    const p = percept([
+      el({
+        text: "short page heading",
+        box: { x: 0, y: 0, width: W, height: H },
+        color: undefined,
+        backgroundColor: undefined,
+      }),
+    ]);
+    const issues = checkPixels({ ...p, screenshot });
+    expect(issues.filter((i) => i.kind === "low-contrast")).toEqual([]);
   });
 });
 
