@@ -222,15 +222,21 @@ function reconcileWith(
     if (el.text.trim().length > 0) {
       // Text is not text unless it is drawn. A flat fill where a label should
       // be is still a failure — the fill is visible, the words are not.
-      issues.push({
-        kind: "unrendered-text",
-        box: el.box,
-        elementId: el.id,
-        text: el.text,
-        detail: distinct
-          ? `The DOM carries the text "${abbreviate(el.text)}" here, but the area is a flat fill with nothing drawn in it — the text did not reach the screen.`
-          : `The DOM carries the text "${abbreviate(el.text)}" here, but nothing is rendered in its box.`,
-      });
+      // Single glyphs ("—", "·") are exempt: a lone punctuation mark carries
+      // legitimately sub-threshold ink in a roomy box, and flagging it buries
+      // real findings in noise. Count code points, not UTF-16 units, so one
+      // emoji still counts as one glyph.
+      if ([...el.text.trim()].length > 1) {
+        issues.push({
+          kind: "unrendered-text",
+          box: el.box,
+          elementId: el.id,
+          text: el.text,
+          detail: distinct
+            ? `The DOM carries the text "${abbreviate(el.text)}" here, but the area is a flat fill with nothing drawn in it — the text did not reach the screen.`
+            : `The DOM carries the text "${abbreviate(el.text)}" here, but nothing is rendered in its box.`,
+        });
+      }
       continue;
     }
 

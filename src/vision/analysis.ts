@@ -244,9 +244,14 @@ export function checkPixels(percept: Percept): VisualIssue[] {
     if (el.box.y < 0 || el.box.y > percept.viewport.height) continue;
     const lums = sampleLuminances(img, el.box);
     if (lums.length < 16) continue;
-    // Estimate fg/bg as the 5th/95th percentile luminances inside the box.
-    const lo = lums[Math.floor(lums.length * 0.05)]!;
-    const hi = lums[Math.floor(lums.length * 0.95)]!;
+    // Estimate fg/bg as the 1st/99th percentile luminances inside the box.
+    // Block-level boxes (a full-width h1/h2) can hold text covering only a
+    // few percent of their area; the 5th percentile then reads
+    // background-vs-background and cries "unreadable" at perfectly legible
+    // text. The 1st percentile still sees the glyphs while ignoring stray
+    // dark specks.
+    const lo = lums[Math.floor(lums.length * 0.01)]!;
+    const hi = lums[Math.floor(lums.length * 0.99)]!;
     const ratio = contrastRatio(hi, lo);
     if (ratio < 2.2) {
       issues.push({

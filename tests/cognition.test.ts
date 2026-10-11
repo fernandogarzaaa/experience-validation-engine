@@ -91,4 +91,24 @@ describe("mental model", () => {
     expect(outcome.errorPerceived).toBe(true);
     expect(outcome.surprise).toBeGreaterThan(0.5);
   });
+
+  it("treats a pure reordering (e.g. a column sort) as a visible change", () => {
+    const before = percept(["alpha-row", "beta-row", "gamma-row"]);
+    const after = percept(["gamma-row", "beta-row", "alpha-row"]);
+    const prediction = predictInteraction(element("Sort"), "click", 0.8);
+    const outcome = comparePrediction(prediction, before, after, 100);
+    expect(outcome.screenChanged).toBe(true);
+  });
+
+  it("does not mistake an identical screen for a change", () => {
+    const before = percept(["alpha-row", "beta-row", "gamma-row"]);
+    const prediction = predictInteraction(element("Sort"), "click", 0.8);
+    const outcome = comparePrediction(
+      prediction,
+      before,
+      percept(["alpha-row", "beta-row", "gamma-row"]),
+      100,
+    );
+    expect(outcome.screenChanged).toBe(false);
+  });
 });
