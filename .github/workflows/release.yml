@@ -37,6 +37,9 @@ jobs:
       # Required for npm provenance, which ties the published tarball to this
       # workflow run so consumers can verify where it was built.
       id-token: write
+    env:
+      # Secrets cannot be referenced in step-level `if:`; expose presence only.
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -56,7 +59,15 @@ jobs:
       - run: npm run build
       - run: npm run mcp:smoke
 
+      # Without an NPM_TOKEN secret the publish step would fail with
+      # ENEEDAUTH and mark the release run red even though the tag and
+      # GitHub Release were created fine. Skip it with a visible notice.
+      - name: Skip npm publish (no NPM_TOKEN secret)
+        if: env.HAS_NPM_TOKEN != 'true'
+        run: echo "::notice title=npm publish skipped::NPM_TOKEN secret is not set; the tag and GitHub Release were created, but nothing was published to npm."
+
       - name: Publish to npm
+        if: env.HAS_NPM_TOKEN == 'true'
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
