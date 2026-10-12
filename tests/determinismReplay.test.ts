@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -34,12 +34,12 @@ import type { FitnessResult, ValidationRequest } from "../src/protocol/types.js"
 
 const RUNS = 3;
 // The committed evidence file is only regenerated on request
-// (EVE_WRITE_EVIDENCE=1); a plain `npm test` writes to the OS temp dir so it
-// never leaves the working tree dirty.
+// (EVE_WRITE_EVIDENCE=1); a plain `npm test` writes into a fresh private
+// temp directory so it never leaves the working tree dirty.
 const REPORT_PATH =
   process.env.EVE_WRITE_EVIDENCE === "1"
     ? "docs/evidence/determinism-replay.json"
-    : join(tmpdir(), "eve-determinism-replay.json");
+    : join(mkdtempSync(join(tmpdir(), "eve-determinism-")), "determinism-replay.json");
 const PRODUCED_AT = "2026-01-01T00:00:00.000Z";
 
 const sha = (value: unknown): string =>
