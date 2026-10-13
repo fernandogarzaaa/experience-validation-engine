@@ -62,7 +62,7 @@ And a **disposition**: starting overrides for any of the nine emotions
 ## Defining a persona in code
 
 ```ts
-import { definePersona } from "experience-validation-engine";
+import { definePersona } from "@fernandogarzadev/experience-validation-engine";
 
 const persona = definePersona({
   name: "night-shift-nurse",

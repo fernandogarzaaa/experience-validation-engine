@@ -20,7 +20,7 @@
  *
  * @example
  * ```ts
- * import { validateMutation } from "experience-validation-engine/fitness";
+ * import { validateMutation } from "@fernandogarzadev/experience-validation-engine/fitness";
  *
  * const result = await validateMutation(request);
  * if (result.recommendation === "approve") {

@@ -4,7 +4,7 @@
  *
  *   npx tsx examples/basic-run.ts
  *
- * In your own project, import from "experience-validation-engine" instead
+ * In your own project, import from "@fernandogarzadev/experience-validation-engine" instead
  * of the relative path.
  */
 import {

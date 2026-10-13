@@ -1,7 +1,7 @@
 # API Reference
 
 All symbols are exported from the package root
-(`import { ... } from "experience-validation-engine"`). Types are strict;
+(`import { ... } from "@fernandogarzadev/experience-validation-engine"`). Types are strict;
 this page lists the load-bearing surface — see the `.d.ts` files for full
 signatures.
 

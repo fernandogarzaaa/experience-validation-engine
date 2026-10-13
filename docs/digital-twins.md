@@ -7,8 +7,8 @@ apps it has used, grows more expert, and its confidence baseline drifts toward
 its lived performance.
 
 ```ts
-import { createTwin, runTwinSession, FileTwinStore } from "experience-validation-engine";
-import { PlaywrightAdapter } from "experience-validation-engine";
+import { createTwin, runTwinSession, FileTwinStore } from "@fernandogarzadev/experience-validation-engine";
+import { PlaywrightAdapter } from "@fernandogarzadev/experience-validation-engine";
 
 const store = new FileTwinStore(".eve-twins.json");
 let twin = (await store.load("power-user-a")) ?? createTwin({

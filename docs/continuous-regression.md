@@ -9,7 +9,7 @@ Where [`compareExperience`](panel-and-analysis.md) compares two sessions,
 → build N) and turns each tracked metric into a trend.
 
 ```ts
-import { simulatePopulation, analyzeTrends, renderTrendReportMarkdown } from "experience-validation-engine";
+import { simulatePopulation, analyzeTrends, renderTrendReportMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const v1 = await simulatePopulation({ url: "https://staging.example.com?build=1", size: 30, seed: 7 });
 const v2 = await simulatePopulation({ url: "https://staging.example.com?build=2", size: 30, seed: 7 });

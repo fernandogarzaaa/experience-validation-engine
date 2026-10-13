@@ -5,7 +5,7 @@ explores an app like a curious human and reconstructs a complete **application
 map** from what it *perceived*.
 
 ```ts
-import { EveSession, PlaywrightAdapter, buildApplicationMap, renderApplicationMapMarkdown } from "experience-validation-engine";
+import { EveSession, PlaywrightAdapter, buildApplicationMap, renderApplicationMapMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const results = [];
 for (const persona of ["curious-explorer", "power-user", "first-time-user"]) {

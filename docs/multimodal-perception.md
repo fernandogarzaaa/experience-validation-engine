@@ -10,7 +10,7 @@ Crucially, it stays inside the **human-perception boundary**: cues come only
 from what is rendered and visible, never from the DOM, routes, or source.
 
 ```ts
-import { EveSession, PlaywrightAdapter, analyzeMultimodal, renderMultimodalMarkdown } from "experience-validation-engine";
+import { EveSession, PlaywrightAdapter, analyzeMultimodal, renderMultimodalMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const result = await new EveSession({
   adapter: new PlaywrightAdapter({ headless: true }),

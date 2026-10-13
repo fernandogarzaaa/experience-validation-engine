@@ -16,7 +16,7 @@ app still completes the task, but now with more clicks, an error, or lower
 confidence.
 
 ```ts
-import { compareExperience } from "experience-validation-engine";
+import { compareExperience } from "@fernandogarzadev/experience-validation-engine";
 const report = compareExperience(baselineRun, candidateRun);
 // report.verdict: "improved" | "unchanged" | "regressed"
 // report.regressions: [{ metric, baseline, candidate, delta, severity }, ...]
@@ -56,7 +56,7 @@ After a panel of personas runs, `runPanel(sessions)` executes a team of AIs:
 | **Developer** | Translates the backlog into **GitHub / Linear / Jira / Markdown** tickets with acceptance criteria — data + serializers, ready to pipe into a tracker. |
 
 ```ts
-import { runPanel, renderPanelMarkdown, toGitHubIssues } from "experience-validation-engine";
+import { runPanel, renderPanelMarkdown, toGitHubIssues } from "@fernandogarzadev/experience-validation-engine";
 const panel = runPanel(sessions);
 console.log(panel.executive.executiveSummary);
 await writeFile("panel.md", renderPanelMarkdown(panel));
