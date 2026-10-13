@@ -1,5 +1,5 @@
 {
-  "name": "experience-validation-engine",
+  "name": "@fernandogarzadev/experience-validation-engine",
   "version": "0.5.2",
   "description": "EVE — an autonomous cognitive simulation engine that evaluates software through the perspective of realistic human operators. AI that experiences software like a human.",
   "license": "MIT",
@@ -52,6 +52,9 @@
     "lint": "biome check src tests examples",
     "lint:fix": "biome check --write src tests examples",
     "format": "biome format --write src tests examples"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=22.12.0"

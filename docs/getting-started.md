@@ -7,7 +7,7 @@ what they experienced, where they got confused, and where they gave up.
 ## Install
 
 ```bash
-npm install experience-validation-engine
+npm install @fernandogarzadev/experience-validation-engine
 ```
 
 Or run it without installing:

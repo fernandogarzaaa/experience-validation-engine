@@ -12,7 +12,7 @@ options set, `EveSession` behaves exactly as in phase 1.
 ## Enabling the enhanced cognition
 
 ```ts
-import { EveSession, UtilityCognition, FileMemoryStore } from "experience-validation-engine";
+import { EveSession, UtilityCognition, FileMemoryStore } from "@fernandogarzadev/experience-validation-engine";
 
 new EveSession({
   adapter, startUrl,

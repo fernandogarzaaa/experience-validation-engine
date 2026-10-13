@@ -200,7 +200,7 @@ eve chat https://api.example.com/v1/chat --reply-path choices.0.message.content 
 ```
 
 ```ts
-import { converse, ScriptedBackend, HttpBackend } from "experience-validation-engine";
+import { converse, ScriptedBackend, HttpBackend } from "@fernandogarzadev/experience-validation-engine";
 
 const result = await converse(new HttpBackend({ url: "https://…/chat" }), {
   persona: "elderly-user",

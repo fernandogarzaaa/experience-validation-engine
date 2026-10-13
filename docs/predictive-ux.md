@@ -9,7 +9,7 @@ carries `provenance` (`derived` / `heuristic`), `calibrationStatus`
 `humanCalibratedEstimate` (null until calibration exists).
 
 ```ts
-import { simulatePopulation, predictUX, renderUXPredictionMarkdown } from "experience-validation-engine";
+import { simulatePopulation, predictUX, renderUXPredictionMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const study = await simulatePopulation({ url: "mock:", size: 40, seed: 7 });
 const prediction = predictUX(study);

@@ -6,7 +6,7 @@ name: Publish (manual)
 #
 # Usage: Actions → "Publish (manual)" → Run workflow → ref `v0.5.0`.
 # Requires a repo secret named NPM_TOKEN holding an npm automation token
-# with publish access to experience-validation-engine.
+# with publish access to @fernandogarzadev/experience-validation-engine.
 
 on:
   workflow_dispatch:
@@ -66,7 +66,7 @@ jobs:
       - name: Check npm auth
         run: |
           if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
-            echo "::error::NPM_TOKEN is not configured. Create an npm automation token (npmjs.com -> Access Tokens -> Generate New Token -> Automation) with publish access to experience-validation-engine, add it as a repo secret named NPM_TOKEN, then re-run this workflow."
+            echo "::error::NPM_TOKEN is not configured. Create an npm automation token (npmjs.com -> Access Tokens -> Generate New Token -> Automation) with publish access to @fernandogarzadev/experience-validation-engine, add it as a repo secret named NPM_TOKEN, then re-run this workflow."
             exit 1
           fi
 

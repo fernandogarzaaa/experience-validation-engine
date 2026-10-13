@@ -1,5 +1,15 @@
 # Changelog
 
+> **Package renamed.** From 0.5.3 on, EVE is published to npm as
+> `@fernandogarzadev/experience-validation-engine`
+> (`npm install @fernandogarzadev/experience-validation-engine`). The old
+> unscoped `experience-validation-engine` package is frozen at 0.3.1 and will
+> not receive updates. The CLI binaries (`eve`, `eve-mcp`, `eve-cp1`) are
+> unchanged. MCP configs must name the binary explicitly:
+> `npx -y -p @fernandogarzadev/experience-validation-engine eve-mcp`
+> (the old `npx -y experience-validation-engine eve-mcp` form never resolved,
+> because the package has three bins and none matches the package name).
+
 ## Unreleased — Phase 2: modality-variant kernel (Approach B)
 
 The one-time core generalization, landed additively: the browser-flavored
