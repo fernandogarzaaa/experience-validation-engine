@@ -167,6 +167,14 @@ report, or CP/1 document changes.
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
 
+## [0.5.3](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.2...v0.5.3) (2026-10-13)
+
+
+### Fixes
+
+* **ci:** keep Release green without NPM_TOKEN; stop tests dirtying tracked evidence ([#68](https://github.com/fernandogarzaaa/experience-validation-engine/issues/68)) ([e7bf342](https://github.com/fernandogarzaaa/experience-validation-engine/commit/e7bf342f910653cdec2bfb6791e5ba28ff1bda2d))
+* **package:** publish as @fernandogarzadev/experience-validation-engine ([#71](https://github.com/fernandogarzaaa/experience-validation-engine/issues/71)) ([5ae65b0](https://github.com/fernandogarzaaa/experience-validation-engine/commit/5ae65b05a068f9a926345485a74b43263fc5a56d))
+
 ## [0.5.2](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.1...v0.5.2) (2026-10-11)
 
 
