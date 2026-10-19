@@ -80,7 +80,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": ">=0.30.0 <1.0.0",
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "playwright": "^1.40.0",
     "pngjs": "^7.0.0",
     "yaml": "^2.4.0",
