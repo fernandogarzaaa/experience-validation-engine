@@ -10,13 +10,7 @@
  * (`src/surface/mcpClient.ts`) over `InMemoryTransport` — no subprocesses.
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  ErrorCode,
-  ListToolsRequestSchema,
-  McpError,
-} from "@modelcontextprotocol/sdk/types.js";
+import { ProtocolError, ProtocolErrorCode, Server } from "@modelcontextprotocol/server";
 
 type ToolSpec = Record<string, unknown>;
 
@@ -52,17 +46,17 @@ export function createGoodServer(): {
     { capabilities: { tools: { listChanged: true } } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools }));
+  server.setRequestHandler("tools/list", () => ({ tools }));
 
-  server.setRequestHandler(CallToolRequestSchema, (request) => {
+  server.setRequestHandler("tools/call", (request) => {
     const { name, arguments: args } = request.params;
     if (name !== "add") {
-      throw new McpError(ErrorCode.InvalidParams, `unknown tool "${name}"`);
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `unknown tool "${name}"`);
     }
     const a = (args as Record<string, unknown> | undefined)?.a;
     const b = (args as Record<string, unknown> | undefined)?.b;
     if (typeof a !== "number" || typeof b !== "number") {
-      throw new McpError(ErrorCode.InvalidParams, "add expects numeric a and b");
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, "add expects numeric a and b");
     }
     return { content: [{ type: "text" as const, text: String(a + b) }] };
   });
@@ -84,7 +78,7 @@ export function createSloppyServer(): Server {
     { capabilities: { tools: {} } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, () => ({
+  server.setRequestHandler("tools/list", () => ({
     tools: [
       {
         name: "no_desc",
@@ -119,7 +113,7 @@ export function createSloppyServer(): Server {
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, (request) => {
+  server.setRequestHandler("tools/call", (request) => {
     // Never validates: garbage in, success out.
     return {
       content: [{ type: "text" as const, text: `ok: ${request.params.name}` }],
@@ -136,7 +130,7 @@ export function createFragileServer(): Server {
     { capabilities: { tools: {} } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, () => ({
+  server.setRequestHandler("tools/list", () => ({
     tools: [
       {
         name: "boom",
@@ -153,7 +147,7 @@ export function createFragileServer(): Server {
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler("tools/call", async (request) => {
     if (request.params.name === "boom") {
       // Die underneath the in-flight call.
       await server.close();
@@ -178,7 +172,7 @@ export function createVerboseServer(lineCount = 40): Server {
     { capabilities: { tools: {} } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, () => ({
+  server.setRequestHandler("tools/list", () => ({
     tools: [
       {
         name: "report",
@@ -188,7 +182,7 @@ export function createVerboseServer(lineCount = 40): Server {
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, () => ({
+  server.setRequestHandler("tools/call", () => ({
     content: [
       {
         type: "text" as const,

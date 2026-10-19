@@ -1,4 +1,3 @@
-import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { describe, expect, it } from "vitest";
 import { EveSession } from "../src/engine/session.js";
 import { McpAdapter } from "../src/surface/mcp.js";
@@ -154,7 +153,7 @@ describe("McpAdapter", () => {
 
   it("presents a tool-free server as a dead end with no affordances", async () => {
     const empty = createSloppyServer();
-    empty.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }));
+    empty.setRequestHandler("tools/list", () => ({ tools: [] }));
     const adapter = new McpAdapter({
       connector: (target) => connectMcpInProcess(empty, target),
     });

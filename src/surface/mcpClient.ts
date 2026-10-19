@@ -18,15 +18,15 @@
  */
 
 import {
-  Client,
-  InMemoryTransport,
-  StreamableHTTPClientTransport,
-  type Transport,
   type CallToolResult,
+  Client,
   type Implementation,
+  InMemoryTransport,
   SdkError,
   type ServerCapabilities,
+  StreamableHTTPClientTransport,
   type Tool,
+  type Transport,
 } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import type { Server } from "@modelcontextprotocol/server";
@@ -129,9 +129,12 @@ class SdkMcpConnection implements McpConnection {
     args: Record<string, unknown>,
     timeoutMs = DEFAULT_CALL_TIMEOUT_MS,
   ): Promise<McpCallOutcome> {
-    const result = await this.client.callTool({ name, arguments: args }, {
-      timeout: timeoutMs,
-    });
+    const result = await this.client.callTool(
+      { name, arguments: args },
+      {
+        timeout: timeoutMs,
+      },
+    );
     return flattenResult(result as CallToolResult);
   }
 
@@ -218,7 +221,7 @@ export async function connectMcpInProcess(
 }
 
 /** JSON-RPC error codes the evaluators classify on. */
-export { SdkErrorCode as ErrorCode, SdkError as McpError } from "@modelcontextprotocol/client";
+export { SdkError as McpError, SdkErrorCode as ErrorCode } from "@modelcontextprotocol/client";
 
 /** Is this error the transport dying underneath a call (a server crash)? */
 export function isConnectionClosedError(error: unknown): boolean {
