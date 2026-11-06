@@ -16,8 +16,10 @@ goal: "sign up and create my first project"
 goalSuccessSignals:                     # text whose appearance = success
   - "project created"
 
-# Browser layer: playwright | puppeteer | selenium | mock
+# Browser layer: playwright | puppeteer | selenium | mock | rune
 browser: playwright                      # default: playwright
+# Path to the Rune app binary when browser is "rune" (or use a rune:<path> URL).
+# runeBinary: /path/to/hello
 headless: true                           # default: true
 viewport:
   width: 1280                            # default: 1280

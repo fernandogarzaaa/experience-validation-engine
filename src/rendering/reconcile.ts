@@ -24,6 +24,7 @@
  */
 
 import type { BoundingBox, Percept, Viewport, VisibleElement } from "../core/types.js";
+import { textSourceOf } from "../observation/provenance.js";
 import { decodePng } from "../vision/pixels.js";
 import {
   backgroundLuminance,
@@ -212,6 +213,16 @@ function reconcileWith(
 
   // --- What the DOM claims but the screen does not show -------------------
   for (const el of candidates) {
+    // An accessibility-sourced label is not rendered text: an aria-label or
+    // a Rune accessible name names a control for assistive technology, so a
+    // blank box under it is expected, not a failure. Judging it as
+    // unrendered text flagged the name-form field's "Your name" label this
+    // way. The skip covers the phantom branch too: a labeled control's box
+    // is judged by its own fill, and a card barely lighter than the page
+    // (the name field's box) reads as indistinguishable by that threshold
+    // even though a person sees the box. Where the signal is ambiguous,
+    // this module stays quiet.
+    if (textSourceOf(el) === "accessibility") continue;
     const device = toDevice(el.box, scale);
     const density = inkDensity(grid, device);
     if (density > BLANK_INK) continue;

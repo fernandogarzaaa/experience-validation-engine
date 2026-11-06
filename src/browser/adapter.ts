@@ -137,6 +137,10 @@ export interface AdapterOptions {
   settleMs?: number;
   /** Device to emulate (mobile adapter only), e.g. "iPhone 14". */
   device?: string;
+  /** Path to the Rune app binary (Rune adapter only). */
+  runeBinary?: string;
+  /** Directory for per-step Rune records, for post-run scoring (Rune adapter only). */
+  recordDir?: string;
   /**
    * How a blocking native dialog (alert/confirm/prompt) is handled (P0.2).
    *

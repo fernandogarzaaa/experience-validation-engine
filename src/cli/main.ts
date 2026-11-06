@@ -89,7 +89,7 @@ Options for "run":
   --profession <name>   Professional overlay (doctor, accountant, lawyer, ...)
   --culture <locale>    Cultural profile (en-US, de-DE, ja-JP, ar-SA, ...)
   --goal <text>         Task for the operator (default: open-ended exploration)
-  --browser <name>      playwright | puppeteer | selenium | mobile | mock
+  --browser <name>      playwright | puppeteer | selenium | mobile | mock | rune
   --device <name>       Device to emulate when --browser mobile (default
                         "iPhone 14"): iPhone 14 | iPhone SE | Pixel 7 | iPad Mini
   --steps <n>           Max loop iterations (default 60)
@@ -342,6 +342,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   // URLs beginning with mock: force the mock adapter for offline demos.
   if (config.url.startsWith("mock:")) config.browser = "mock";
+  // URLs beginning with rune: force the Rune adapter; the rest is the app binary path.
+  if (config.url.startsWith("rune:")) config.browser = "rune";
   for (const spec of config.customPersonas ?? []) registerPersona(definePersona(spec));
   let persona: Persona =
     typeof config.persona === "string" ? getPersona(config.persona) : config.persona;
@@ -381,7 +383,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     // mcp: URLs project an MCP server onto the textual-surface seam.
     adapter: isMcp
       ? new McpAdapter()
-      : createAdapter(config.browser, { headless: config.headless, device: config.device }),
+      : createAdapter(config.browser, {
+          headless: config.headless,
+          device: config.device,
+          runeBinary: config.runeBinary,
+          recordDir: config.runeRecordDir,
+        }),
     startUrl: config.url,
     persona,
     policy,

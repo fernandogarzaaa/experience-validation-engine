@@ -4,6 +4,7 @@ import type { Percept, VisibleElement } from "../src/core/types.js";
 import { DEFAULT_ACCESSIBILITY } from "../src/personas/index.js";
 import {
   checkGeometry,
+  checkPixels,
   checkRegression,
   contrastRatio,
   decodePng,
@@ -107,6 +108,25 @@ describe("geometry checks", () => {
     expect(issues.some((i) => i.kind === "low-contrast")).toBe(false);
   });
 
+  it("skips declared-color contrast for accessibility-sourced labels", () => {
+    // A switch's accessible name is not rendered text: its colors describe
+    // the control, not a glyph a human reads. The hello app's "Lights" label
+    // used to draw a spurious low-contrast finding this way.
+    const issues = checkGeometry(
+      percept([
+        el({
+          text: "Lights",
+          textSource: "accessibility",
+          color: "#ffffff",
+          backgroundColor: "#ffffff",
+          fontSize: 14,
+        }),
+      ]),
+      DEFAULT_ACCESSIBILITY,
+    );
+    expect(issues.some((i) => i.kind === "low-contrast")).toBe(false);
+  });
+
   it("flags tiny text against the persona's comfortable minimum", () => {
     const issues = checkGeometry(percept([el({ text: "tiny print", fontSize: 8 })]), {
       ...DEFAULT_ACCESSIBILITY,
@@ -183,5 +203,26 @@ describe("checkRegression", () => {
   it("degrades to null rather than throwing on undecodable image data", () => {
     const garbage = Buffer.from([1, 2, 3, 4]);
     expect(checkRegression(garbage, garbage, true)).toBeNull();
+  });
+});
+
+describe("checkPixels contrast", () => {
+  function shotPercept(elements: VisibleElement[]): Percept {
+    return { ...percept(elements), screenshot: solidPng(200, 200, [67, 146, 247]) };
+  }
+
+  it("skips pixel-sampled contrast for accessibility-sourced labels", () => {
+    // A uniform screenshot makes any sampled box read ~1:1, which is exactly
+    // how the hello app's switch label ("Lights", never rendered as pixels)
+    // drew a spurious 1.00:1 finding. The label is not on screen to sample.
+    const issues = checkPixels(shotPercept([el({ text: "Lights", textSource: "accessibility" })]));
+    expect(issues.some((i) => i.kind === "low-contrast")).toBe(false);
+  });
+
+  it("still flags pixel-sampled contrast for rendered text", () => {
+    const issues = checkPixels(
+      shotPercept([el({ text: "faint words here", textSource: "visual" })]),
+    );
+    expect(issues.some((i) => i.kind === "low-contrast")).toBe(true);
   });
 });

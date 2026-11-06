@@ -18,6 +18,10 @@ export interface EveConfig {
   browser: AdapterName;
   /** Device to emulate when browser is "mobile" (e.g. "iPhone 14"). */
   device?: string;
+  /** Path to the Rune app binary when browser is "rune". */
+  runeBinary?: string;
+  /** Directory for per-step Rune PNG/tree/journal records (post-run scoring). */
+  runeRecordDir?: string;
   headless: boolean;
   viewport: Viewport;
   goal?: string;
@@ -71,7 +75,14 @@ export const DEFAULT_CONFIG: Omit<EveConfig, "url"> = {
   utilityDecisions: false,
 };
 
-const ADAPTERS: readonly AdapterName[] = ["playwright", "puppeteer", "selenium", "mobile", "mock"];
+const ADAPTERS: readonly AdapterName[] = [
+  "playwright",
+  "puppeteer",
+  "selenium",
+  "mobile",
+  "mock",
+  "rune",
+];
 const STRATEGIES: readonly ExplorationStrategy[] = ["curious", "systematic", "goal-directed"];
 
 /** Validate and normalize a raw (parsed-YAML or object) configuration. */
@@ -104,6 +115,9 @@ export function resolveConfig(raw: unknown): EveConfig {
     }
     config.device = device;
   }
+  if (input.runeBinary !== undefined) config.runeBinary = expectString(input, "runeBinary");
+  if (input.runeRecordDir !== undefined)
+    config.runeRecordDir = expectString(input, "runeRecordDir");
   if (input.headless !== undefined) config.headless = expectBoolean(input, "headless");
   if (input.viewport !== undefined) {
     if (

@@ -1,4 +1,5 @@
 import type { Percept, VisibleElement } from "../core/types.js";
+import { textSourceOf } from "../observation/provenance.js";
 import type { AccessibilityProfile } from "../personas/persona.js";
 import {
   contrastRatio,
@@ -152,6 +153,10 @@ function checkDeclaredContrast(
 ): VisualIssue[] {
   const issues: VisualIssue[] = [];
   for (const el of percept.elements) {
+    // An accessibility-sourced label names a control no sighted human reads
+    // as text, so a contrast ratio on it is meaningless. The label is not
+    // rendered; there are no pixels to measure.
+    if (textSourceOf(el) === "accessibility") continue;
     if (!el.text.trim() || el.text.trim().length < 3) continue;
     if (!el.color || !el.backgroundColor) continue;
     let fg = parseHexColor(el.color);
@@ -238,6 +243,10 @@ export function checkPixels(percept: Percept): VisualIssue[] {
 
   // Pixel-sampled contrast for text elements without declared colors.
   for (const el of percept.elements) {
+    // Same rule as the declared-color path: an accessibility-sourced label
+    // is not rendered text, so sampling its box measures the control behind
+    // it, not the label. The hello app's switch label read 1.00:1 this way.
+    if (textSourceOf(el) === "accessibility") continue;
     if (!el.text.trim() || el.text.trim().length < 4) continue;
     if (el.color && el.backgroundColor) continue; // declared-color path covers it
     if (el.box.width < 8 || el.box.height < 8) continue;
