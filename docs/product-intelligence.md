@@ -6,7 +6,7 @@ population behaved, with no access to the app's source (the human-perception
 boundary holds).
 
 ```ts
-import { simulatePopulation, inferProductIntelligence, renderProductIntelligenceMarkdown } from "experience-validation-engine";
+import { simulatePopulation, inferProductIntelligence, renderProductIntelligenceMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const study = await simulatePopulation({ url: "mock:", size: 30, seed: 7 });
 const intel = inferProductIntelligence(study);

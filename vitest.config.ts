@@ -26,7 +26,9 @@ export default defineConfig({
       // against (AST-based instrumentation instead of istanbul's, a smaller
       // and different unit count for the same source). The drop in these
       // numbers versus earlier commits is a measurement-methodology change,
-      // not a real loss of test coverage — the same 233 tests pass.
+      // not a real loss of test coverage — the same tests pass.
+      // Vitest 5's coverage-v8 uses the same methodology; thresholds hold
+      // (measured 81/69/84/83 vs thresholds 74/62/78/75 on vitest 5.0.3).
       thresholds: {
         statements: 74,
         branches: 62,

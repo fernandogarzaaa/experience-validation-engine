@@ -30,8 +30,8 @@ calibration, not configuration.
 ## Quick start
 
 ```ts
-import { simulatePopulation } from "experience-validation-engine";
-import { renderStudyMarkdown, writeStudyDataset } from "experience-validation-engine";
+import { simulatePopulation } from "@fernandogarzadev/experience-validation-engine";
+import { renderStudyMarkdown, writeStudyDataset } from "@fernandogarzadev/experience-validation-engine";
 
 const study = await simulatePopulation({
   url: "mock:",              // offline demo app; swap for a real URL
@@ -103,7 +103,7 @@ browser: `adapterFactory: () => new PlaywrightAdapter({ headless: true })`.
 Every study exports to reproducible research artifacts:
 
 ```ts
-import { renderStudy, writeStudyDataset } from "experience-validation-engine";
+import { renderStudy, writeStudyDataset } from "@fernandogarzadev/experience-validation-engine";
 
 renderStudy(study, "json");     // full snapshot
 renderStudy(study, "csv");      // one tidy row per operator (pandas/R-ready)

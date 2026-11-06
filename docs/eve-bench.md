@@ -9,7 +9,7 @@ construct-discrimination REGRESSION benchmarks — they prove the instrument
 still discriminates its own fixtures, not that it matches real humans.
 
 ```ts
-import { runEveBench, renderEveBenchMarkdown } from "experience-validation-engine";
+import { runEveBench, renderEveBenchMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const report = await runEveBench({ seed: 7 });
 console.log(report.overall);   // 0..100

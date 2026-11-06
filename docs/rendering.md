@@ -158,7 +158,7 @@ much larger behavioural change than reporting what the pixels show.
 ## API
 
 ```ts
-import { inspect, observe, reconcile } from "experience-validation-engine";
+import { inspect, observe, reconcile } from "@fernandogarzadev/experience-validation-engine";
 
 // Everything in one pass (the grid is built once):
 const { observation, issues } = inspect(percept);

@@ -31,7 +31,10 @@ export const PERCEPTION_SCRIPT = `
     const m = cssColor && cssColor.match(/rgba?\\(([^)]+)\\)/);
     if (!m) return undefined;
     const parts = m[1].split(",").map(s => parseFloat(s));
-    if (parts.length >= 4 && parts[3] === 0) return undefined;
+    // Any translucency makes the declared color a lie about what the eye
+    // sees (e.g. a 45% black scrim is not a black background): report it as
+    // unknown so the pixel-sampled path judges the rendered result instead.
+    if (parts.length >= 4 && parts[3] < 1) return undefined;
     const hex = n => Math.round(n).toString(16).padStart(2, "0");
     return "#" + hex(parts[0]) + hex(parts[1]) + hex(parts[2]);
   }

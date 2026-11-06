@@ -9,7 +9,7 @@ not a plugin is enabled.
 
 ```ts
 import type { EvePlugin, PluginContext, Percept, PredictionOutcome, LoopIteration }
-  from "experience-validation-engine";
+  from "@fernandogarzadev/experience-validation-engine";
 
 class MyPlugin implements EvePlugin {
   readonly name = "my-plugin";

@@ -6,7 +6,7 @@ simulated population matches them — so realism becomes something you *measure*
 and improve, not something you assume.
 
 ```ts
-import { simulatePopulation, calibrate, renderCalibrationMarkdown } from "experience-validation-engine";
+import { simulatePopulation, calibrate, renderCalibrationMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const study = await simulatePopulation({ url: "https://staging.example.com", size: 40, seed: 7 });
 const report = calibrate(humanStudy, study);

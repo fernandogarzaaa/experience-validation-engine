@@ -67,7 +67,7 @@ and the full scoring/reporting pipeline work unmodified.
 Programmatic use:
 
 ```ts
-import { EveSession, McpAdapter } from "experience-validation-engine";
+import { EveSession, McpAdapter } from "@fernandogarzadev/experience-validation-engine";
 
 const session = new EveSession({
   adapter: new McpAdapter(), // stdio by default; options: { connector, windowRows, callTimeoutMs }
@@ -104,7 +104,7 @@ schedule), with the driving findings cited as evidence.
 Programmatic use:
 
 ```ts
-import { evaluateMcpServer } from "experience-validation-engine";
+import { evaluateMcpServer } from "@fernandogarzadev/experience-validation-engine";
 
 const report = await evaluateMcpServer("node my-server.js", {
   fuzz: { seed: 7, timeoutMs: 3000 },
@@ -115,8 +115,8 @@ const report = await evaluateMcpServer("node my-server.js", {
 In-process servers (tests, dogfooding — EVE can evaluate *itself*):
 
 ```ts
-import { connectMcpInProcess, evaluateMcpServer } from "experience-validation-engine";
-import { createServer } from "experience-validation-engine/mcp";
+import { connectMcpInProcess, evaluateMcpServer } from "@fernandogarzadev/experience-validation-engine";
+import { createServer } from "@fernandogarzadev/experience-validation-engine/mcp";
 
 const report = await evaluateMcpServer("eve-itself", {
   connector: (target) => connectMcpInProcess(createServer(), target),

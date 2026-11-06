@@ -12,8 +12,8 @@
 
 import { createRequire } from "node:module";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
 import {
   type ApplicationMapInput,
@@ -578,7 +578,51 @@ export function createServer(): McpServer {
 }
 
 /** Start the server over stdio. */
+/**
+ * Usage text for `eve-mcp --help`. The server itself speaks only MCP over
+ * stdio, so a bare `--help`/`-h` must be answered here instead of starting
+ * the transport (which would wait on stdin forever).
+ */
+export function mcpHelpText(): string {
+  return [
+    'eve-mcp — EVE as a Model Context Protocol server ("AI that experiences software like a human")',
+    "",
+    "Usage:",
+    "  eve-mcp                  Start the MCP server on stdio (launched by your MCP client)",
+    "  eve-mcp --help           Show this help",
+    "",
+    "The server exposes 18 tools over the stdio transport:",
+    "  eve_run_session          Run a simulated-human session against a URL",
+    "  eve_run_usability_study  Run a population usability study (many operators)",
+    "  eve_run_user_study       Run an AI-moderated user study",
+    "  eve_predict_ux           Predict UX outcomes without running a session",
+    "  eve_product_report       Infer product intelligence from population behavior",
+    "  eve_multimodal_scan      Scan a page for visual/accessibility issues",
+    "  eve_read_artifact        Read a document like a simulated human",
+    "  eve_evaluate_conversation Evaluate a conversational agent",
+    "  eve_calibrate            Calibration substrate tooling",
+    "  eve_twin_session         Run a digital-twin session",
+    "  eve_application_map      Map an application's workflow graph",
+    "  eve_compare_builds       Compare experience across builds",
+    "  eve_list_personas        List built-in personas",
+    "  eve_list_professions     List professional overlays",
+    "  eve_list_cultures        List cultural profiles",
+    "  eve_bench                Run the EVE Bench scorecard",
+    "  eve_benchmark            Validate EVE against benchmark apps",
+    "  eve_get_report           Fetch a finished session report",
+    "",
+    "Configure your MCP client to launch `eve-mcp` (or `node bin/eve-mcp.js`)",
+    "as a stdio server. Nothing is written to stdout except the MCP protocol;",
+    "diagnostics go to stderr.",
+    "",
+  ].join("\n");
+}
+
 export async function main(): Promise<void> {
+  if (process.argv.slice(2).some((a) => a === "--help" || a === "-h")) {
+    process.stdout.write(mcpHelpText());
+    return;
+  }
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -36,7 +36,7 @@ Every client below runs the same server. Two ways to launch it:
 
 - **Published (recommended)** — no clone, no build:
   ```
-  npx -y experience-validation-engine eve-mcp
+  npx -y -p @fernandogarzadev/experience-validation-engine eve-mcp
   ```
 - **From a local checkout** — after `npm install && npm run build` in this repo:
   ```
@@ -52,7 +52,7 @@ The `mock:` app needs nothing.
 
 **Quickest — the CLI:**
 ```bash
-claude mcp add eve -- npx -y experience-validation-engine eve-mcp
+claude mcp add eve -- npx -y -p @fernandogarzadev/experience-validation-engine eve-mcp
 ```
 
 **Or as an installable plugin** (also bundles the `/eve` skill). This repo is a
@@ -75,7 +75,7 @@ Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
   "mcpServers": {
     "eve": {
       "command": "npx",
-      "args": ["-y", "experience-validation-engine", "eve-mcp"]
+      "args": ["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]
     }
   }
 }
@@ -88,7 +88,7 @@ Add to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.eve]
 command = "npx"
-args = ["-y", "experience-validation-engine", "eve-mcp"]
+args = ["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]
 ```
 
 ## Cursor
@@ -99,7 +99,7 @@ Create `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
   "mcpServers": {
     "eve": {
       "command": "npx",
-      "args": ["-y", "experience-validation-engine", "eve-mcp"]
+      "args": ["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]
     }
   }
 }
@@ -113,7 +113,7 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "eve": {
       "command": "npx",
-      "args": ["-y", "experience-validation-engine", "eve-mcp"]
+      "args": ["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]
     }
   }
 }
@@ -128,7 +128,7 @@ Create `.vscode/mcp.json`:
     "eve": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "experience-validation-engine", "eve-mcp"]
+      "args": ["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]
     }
   }
 }
@@ -137,7 +137,7 @@ Create `.vscode/mcp.json`:
 ## Any other MCP client
 
 Point it at a **stdio** server with command `npx` and args
-`["-y", "experience-validation-engine", "eve-mcp"]` (or the local
+`["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]` (or the local
 `node …/bin/eve-mcp.js`). Set `EVE_MCP_DEBUG=1` in the server's environment to
 send progress logs to stderr.
 
@@ -154,4 +154,4 @@ send progress logs to stderr.
 - **Reports:** `eve_run_session` writes `report.html` / `report.md` /
   `report.json` to its `output_dir`; `eve_get_report` reads them back.
 - **Embedding:** the server is also importable — `import { createServer } from
-  "experience-validation-engine/mcp"` — to mount alongside your own tools.
+  "@fernandogarzadev/experience-validation-engine/mcp"` — to mount alongside your own tools.

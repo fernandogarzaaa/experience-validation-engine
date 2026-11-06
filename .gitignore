@@ -12,3 +12,6 @@ eve.vivid-run*.yaml
 *.eve-memory.json
 .DS_Store
 *.tsbuildinfo
+
+.env
+*.env

@@ -126,8 +126,12 @@ Three principles make it a simulation rather than automation:
 
 ## Quick start
 
+> The npm package is published as `@fernandogarzadev/experience-validation-engine`.
+> The old unscoped `experience-validation-engine` package is frozen at 0.3.1 and no
+> longer updated; switch to the scoped name.
+
 ```bash
-npm install experience-validation-engine
+npm install @fernandogarzadev/experience-validation-engine
 
 # 30-second offline demo (no browser needed):
 npx eve run mock: --persona curious-explorer --steps 25
@@ -152,7 +156,7 @@ npx eve chat https://api.example.com/chat --goal "reset my password"
 Programmatic:
 
 ```ts
-import { EveSession, PlaywrightAdapter, writeReports } from "experience-validation-engine";
+import { EveSession, PlaywrightAdapter, writeReports } from "@fernandogarzadev/experience-validation-engine";
 
 const result = await new EveSession({
   adapter: new PlaywrightAdapter(),
@@ -169,6 +173,14 @@ await writeReports(result, ".eve-output");
 Sessions are **deterministic**: (app state, persona, seed) fully determine
 the run — so a changed path after a deploy is a real behavioral change in
 your product, and different seeds sample different plausible humans.
+
+**Declaring done:** pass `--success` (CLI) or `goalSuccessSignals` (API) with
+words that appear only once the task is complete, e.g.
+`--goal "sign up for an account" --success "welcome"`. Without explicit
+signals the operator judges completion on its own, and success states that
+appear via in-place DOM replacement (no navigation) can go unrecognized —
+the operator may keep going and eventually give up. When the outcome matters,
+name the success text.
 
 ## Beyond one operator (Phase 2)
 
@@ -213,7 +225,7 @@ can drive it directly. Your assistant gains tools like `eve_run_session`,
 
 ```bash
 # Claude Code — one line:
-claude mcp add eve -- npx -y experience-validation-engine eve-mcp
+claude mcp add eve -- npx -y -p @fernandogarzadev/experience-validation-engine eve-mcp
 
 # Claude Code — or install as a plugin (bundles the /eve skill):
 #   /plugin marketplace add fernandogarzaaa/experience-validation-engine
@@ -224,7 +236,7 @@ For every other client, drop this into its MCP config:
 
 ```json
 { "mcpServers": { "eve": {
-  "command": "npx", "args": ["-y", "experience-validation-engine", "eve-mcp"]
+  "command": "npx", "args": ["-y", "-p", "@fernandogarzadev/experience-validation-engine", "eve-mcp"]
 } } }
 ```
 

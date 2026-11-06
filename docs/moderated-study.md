@@ -8,7 +8,7 @@ Each reads the same population study through one professional lens and files an
 independent report; a moderator then reconciles them into one executive report.
 
 ```ts
-import { simulatePopulation, moderateStudy, renderModeratedStudyMarkdown } from "experience-validation-engine";
+import { simulatePopulation, moderateStudy, renderModeratedStudyMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const study = await simulatePopulation({ url: "mock:", size: 30, seed: 7 });
 const report = moderateStudy(study);

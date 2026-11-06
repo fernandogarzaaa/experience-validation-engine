@@ -1,5 +1,15 @@
 # Changelog
 
+> **Package renamed.** From 0.5.3 on, EVE is published to npm as
+> `@fernandogarzadev/experience-validation-engine`
+> (`npm install @fernandogarzadev/experience-validation-engine`). The old
+> unscoped `experience-validation-engine` package is frozen at 0.3.1 and will
+> not receive updates. The CLI binaries (`eve`, `eve-mcp`, `eve-cp1`) are
+> unchanged. MCP configs must name the binary explicitly:
+> `npx -y -p @fernandogarzadev/experience-validation-engine eve-mcp`
+> (the old `npx -y experience-validation-engine eve-mcp` form never resolved,
+> because the package has three bins and none matches the package name).
+
 ## Unreleased — Phase 2: modality-variant kernel (Approach B)
 
 The one-time core generalization, landed additively: the browser-flavored
@@ -156,6 +166,32 @@ report, or CP/1 document changes.
 
 18 new tests (`tests/registries.test.ts`, plus 2 engine-guard tests in
 `tests/spatialGuards.test.ts`); 355 total.
+
+## [0.5.3](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.2...v0.5.3) (2026-10-13)
+
+
+### Fixes
+
+* **ci:** keep Release green without NPM_TOKEN; stop tests dirtying tracked evidence ([#68](https://github.com/fernandogarzaaa/experience-validation-engine/issues/68)) ([e7bf342](https://github.com/fernandogarzaaa/experience-validation-engine/commit/e7bf342f910653cdec2bfb6791e5ba28ff1bda2d))
+* **package:** publish as @fernandogarzadev/experience-validation-engine ([#71](https://github.com/fernandogarzaaa/experience-validation-engine/issues/71)) ([5ae65b0](https://github.com/fernandogarzaaa/experience-validation-engine/commit/5ae65b05a068f9a926345485a74b43263fc5a56d))
+
+## [0.5.2](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.1...v0.5.2) (2026-10-11)
+
+
+### Fixes
+
+* add docs/getting-started.md referenced by README ([#49](https://github.com/fernandogarzaaa/experience-validation-engine/issues/49)) ([7fe3841](https://github.com/fernandogarzaaa/experience-validation-engine/commit/7fe38412a67cb100b5dd3368c7513a797d231355))
+* **audit:** ignore .env files in .gitignore ([#64](https://github.com/fernandogarzaaa/experience-validation-engine/issues/64)) ([2651642](https://github.com/fernandogarzaaa/experience-validation-engine/commit/26516424c42045fbe0bf8dd362b2cc6f4db2328b))
+* **cli:** make 'eve mcp-eval --help' print help instead of crashing ([#47](https://github.com/fernandogarzaaa/experience-validation-engine/issues/47)) ([d47e684](https://github.com/fernandogarzaaa/experience-validation-engine/commit/d47e684155ab2d710dcd2cd0e6af7de5bf65c4ea))
+* **deps:** bump transitive qs 6.15.3 to 6.16.0 ([#51](https://github.com/fernandogarzaaa/experience-validation-engine/issues/51)) ([6ee1c01](https://github.com/fernandogarzaaa/experience-validation-engine/commit/6ee1c010dc74719f645d3ddc69db1f2e1cbfc706))
+* **deps:** pin transitive hono to 4.13.7 via overrides (XSS GHSA-hxh3-vqpv-xpqv) ([#59](https://github.com/fernandogarzaaa/experience-validation-engine/issues/59)) ([89eff8a](https://github.com/fernandogarzaaa/experience-validation-engine/commit/89eff8a425e06d28bbbe3641eb2fbc94fbe98e2d))
+* **production-readiness:** dogfood-driven correctness fixes ([#66](https://github.com/fernandogarzaaa/experience-validation-engine/issues/66)) ([1a66db1](https://github.com/fernandogarzaaa/experience-validation-engine/commit/1a66db163cb2057784872fd6e8e284a7ca53e311))
+* usage-audit findings (per-command --help, eve run --success) ([#65](https://github.com/fernandogarzaaa/experience-validation-engine/issues/65)) ([1c1b8b5](https://github.com/fernandogarzaaa/experience-validation-engine/commit/1c1b8b54c55107e700e351a928c6c49245d9a1dc))
+
+
+### Documentation
+
+* note npm registry lag behind main (0.3.1 vs 0.5.1) ([47eae53](https://github.com/fernandogarzaaa/experience-validation-engine/commit/47eae5301191323f6a1a2036cd2b095d19165c5c))
 
 ## [0.5.1](https://github.com/fernandogarzaaa/experience-validation-engine/compare/v0.5.0...v0.5.1) (2026-09-21)
 

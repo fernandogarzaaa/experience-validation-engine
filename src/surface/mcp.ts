@@ -121,7 +121,7 @@ export class McpAdapter implements BrowserAdapter, KernelSurface {
   private conn: McpConnection | null = null;
   private target = "";
   private openedAt = Date.now();
-  private tools: readonly import("@modelcontextprotocol/sdk/types.js").Tool[] = [];
+  private tools: readonly import("@modelcontextprotocol/client").Tool[] = [];
   private selected: SelectedTool | null = null;
   private lastResult: LastResult | null = null;
   /** Most recent server notification (cleared when the operator next acts). */

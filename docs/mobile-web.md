@@ -34,7 +34,7 @@ device: iPhone 14   # iPhone 14 | iPhone SE | Pixel 7 | iPad Mini (default: iPho
 
 ```ts
 // Programmatic
-import { EveSession, MobileAdapter, writeReports } from "experience-validation-engine";
+import { EveSession, MobileAdapter, writeReports } from "@fernandogarzadev/experience-validation-engine";
 
 const result = await new EveSession({
   adapter: new MobileAdapter({ headless: true, device: "iPhone 14" }),

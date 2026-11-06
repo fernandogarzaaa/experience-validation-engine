@@ -138,7 +138,7 @@ which is the same signal for a document that churn is for an app.
 
 ## Prerequisites
 
-The MCP server runs via `npx -y experience-validation-engine eve-mcp`.
+The MCP server runs via `npx -y -p @fernandogarzadev/experience-validation-engine eve-mcp`.
 `mock:`, `read` and `chat` need nothing at all.
 
 A real URL needs Chromium fetched once. Playwright ships with EVE, but its
@@ -147,7 +147,7 @@ Playwright version — so install them **from the project where EVE is
 installed**, where `npx` resolves EVE's own copy:
 
 ```bash
-npm install experience-validation-engine
+npm install @fernandogarzadev/experience-validation-engine
 npx playwright install chromium     # resolves the Playwright EVE will import
 ```
 

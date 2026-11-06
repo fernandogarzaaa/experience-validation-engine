@@ -241,7 +241,7 @@ eve run doc:./README.md                      # doc: routes anywhere a URL goes
 Programmatically:
 
 ```ts
-import { readArtifact, readText, analyzeComprehension, artifactFromText } from "experience-validation-engine";
+import { readArtifact, readText, analyzeComprehension, artifactFromText } from "@fernandogarzadev/experience-validation-engine";
 
 // Full reading session: an ordinary SessionResult, plus the analysis.
 const result = await readArtifact("./docs/onboarding.md", { persona: "first-time-user" });

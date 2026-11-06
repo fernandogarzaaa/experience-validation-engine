@@ -50,18 +50,26 @@ export function parseHexColor(hex: string): [number, number, number] | null {
 
 /**
  * Sample luminances within a box (subsampled grid). Returns sorted values.
+ *
+ * The grid scales with the box: a fixed grid misses thin glyph strokes when
+ * a large box holds small text (e.g. a table cell), and the fg/bg percentile
+ * estimate below then reads background-vs-background as "unreadable".
  */
-export function sampleLuminances(img: DecodedImage, box: BoundingBox, gridSize = 12): number[] {
+export function sampleLuminances(img: DecodedImage, box: BoundingBox, gridSize = 0): number[] {
   const values: number[] = [];
+  const size =
+    gridSize > 0
+      ? gridSize
+      : Math.min(64, Math.max(12, Math.ceil(Math.max(box.width, box.height) / 4)));
   const x0 = Math.max(0, box.x);
   const y0 = Math.max(0, box.y);
   const x1 = Math.min(img.width - 1, box.x + box.width);
   const y1 = Math.min(img.height - 1, box.y + box.height);
   if (x1 <= x0 || y1 <= y0) return values;
-  for (let gy = 0; gy < gridSize; gy++) {
-    for (let gx = 0; gx < gridSize; gx++) {
-      const x = x0 + ((x1 - x0) * (gx + 0.5)) / gridSize;
-      const y = y0 + ((y1 - y0) * (gy + 0.5)) / gridSize;
+  for (let gy = 0; gy < size; gy++) {
+    for (let gx = 0; gx < size; gx++) {
+      const x = x0 + ((x1 - x0) * (gx + 0.5)) / size;
+      const y = y0 + ((y1 - y0) * (gy + 0.5)) / size;
       const [r, g, b] = pixelAt(img, x, y);
       values.push(relativeLuminance(r, g, b));
     }

@@ -10,9 +10,9 @@
  * wire and would collide with EVE's own vocabulary if flattened into one
  * namespace:
  *
- * - `experience-validation-engine/protocol` — the CP/1 binding, by which EVE,
+ * - `@fernandogarzadev/experience-validation-engine/protocol` — the CP/1 binding, by which EVE,
  *   ADAM and AXIOM-AETHER exchange documents as one organism.
- * - `experience-validation-engine/fitness` — counterfactual fitness
+ * - `@fernandogarzadev/experience-validation-engine/fitness` — counterfactual fitness
  *   measurement, EVE's role in the developmental lifecycle.
  */
 

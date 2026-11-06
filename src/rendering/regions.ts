@@ -283,7 +283,24 @@ export function findRegions(grid: InkGrid, scale: number, pageLuminance: number)
     const density = inkDensity(grid, devBox);
     const structure = lineStructure(blob);
     const luminance = meanLuminance(grid, devBox, pageLuminance);
-    const kind = classify(density, structure, Math.abs(luminance - pageLuminance));
+    let kind = classify(density, structure, Math.abs(luminance - pageLuminance));
+    // A hairline rule (<hr>, a table border) spans one or two grid rows with
+    // full-width ink and scores high on line-consistency, but it is not
+    // readable content: never report it as text no screen reader can reach.
+    // A long line of small type can also be two rows tall and very wide, so
+    // require continuous ink — a rule has no word gaps.
+    const aspect = devBox.width / Math.max(1, devBox.height);
+    if (kind === "text" && blob.rowInk.size <= 2 && aspect > 16) {
+      const widthCells = blob.maxX - blob.minX + 1;
+      let continuous = true;
+      for (const count of blob.rowInk.values()) {
+        if (count / widthCells < 0.85) {
+          continuous = false;
+          break;
+        }
+      }
+      if (continuous) kind = "solid";
+    }
 
     const box: BoundingBox = {
       x: devBox.x / scale,

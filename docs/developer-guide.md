@@ -3,7 +3,7 @@
 ## Install
 
 ```bash
-npm install experience-validation-engine
+npm install @fernandogarzadev/experience-validation-engine
 
 # The document, conversational, MCP and mock surfaces work immediately.
 # Driving a real browser needs Chromium fetched once — Playwright ships with
@@ -48,7 +48,7 @@ import {
   AccessibilityPlugin,
   PerformancePlugin,
   writeReports,
-} from "experience-validation-engine";
+} from "@fernandogarzadev/experience-validation-engine";
 
 const session = new EveSession({
   adapter: new PlaywrightAdapter({ headless: true }),
@@ -129,7 +129,7 @@ on only when you want it.
 ### Enhanced cognition (CLI: `--cognitive`, `--utility`)
 
 ```ts
-import { EveSession, MockAdapter, DEMO_APP, UtilityCognition } from "experience-validation-engine";
+import { EveSession, MockAdapter, DEMO_APP, UtilityCognition } from "@fernandogarzadev/experience-validation-engine";
 
 const result = await new EveSession({
   adapter: new MockAdapter(DEMO_APP),
@@ -154,7 +154,7 @@ suite.
 ### Long-term memory & learning (CLI: `--remember <file.json>`)
 
 ```ts
-import { InMemoryStore, FileMemoryStore } from "experience-validation-engine";
+import { InMemoryStore, FileMemoryStore } from "@fernandogarzadev/experience-validation-engine";
 
 const store = new FileMemoryStore(".eve-memory.json"); // or new InMemoryStore()
 const result = await new EveSession({
@@ -174,7 +174,7 @@ steps (power law of practice). See `examples/learning-across-sessions.ts`.
 The culture is a session option; the profession is applied to the persona:
 
 ```ts
-import { getPersona, getProfession, applyProfession } from "experience-validation-engine";
+import { getPersona, getProfession, applyProfession } from "@fernandogarzadev/experience-validation-engine";
 
 const result = await new EveSession({
   adapter, startUrl,
@@ -188,7 +188,7 @@ Discover the catalogs with `eve professions` / `eve cultures`.
 ### Behavioral & temporal regression
 
 ```ts
-import { compareExperience } from "experience-validation-engine";
+import { compareExperience } from "@fernandogarzadev/experience-validation-engine";
 
 const report = compareExperience(baseline, candidate, { baseline: "v1.0", candidate: "v1.1" });
 if (report.verdict === "regressed") process.exit(1); // UX regressed even if tests are green
@@ -202,7 +202,7 @@ subset, and a verdict of `improved | unchanged | regressed`. See
 ### The AI evaluation panel (CLI: `--panel`)
 
 ```ts
-import { runPanel, renderPanelMarkdown } from "experience-validation-engine";
+import { runPanel, renderPanelMarkdown } from "@fernandogarzadev/experience-validation-engine";
 
 const panel = runPanel([result]);        // accepts one or many sessions
 panel.critique;    // design critic (Nielsen heuristics, evidence-linked)
@@ -218,7 +218,7 @@ See `examples/ai-panel.ts`.
 ### Collaborative multi-operator sessions
 
 ```ts
-import { runCollaborative } from "experience-validation-engine";
+import { runCollaborative } from "@fernandogarzadev/experience-validation-engine";
 ```
 
 Models a handoff / approval chain across several operators. See

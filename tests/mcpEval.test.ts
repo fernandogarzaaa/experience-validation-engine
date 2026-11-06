@@ -15,9 +15,7 @@ import {
   createSloppyServer,
 } from "./fixtures/mcpFixture.js";
 
-function connectorFor(
-  makeServer: () => import("@modelcontextprotocol/sdk/server/index.js").Server,
-) {
+function connectorFor(makeServer: () => import("@modelcontextprotocol/server").Server) {
   return (target: string) => connectMcpInProcess(makeServer(), target);
 }
 
