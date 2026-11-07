@@ -14,6 +14,9 @@
  */
 
 import { createHash } from "node:crypto";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PNG } from "pngjs";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -117,6 +120,22 @@ describe.skipIf(!BIN)("RuneAdapter against the real hello binary", () => {
       createHash("md5").update(firstPng!).digest("hex"),
     );
     expect(secondSnap.elements).toEqual(firstSnap.elements);
+  });
+
+  it("creates the record directory when it does not exist", async () => {
+    const base = await mkdtemp(join(tmpdir(), "rune-record-test-"));
+    const recordDir = join(base, "nested", "record");
+    try {
+      const adapter = new RuneAdapter({ recordDir });
+      adapters.push(adapter);
+      await adapter.open(`rune:${BIN}`, VIEWPORT);
+      const files = await readdir(recordDir);
+      expect(files).toContain("step-0.png");
+      expect(files).toContain("step-0.json");
+      expect(files).toContain("step-0.journal.json");
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 
   it("open without a binary explains itself", async () => {

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, constants, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, constants, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { promisify } from "node:util";
@@ -427,6 +427,7 @@ export class RuneAdapter implements BrowserAdapter {
   /** Save this step's PNG, tree and journal for post-run grounding scoring. */
   private async record(): Promise<void> {
     const dir = this.options.recordDir!;
+    await mkdir(dir, { recursive: true });
     const n = this.recordStep++;
     await writeFile(join(dir, `step-${n}.png`), this.lastPng!);
     await writeFile(join(dir, `step-${n}.json`), JSON.stringify(this.lastTree, null, 2));
