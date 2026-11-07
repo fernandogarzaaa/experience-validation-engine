@@ -25,6 +25,8 @@ export {
 export { PERCEPTION_SCRIPT } from "./perceptionScript.js";
 export { PlaywrightAdapter } from "./playwright.js";
 export { PuppeteerAdapter } from "./puppeteer.js";
+export type { RuneAdapterOptions } from "./rune.js";
+export { RuneAdapter } from "./rune.js";
 export { SeleniumAdapter } from "./selenium.js";
 
 import type { AdapterOptions, BrowserAdapter } from "./adapter.js";
@@ -32,9 +34,10 @@ import { MobileAdapter } from "./mobile.js";
 import { MockAdapter } from "./mock.js";
 import { PlaywrightAdapter } from "./playwright.js";
 import { PuppeteerAdapter } from "./puppeteer.js";
+import { RuneAdapter } from "./rune.js";
 import { SeleniumAdapter } from "./selenium.js";
 
-export type AdapterName = "playwright" | "puppeteer" | "selenium" | "mobile" | "mock";
+export type AdapterName = "playwright" | "puppeteer" | "selenium" | "mobile" | "mock" | "rune";
 
 /** Factory used by the CLI and config loader. */
 export function createAdapter(name: AdapterName, options: AdapterOptions = {}): BrowserAdapter {
@@ -49,6 +52,8 @@ export function createAdapter(name: AdapterName, options: AdapterOptions = {}): 
       return new MobileAdapter(options);
     case "mock":
       return new MockAdapter();
+    case "rune":
+      return new RuneAdapter(options);
     default: {
       const exhaustive: never = name;
       throw new Error(`Unknown adapter "${String(exhaustive)}"`);

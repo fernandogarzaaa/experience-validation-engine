@@ -4,7 +4,7 @@ import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 import type { BrowserAdapter, RawSnapshot } from "../src/browser/adapter.js";
 import { findingCategoryRegistry } from "../src/core/findingCategories.js";
-import type { Percept } from "../src/core/types.js";
+import type { Percept, VisibleElement } from "../src/core/types.js";
 import { EveSession } from "../src/engine/session.js";
 import {
   abbreviate,
@@ -414,5 +414,67 @@ describe("session integration", () => {
     expect(category?.evidenceRequired).toBe(true);
     expect(category?.appliesTo).toEqual(["visual"]);
     expect(dimensionRegistry.has(RENDERING_DIMENSION)).toBe(true);
+  });
+});
+
+describe("accessibility-sourced labels", () => {
+  function solidPng(width: number, height: number, rgb: [number, number, number]): Buffer {
+    const png = new PNG({ width, height });
+    for (let i = 0; i < width * height; i++) {
+      png.data[i * 4] = rgb[0];
+      png.data[i * 4 + 1] = rgb[1];
+      png.data[i * 4 + 2] = rgb[2];
+      png.data[i * 4 + 3] = 255;
+    }
+    return PNG.sync.write(png);
+  }
+
+  function element(overrides: Partial<VisibleElement>): VisibleElement {
+    return {
+      id: 0,
+      role: "text",
+      text: "sample text here",
+      box: { x: 20, y: 20, width: 160, height: 24 },
+      interactive: false,
+      disabled: false,
+      editable: false,
+      focused: false,
+      clippedByViewport: false,
+      ...overrides,
+    };
+  }
+
+  function blankPercept(elements: VisibleElement[]): Percept {
+    return {
+      timestamp: 0,
+      url: "file://fixture",
+      title: "Blank",
+      viewport: { width: 200, height: 200 },
+      scrollY: 0,
+      scrollHeight: 200,
+      screenshot: solidPng(200, 200, [18, 19, 20]),
+      elements,
+      dialogs: [],
+      loadingIndicator: false,
+    };
+  }
+
+  it("does not flag an accessibility-sourced label as unrendered text", () => {
+    // The Rune name-form field carries "Your name" as its accessible name.
+    // The label is never rendered inside the field's box, so a blank box
+    // under it is expected. Before the fix this drew a spurious finding.
+    const { issues } = inspect(
+      blankPercept([
+        element({ id: 1, role: "textbox", text: "Your name", textSource: "accessibility" }),
+      ]),
+    );
+    expect(issues.filter((i) => i.kind === "unrendered-text")).toEqual([]);
+  });
+
+  it("still flags rendered text that never reached the screen", () => {
+    const { issues } = inspect(
+      blankPercept([element({ id: 1, text: "vanished label", textSource: "visual" })]),
+    );
+    expect(issues.some((i) => i.kind === "unrendered-text")).toBe(true);
   });
 });

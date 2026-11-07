@@ -1,0 +1,150 @@
+{
+  "accessibility": {
+    "bounds": [
+      0.0,
+      0.0,
+      320.0,
+      200.0
+    ],
+    "children": [
+      {
+        "bounds": [
+          130.3,
+          72.8,
+          59.5,
+          16.5
+        ],
+        "name": "Lights off",
+        "role": "label"
+      },
+      {
+        "actions": [
+          "click",
+          "focus"
+        ],
+        "bounds": [
+          141.0,
+          105.3,
+          38.0,
+          22.0
+        ],
+        "children": [
+          {
+            "bounds": [
+              143.0,
+              107.3,
+              18.0,
+              18.0
+            ],
+            "key": "knob",
+            "role": "group"
+          }
+        ],
+        "key": "switch",
+        "name": "Lights",
+        "role": "switch",
+        "states": [
+          "unchecked"
+        ]
+      }
+    ],
+    "name": "Hello",
+    "role": "window"
+  },
+  "anim_t": 0.0,
+  "animating": false,
+  "dark_system": true,
+  "elements": [
+    {
+      "blur": 0.0,
+      "fill": "#121314ff",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0",
+      "rect": [
+        0.0,
+        0.0,
+        320.0,
+        200.0
+      ],
+      "role": "group",
+      "scale": 1.0
+    },
+    {
+      "blur": 0.0,
+      "color": "#eff0f2ff",
+      "fill": "#00000000",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/#0",
+      "rect": [
+        130.25,
+        72.75,
+        59.5,
+        16.5
+      ],
+      "role": "text",
+      "scale": 1.0,
+      "text": "Lights off"
+    },
+    {
+      "blur": 0.0,
+      "fill": "#ffffff16",
+      "focusVisible": false,
+      "focusable": true,
+      "focused": false,
+      "inert": false,
+      "key": "switch",
+      "label": "Lights",
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/switch",
+      "rect": [
+        141.0,
+        105.25,
+        38.0,
+        22.0
+      ],
+      "role": "switch",
+      "scale": 1.0
+    },
+    {
+      "blur": 0.0,
+      "fill": "#fafafaff",
+      "focusVisible": false,
+      "focusable": false,
+      "focused": false,
+      "inert": false,
+      "key": "knob",
+      "loopPhase": null,
+      "opacity": 1.0,
+      "path": "#0/switch/knob",
+      "rect": [
+        143.0,
+        107.25,
+        18.0,
+        18.0
+      ],
+      "role": "group",
+      "scale": 1.0
+    }
+  ],
+  "reduced_motion": false,
+  "scale": 2.0,
+  "t": 0.0,
+  "time_scale": 1.0,
+  "title": "Hello",
+  "viewport": [
+    320.0,
+    200.0
+  ],
+  "warnings": []
+}
